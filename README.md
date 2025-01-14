@@ -23,7 +23,7 @@ Before running RowBoat, ensure you have:
 
 4. **Auth0 Account and Application Setup**
    - **Create an Auth0 Account**: Sign up at [Auth0](https://auth0.com).
-   - **Create a New Application**: Choose "Regular Web Applications" and name it "RowBoat".
+   - **Create a New Application**: Choose "Regular Web Application", select "Next.js" as the application type, and name it "RowBoat".
    - **Configure Application**:
      - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
    - **Get Credentials**: Note down Domain, Client ID, and Client Secret.
