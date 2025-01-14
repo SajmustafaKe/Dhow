@@ -77,6 +77,51 @@ Before running RowBoat, ensure you have:
 4. **Access the App**
    - Visit [http://localhost:3000](http://localhost:3000).
 
+5. **Use the API**
+
+   You can use the API at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
+   - Project ID is available in the URL of the project page
+   - Project Secret is available in the project config page
+
+   ```bash
+   curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
+   --header 'Content-Type: application/json' \
+   --header 'Authorization: Bearer <PROJECT_SECRET>' \
+   --data '{
+       "messages": [
+           {
+               "role": "user",
+               "content": "tell me the weather in london in metric units"
+           }
+       ]
+   }'
+   ```
+   which gives:
+   ```json
+   {
+       "messages": [
+           {
+               "role": "assistant",
+               "tool_calls": [
+                   {
+                       "function": {
+                           "arguments": "{\"location\":\"London\",\"units\":\"metric\"}",
+                           "name": "weather_lookup_tool"
+                       },
+                       "id": "call_r6XKuVxmGRogofkyFZIacdL0",
+                       "type": "function"
+                   }
+               ],
+               "agenticSender": "Example Agent",
+               "agenticResponseType": "internal"
+           }
+       ],
+       "state": {
+           // .. state data
+       }
+   }
+   ```
+
 ## Troubleshooting
 
 1. **MongoDB Connection Issues**
