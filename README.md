@@ -27,7 +27,7 @@ Before running RowBoat, ensure you have:
    - **Configure Application**:
      - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
    - **Get Credentials**: Note down Domain, Client ID, and Client Secret.
-   - **Secure Application**: Generate a session encryption secret:
+   - **Secure Application**: Generate a session encryption secret in your terminal and note the output for later:
      ```bash
      openssl rand -hex 32
      ```
