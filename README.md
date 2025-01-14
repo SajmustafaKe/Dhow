@@ -7,7 +7,7 @@ This guide will help you set up and run the RowBoat applications locally using D
 Before running RowBoat, ensure you have:
 
 1. **Docker Desktop**
-   - [Download Docker Desktop](https://www.docker.com/products/docker-desktop) and ensure Docker Compose is included.
+   - [Download Docker Desktop](https://www.docker.com/products/docker-desktop)
 
 2. **OpenAI API Key**
    - Obtain from your OpenAI account.
@@ -26,8 +26,11 @@ Before running RowBoat, ensure you have:
    - **Create a New Application**: Choose "Regular Web Application", select "Next.js" as the application type, and name it "RowBoat".
    - **Configure Application**:
      - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
-   - **Get Credentials**: Note down Domain, Client ID, and Client Secret.
-   - **Secure Application**: Generate a session encryption secret in your terminal and note the output for later:
+   - **Get Credentials**: Collect the following from your Auth0 application settings:
+     - **Domain**: Copy your Auth0 domain (ensure it is prefixed with `https://`)
+     - **Client ID**: Your application's unique identifier
+     - **Client Secret**: Your application's secret key
+   - **Generate secret**: Generate a session encryption secret in your terminal and note the output for later:
      ```bash
      openssl rand -hex 32
      ```
@@ -55,7 +58,7 @@ Before running RowBoat, ensure you have:
      # Auth0 Configuration
      AUTH0_SECRET=your-generated-secret               # Generated using openssl command
      AUTH0_BASE_URL=http://localhost:3000             # Your application's base URL
-     AUTH0_ISSUER_BASE_URL=https://example.auth0.com  # Your Auth0 domain
+     AUTH0_ISSUER_BASE_URL=https://example.auth0.com  # Your Auth0 domain (ensure it is prefixed with https://)
      AUTH0_CLIENT_ID=your-client-id
      AUTH0_CLIENT_SECRET=your-client-secret
 
@@ -83,3 +86,9 @@ Before running RowBoat, ensure you have:
 2. **Container Start-up Issues**
    - Remove all containers: `docker-compose down`
    - Rebuild: `docker-compose up --build`
+
+3. **Auth0 Domain Configuration Issues**
+   - Ensure the Auth0 domain in your `.env` file is prefixed with `https://`. If incorrect, the sign-in button may not appear in the UI.
+
+3. **Sign-in Button Not Appearing**
+   - If the sign-in button does not appear in the UI, ensure the Auth0 domain in your `.env` file is prefixed with `https://`.
