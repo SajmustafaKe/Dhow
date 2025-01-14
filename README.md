@@ -87,8 +87,5 @@ Before running RowBoat, ensure you have:
    - Remove all containers: `docker-compose down`
    - Rebuild: `docker-compose up --build`
 
-3. **Auth0 Domain Configuration Issues**
-   - Ensure the Auth0 domain in your `.env` file is prefixed with `https://`. If incorrect, the sign-in button may not appear in the UI.
-
 3. **Sign-in Button Not Appearing**
    - If the sign-in button does not appear in the UI, ensure the Auth0 domain in your `.env` file is prefixed with `https://`.
