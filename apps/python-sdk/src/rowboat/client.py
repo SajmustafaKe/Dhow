@@ -30,8 +30,6 @@ class Client:
             messages=messages,
             state=state
         )
-        # print request json
-        print(request.model_dump_json())
         response = requests.post(self.base_url, headers=self.headers, data=request.model_dump_json())
 
         if not response.status_code == 200:
