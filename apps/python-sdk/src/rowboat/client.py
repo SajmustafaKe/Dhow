@@ -1,7 +1,16 @@
 from typing import Dict, List, Optional, Any, Callable, Union, Tuple
 import requests
 import json
-from schema import ApiRequest, ApiResponse, ApiMessage, ToolMessage, UserMessage, SystemMessage, AssistantMessage, AssistantMessageWithToolCalls
+from .schema import (
+    ApiRequest, 
+    ApiResponse, 
+    ApiMessage, 
+    ToolMessage, 
+    UserMessage, 
+    SystemMessage, 
+    AssistantMessage, 
+    AssistantMessageWithToolCalls
+)
 
 
 class Client:
