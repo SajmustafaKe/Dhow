@@ -77,9 +77,36 @@ Before running RowBoat, ensure you have:
 4. **Access the App**
    - Visit [http://localhost:3000](http://localhost:3000).
 
-5. **Use the API**
+5. **Interact with RowBoat**
 
-   You can use the API at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
+   There are two ways to interact with RowBoat:
+
+   ### Option 1: Python SDK
+
+   For Python applications, we provide an official SDK for easier integration:
+   ```bash
+   pip install rowboat
+   ```
+
+   ```python
+   from rowboat import Client
+
+   client = Client(
+       host="http://localhost:3000",
+       project_id="<PROJECT_ID>",
+       project_secret="<PROJECT_SECRET>"
+   )
+
+   # Simple chat interaction
+   messages = [{"role": "user", "content": "Tell me the weather in London"}]
+   response_messages, state = client.chat(messages=messages)
+   ```
+
+   For more details, see the [Python SDK documentation](./apps/python-sdk/README.md).
+
+   ### Option 2: HTTP API
+
+   You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
    - Project ID is available in the URL of the project page
    - Project Secret is available in the project config page
 

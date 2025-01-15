@@ -14,10 +14,11 @@ pip install rowboat
 
 ### Basic Usage
 
-Initialize a client and create a chat session:
+Initialize a client and use the chat method directly:
 
 ```python
-from rowboat import Client, StatefulChat
+from rowboat import Client
+from rowboat.schema import UserMessage, SystemMessage
 
 # Initialize the client
 client = Client(
@@ -26,21 +27,28 @@ client = Client(
     project_secret="<PROJECT_SECRET>"
 )
 
-# Create a chat session
-chat = StatefulChat(client)
+# Create messages
+messages = [
+    SystemMessage(role='system', content="You are a helpful assistant"),
+    UserMessage(role='user', content="Hello, how are you?")
+]
 
-# Send a message and get a response
-response = chat.run("Hello, how are you?")
-print(response)
+# Get response
+response_messages, state = client.chat(messages=messages)
+print(response_messages[-1].content)
+
+# For subsequent messages, include previous messages and state
+messages.extend(response_messages)
+messages.append(UserMessage(role='user', content="What's your name?"))
+response_messages, state = client.chat(messages=messages, state=state)
 ```
 
 ### Using Tools
 
-The SDK supports function calling through tools. Here's how to use them:
+The SDK supports function calling through tools:
 
 ```python
 def weather_lookup(city_name: str) -> str:
-    # Implement your weather lookup logic here
     return f"The weather in {city_name} is 22°C."
 
 # Create a tools dictionary
@@ -48,24 +56,31 @@ tools = {
     'weather_lookup': weather_lookup
 }
 
-# Initialize chat with tools
-chat = StatefulChat(client, tools=tools)
-
-# The AI can now use the weather tool
-response = chat.run("What's the weather in London?")
-print(response)
+# Use tools with the chat method
+response_messages, state = client.chat(
+    messages=messages,
+    tools=tools
+)
 ```
 
-### System Prompts
+### Stateful Chat (Convenience Wrapper)
 
-You can initialize the chat with a system prompt to guide the AI's behavior:
+For simpler use cases, the SDK provides a `StatefulChat` class that maintains conversation state automatically:
 
 ```python
+from rowboat import StatefulChat
+
+# Initialize stateful chat
 chat = StatefulChat(
     client,
     tools=tools,
-    system_prompt="You are a helpful assistant who specializes in weather information."
+    system_prompt="You are a helpful assistant."
 )
+
+# Simply send messages and get responses
+response = chat.run("Hello, how are you?")
+print(response)
+# I'm good, thanks! How can I help you today?
 ```
 
 ## API Reference
@@ -89,11 +104,3 @@ StatefulChat(
     system_prompt: Optional[str] = None
 )
 ```
-
-## License
-
-[Add your license information here]
-
-## Contributing
-
-[Add contribution guidelines here]
