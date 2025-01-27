@@ -94,7 +94,7 @@ Before running RowBoat, ensure you have:
    client = Client(
        host="http://localhost:3000",
        project_id="<PROJECT_ID>",
-       project_secret="<PROJECT_SECRET>"
+       api_key="<API_KEY>"  # Generate this from /projects/<PROJECT_ID>/config
    )
 
    # Simple chat interaction
@@ -108,12 +108,12 @@ Before running RowBoat, ensure you have:
 
    You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
    - Project ID is available in the URL of the project page
-   - Project Secret is available in the project config page
+   - API Key can be generated from the project config page at `/projects/<PROJECT_ID>/config`
 
    ```bash
    curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
    --header 'Content-Type: application/json' \
-   --header 'Authorization: Bearer <PROJECT_SECRET>' \
+   --header 'Authorization: Bearer <API_KEY>' \
    --data '{
        "messages": [
            {

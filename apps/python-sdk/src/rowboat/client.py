@@ -14,11 +14,11 @@ from .schema import (
 
 
 class Client:
-    def __init__(self, host: str, project_id: str, project_secret: str) -> None:
+    def __init__(self, host: str, project_id: str, api_key: str) -> None:
         self.base_url: str = f'{host}/api/v1/{project_id}/chat'
         self.headers: Dict[str, str] = {
             'Content-Type': 'application/json',
-            'Authorization': f'Bearer {project_secret}'
+            'Authorization': f'Bearer {api_key}'
         }
 
     def _call_api(
@@ -167,8 +167,8 @@ def weather_lookup_tool(city_name: str) -> str:
 if __name__ == "__main__":
     host: str = "<HOST>"
     project_id: str = "<PROJECT_ID>"
-    project_secret: str = "<PROJECT_SECRET>"
-    client = Client(host, project_id, project_secret)
+    api_key: str = "<API_KEY>"
+    client = Client(host, project_id, api_key)
 
     tools: Dict[str, Callable[..., str]] = {
         'weather_lookup': weather_lookup_tool
