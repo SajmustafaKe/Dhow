@@ -24,7 +24,7 @@ from rowboat.schema import UserMessage, SystemMessage
 client = Client(
     host="<HOST>",
     project_id="<PROJECT_ID>",
-    project_secret="<PROJECT_SECRET>"
+    api_key="<API_KEY>"
 )
 
 # Create messages
@@ -90,17 +90,9 @@ print(response)
 The `Client` class handles communication with the Rowboat API.
 
 ```python
-Client(host: str, project_id: str, project_secret: str)
+Client(host: str, project_id: str, api_key: str)
 ```
 
 ### StatefulChat
 
-The `StatefulChat` class maintains conversation state across multiple turns.
-
-```python
-StatefulChat(
-    client: Client,
-    tools: Optional[Dict[str, Callable[..., str]]] = None,
-    system_prompt: Optional[str] = None
-)
-```
+The `
