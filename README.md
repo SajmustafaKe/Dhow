@@ -149,6 +149,10 @@ Before running RowBoat, ensure you have:
    }
    ```
 
+6. **Documentation**
+   
+   The documentation site is available at [http://localhost:8000](http://localhost:8000)
+
 ## Troubleshooting
 
 1. **MongoDB Connection Issues**
