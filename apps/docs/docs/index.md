@@ -1,4 +1,4 @@
-# Welcome to Rowboat
+# Rowboat Docs
 
 Welcome to the official documentation for Rowboat. Rowboat is an open-source project that helps you build, test, and deploy AI applications.
 
