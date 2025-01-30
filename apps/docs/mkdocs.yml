@@ -1,7 +1,7 @@
 site_name: RowBoat docs
 site_url: https://docs.rowboatlabs.com
 theme:
-  name: readthedocs
+  name: material
   favicon: img/favicon.ico
 nav:
   - Overview:
@@ -9,5 +9,4 @@ nav:
     - Open Source License: license.md
   - Getting started:
     - Installation: installation.md
-    - Examples: examples.md
-    
+    - Quickstart: quickstart.md
