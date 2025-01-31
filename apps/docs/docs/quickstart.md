@@ -3,5 +3,7 @@ Follow the [installation steps](/installation/) to set up RowBoat Studio, API an
 
 ## Building your first assistant
 
+Coming soon.
+
 
 
