@@ -41,7 +41,6 @@ Before running RowBoat, ensure you have:
    ```bash
    git clone git@github.com:rowboatlabs/rowboat.git
    cd rowboat
-   git checkout dev
    ```
 
 2. **Environment Configuration**
