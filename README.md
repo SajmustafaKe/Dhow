@@ -164,3 +164,6 @@ Before running RowBoat, ensure you have:
 
 3. **Sign-in Button Not Appearing**
    - If the sign-in button does not appear in the UI, ensure the Auth0 domain in your `.env` file is prefixed with `https://`.
+
+## Attribution
+Our agents framework is built on top of [OpenAI Swarm](https://github.com/openai/swarm) with custom enhancements and improvements. Check the [NOTICE](https://github.com/rowboatlabs/rowboat/blob/main/apps/agents/NOTICE.md) for attribution and licensing details (MIT license).
