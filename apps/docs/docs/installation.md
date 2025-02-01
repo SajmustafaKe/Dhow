@@ -35,11 +35,31 @@ Refer to our [Github Readme for Local Development](https://github.com/rowboatlab
 ### Testing Studio
 
 1. Once you are set up, you should be able to login to the Studio (default local URL: [http://localhost:3000](http://localhost:8000)) via Auth0's login options (Gmail, Github etc.)
-2. Once in Studio, create a new blank project or use one of the example templates
-3. Ensure that the correct agent is set as the "start agent"
-4. Test out a chat in the playground to verify the agents' behavior
-5. Ask copilot to make minor modifications to one of the agents and apply the changes
-6. Test out another chat in the playground to verify the changes
+<br>
+
+2. Once in Studio, create a new blank project or use one of the example templates:
+![Create Project](img/project-page.png)
+<br>
+
+3. Use the copilot to help you build agents:
+![Use Copilot](img/use-copilot.png)
+<br>
+
+4. Ensure that the correct agent is set as the "start agent":
+![Set Start Agent](img/start-agent.png)
+<br>
+
+5. Test out a chat in the playground to verify the agents' behavior:
+![Testing Chat](img/testing-chat.png)
+<br>
+
+6. Ask copilot to make minor modifications to one of the agents and apply the changes:
+![Update Agent](img/update-agent.png)
+<br>
+
+7. Test out another chat in the playground to verify the changes:
+![Re-Test Chat](img/re-test-chat.png)
+<br>
 
 ### Testing the Chat API
 
@@ -59,7 +79,7 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
     "messages": [
         {
             "role": "user",
-            "content": "tell me the weather in london in metric units"
+            "content": "What is my pending payment amount?"
         }
     ]
 }'
@@ -69,19 +89,44 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
 {
     "messages": [
         {
+            "content": "Hello! It seems you want to check or settle an outstanding payment. Let me connect you to the right department for assistance.",
+            "created_at": "2025-02-01T06:55:47.843909",
+            "current_turn": true,
+            "response_type": "internal",
             "role": "assistant",
+            "sender": "Credit Card Hub",
             "tool_calls": [
                 {
                     "function": {
-                        "arguments": "{\"location\":\"London\",\"units\":\"metric\"}",
-                        "name": "weather_lookup_tool"
+                    "arguments": "{\"args\":\"\",\"kwargs\":\"\"}",
+                    "name": "transfer_to_outstanding_payment"
                     },
-                    "id": "call_r6XKuVxmGRogofkyFZIacdL0",
+                    "id": "call_7jGpwpVvzhZFOyRgxHFkdOdU",
                     "type": "function"
                 }
-            ],
-            "agenticSender": "Example Agent",
-            "agenticResponseType": "internal"
+            ]
+        },
+        {
+            "content": "{\"assistant\": \"Outstanding Payment\"}",
+            "role": "tool",
+            "tool_call_id": "call_7jGpwpVvzhZFOyRgxHFkdOdU",
+            "tool_name": "transfer_to_outstanding_payment"
+        },
+        {
+            "content": "Sure, could you provide the last four digits of your card or your registered mobile number so I can look up your pending payment amount?",
+            "created_at": "2025-02-01T06:55:49.648008",
+            "current_turn": true,
+            "response_type": "internal",
+            "role": "assistant",
+            "sender": "Outstanding Payment"
+        },
+        {
+            "content": "Sure, please provide the last four digits of your card or your registered mobile number so I can check your pending payment amount.",
+            "created_at": "2025-02-01T06:55:49.648008",
+            "current_turn": true,
+            "response_type": "external",
+            "role": "assistant",
+            "sender": "Outstanding Payment >> Post process"
         }
     ],
     "state": {
@@ -108,7 +153,7 @@ client = Client(
 )
 
 # Simple chat interaction
-messages = [{"role": "user", "content": "Tell me the weather in London"}]
+messages = [{"role": "user", "content": "What is my pending payment amount?"}]
 response_messages, state = client.chat(messages=messages)
 ```
 
