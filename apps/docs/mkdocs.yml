@@ -9,4 +9,6 @@ nav:
     - Open Source License: license.md
   - Getting started:
     - Installation: installation.md
-    - Quickstart: quickstart.md
+    - Building in Studio: building_in_studio.md
+    - Using the API: using_the_api.md
+    - Using the SDK: using_the_sdk.md

@@ -53,14 +53,6 @@ Refer to our [Github Readme for Local Development](https://github.com/rowboatlab
 ![Testing Chat](img/testing-chat.png)
 <br>
 
-6. Ask copilot to make minor modifications to one of the agents and apply the changes:
-![Update Agent](img/update-agent.png)
-<br>
-
-7. Test out another chat in the playground to verify the changes:
-![Re-Test Chat](img/re-test-chat.png)
-<br>
-
 ### Testing the Chat API
 
 You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)

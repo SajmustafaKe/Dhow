@@ -1,14 +1,10 @@
-# Rowboat Python SDK
+# Using the Python SDK
 
-A Python SDK for interacting with the Rowboat API.
+This is a guide on using the RowBoat Python SDK as an alternative to the [RowBoat HTTP API](/using_the_api) to power conversations with the assistant created in Studio.
 
-## Installation
-
-You can install the package using pip:
-
-```bash
-pip install rowboat
-```
+## Prerequisites
+- [Deploy your assistant to production](/using_the_api/#deploy-your-assistant-to-production-on-studio) and [obtain your API key and Project ID](/using_the_api/#obtain-api-key-and-project-id)
+- ``` pip install rowboat ```
 
 ## Usage
 
@@ -82,3 +78,4 @@ response = chat.run("Hello, how are you?")
 print(response)
 # I'm good, thanks! How can I help you today?
 ```
+
