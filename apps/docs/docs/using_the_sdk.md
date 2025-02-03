@@ -58,6 +58,7 @@ response_messages, state = client.chat(
     tools=tools
 )
 ```
+The last message in `response_messages` is either a user-facing response or a tool call by the assistant. 
 
 ### Stateful Chat (Convenience Wrapper)
 

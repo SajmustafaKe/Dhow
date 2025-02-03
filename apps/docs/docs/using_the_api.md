@@ -14,9 +14,9 @@ Generate API keys via the developer configs in your project. Copy the Project ID
 
 When you provide your Project ID in the API call, RowBoat uses the version of your assistant deployed to production. 
 
-The API takes as input: a) history of all messages till now (system, user, tool and assistant messages) and b) state generated from the previous turn (this is needed because the API does not maintain state on its own). 
+The API takes as input: a) history of all `messages` till now (system, user, tool and assistant messages) and b) `state` generated from the previous turn (this is needed because the API does not maintain state on its own). 
 
-The API produces as response: a) assistant responses (user-facing responses or tool calls) for the current and b) the state to be passed to the next turn.
+The API produces as response: a) `messages`, which are the assistant responses (user-facing responses or tool calls) for the current turn and b) the `state` to be passed to the next turn. The last message in `messages` is either a user-facing response or a tool call by the assistant. 
 
 ### Example first turn of a chat
 

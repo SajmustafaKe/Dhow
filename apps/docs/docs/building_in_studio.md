@@ -75,16 +75,3 @@ Create a test-bench of real-world scenarios in the simulator.
 
 Run the scenarios as simulated chats betweeen a user (role-played) and the assistant, in the playground.
 ![Simulation](img/simulate.png)
-
-
-
-
-
-
-
-
-
-
-
-
-

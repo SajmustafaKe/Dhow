@@ -77,6 +77,8 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
 }'
 ```
 **Response:**
+The last message in `messages` is either a user-facing response or a tool call by the assistant.
+
 ```json
 {
     "messages": [
@@ -148,31 +150,4 @@ client = Client(
 messages = [{"role": "user", "content": "What is my pending payment amount?"}]
 response_messages, state = client.chat(messages=messages)
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+The last message in `response_messages` is either a user-facing response or a tool call by the assistant.
