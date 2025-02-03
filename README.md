@@ -1,6 +1,7 @@
-# RowBoat Monorepo
+# RowBoat
+[![RowBoat Logo](/assets/rb-logo.png)](https://www.rowboatlabs.com/)
 
-This guide will help you set up and run the RowBoat applications locally using Docker.
+This guide will help you set up and run the RowBoat applications locally using Docker. Please see our [docs](https://docs.rowboatlabs.com/) for more details.
 
 ## Prerequisites
 
