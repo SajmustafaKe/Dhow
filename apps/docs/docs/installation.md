@@ -149,8 +149,6 @@ messages = [{"role": "user", "content": "What is my pending payment amount?"}]
 response_messages, state = client.chat(messages=messages)
 ```
 
-For more about the SDK, see our [Github Readme for Python SDK](https://github.com/rowboatlabs/rowboat/tree/main/apps/python-sdk).
-
 
 
 
