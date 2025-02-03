@@ -83,16 +83,17 @@ The last message in `messages` is either a user-facing response or a tool call b
 {
     "messages": [
         {
-            "content": "Hello! It seems you want to check or settle an outstanding payment. Let me connect you to the right department for assistance.",
+            "sender": "Credit Card Hub",
+            "role": "assistant",
+            "response_type": "internal",
+            "content": null,
             "created_at": "2025-02-01T06:55:47.843909",
             "current_turn": true,
-            "response_type": "internal",
-            "role": "assistant",
-            "sender": "Credit Card Hub",
             "tool_calls": [
                 {
                     "function": {
                     "arguments": "{\"args\":\"\",\"kwargs\":\"\"}",
+                    // Internal tool calls are used to transfer between agents
                     "name": "transfer_to_outstanding_payment"
                     },
                     "id": "call_7jGpwpVvzhZFOyRgxHFkdOdU",
@@ -101,26 +102,28 @@ The last message in `messages` is either a user-facing response or a tool call b
             ]
         },
         {
-            "content": "{\"assistant\": \"Outstanding Payment\"}",
+            "tool_name": "transfer_to_outstanding_payment",
             "role": "tool",
-            "tool_call_id": "call_7jGpwpVvzhZFOyRgxHFkdOdU",
-            "tool_name": "transfer_to_outstanding_payment"
+            "content": "{\"assistant\": \"Outstanding Payment\"}",
+            "tool_call_id": "call_7jGpwpVvzhZFOyRgxHFkdOdU"
         },
         {
+            "sender": "Outstanding Payment",
+            "role": "assistant",
+            // Response is not user-facing, to enable further post processing
+            "response_type": "internal",
             "content": "Sure, could you provide the last four digits of your card or your registered mobile number so I can look up your pending payment amount?",
             "created_at": "2025-02-01T06:55:49.648008",
-            "current_turn": true,
-            "response_type": "internal",
-            "role": "assistant",
-            "sender": "Outstanding Payment"
+            "current_turn": true
         },
         {
+            "sender": "Outstanding Payment >> Post process",
+            "role": "assistant",
+            // Response is user-facing
+            "response_type": "external",
             "content": "Sure, please provide the last four digits of your card or your registered mobile number so I can check your pending payment amount.",
             "created_at": "2025-02-01T06:55:49.648008",
-            "current_turn": true,
-            "response_type": "external",
-            "role": "assistant",
-            "sender": "Outstanding Payment >> Post process"
+            "current_turn": true
         }
     ],
     "state": {

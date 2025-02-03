@@ -14,9 +14,15 @@ Generate API keys via the developer configs in your project. Copy the Project ID
 
 When you provide your Project ID in the API call, RowBoat uses the version of your assistant deployed to production. 
 
-The API takes as input: a) history of all `messages` till now (system, user, tool and assistant messages) and b) `state` generated from the previous turn (this is needed because the API does not maintain state on its own). 
+**Request parameters:** 
 
-The API produces as response: a) `messages`, which are the assistant responses (user-facing responses or tool calls) for the current turn and b) the `state` to be passed to the next turn. The last message in `messages` is either a user-facing response or a tool call by the assistant. 
+- `messages`: history of all messages in the conversation till now (system, user, tool and assistant messages)
+- `state`: generated from the previous turn (this is needed because the API does not maintain state on its own)
+
+**Response parameters:**
+
+- `messages`: assistant responses for the current turn (the last message in `messages` is either the user-facing response or a tool call by the assistant)
+- `state`: to be passed to the next turn
 
 ### Example first turn of a chat
 
@@ -29,19 +35,19 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
 --data '{
     "messages": [
         {
-            "content": "UserID: 345227",
-            "role": "system"
+            "role": "system",
+            "content": "UserID: 345227"
             // Provide context to be passed to all agents in the assistant
             // E.g. user identity info (user ID) for logged in users
         },
         {
-            "content": "What is my outstanding balance and how do I make the payment?",
-            "role": "user"
+            "role": "user",
+            "content": "What is my outstanding balance and how do I make the payment?"
         }
     ],
     "state": {
         "last_agent_name": "Credit Card Hub"
-        // This the last agent used in the previous turn.
+        // Last agent used in the previous turn
         // Set to the "start agent" for first turn of chats
     }
 }'
@@ -51,15 +57,15 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
 {
     "messages": [
         {
-            "role": "assistant",
             "sender": "Credit Card Hub",
-            "content": null,
-            "created_at": "2025-02-03T05:22:30.194879",
-            "current_turn": true,
+            "role": "assistant",
             "response_type": "internal",
+            "content": null,
+            "current_turn": true,
             "tool_calls": [
                 {
                   "function": {
+                    // Internal tool calls are used to transfer between agents
                     "name": "transfer_to_outstanding_payments",
                     "arguments": "{\"args\":\"\",\"kwargs\":\"\"}"
                   },
@@ -69,18 +75,18 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
             ]
         },
         {
-          "tool_name": "transfer_to_outstanding_payments",
           "role": "tool",
+          "tool_name": "transfer_to_outstanding_payments",
           "content": "{\"assistant\": \"Outstanding Payments\"}",
           "tool_call_id": "call_SLyQKXt9ZMqnxSqJjo9j1fU5"
         },
         {
-            "role": "assistant",
+            // Last message in response messages is a tool call
             "sender": "Outstanding Payments",
-            "content": null,
-            "created_at": "2025-02-03T05:22:30.716012",
-            "current_turn": true,
+            "role": "assistant",
             "response_type": "internal",
+            "content": null,
+            "current_turn": true,
             "tool_calls": [
                 {
                   "function": {
@@ -95,72 +101,39 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
     ],
     "state": {
         "agent_data": [
-            // agents that were involved in this turn
+            // Agents that were involved in this turn
             {
                 "name": "Credit Card Hub",
                 "instructions": "// agent instructions",
                 "history": [ 
-                  // history of agent-relevant messages
+                  // History of agent-relevant messages
                   // in the same format as "messages"
                 ],
-                "internal_tools": [],
-                "external_tools": [],
                 "child_functions": [
                   "transfer_to_outstanding_payments",
                   "transfer_to_transaction_disputes",
                   "transfer_to_rewards_redemption"
                 ],
-                "most_recent_parent_name": "",
-                "parent_function": null
             },
             {
                 "name": "Outstanding Payments",
-                "instructions": // agent instructions,
+                "instructions": // Agent instructions,
                 "history": [ 
-                  // history of agent-relevant messages 
+                  // History of agent-relevant messages 
                   // in the same format as "messages"
                 ],
-                "internal_tools": [],
                 "external_tools": [
                   "get_outstanding_balance",
                   "get_saved_credit_card"
                 ],
-                "child_functions": [],
-                "most_recent_parent_name": "",
-                "parent_function": null
             },
 
-            // other agents - have not yet participated in the conversation
+            // Other agents - have not yet participated in the conversation
             {
                 "name": "Rewards Redemption",
-                "instructions": // agent instructions,
+                "instructions": // Agent instructions,
                 "history": [], // 
-                "internal_tools": [],
-                "external_tools": [],
-                "child_functions": [],
-                "most_recent_parent_name": "",
-                "parent_function": null
-            },
-            {
-                "name": "Transaction Disputes",
-                "instructions": // agent instructions,
-                "history": [],
-                "internal_tools": [],
-                "external_tools": [],
-                "child_functions": [],
-                "most_recent_parent_name": "",
-                "parent_function": null
-            },
-            {
-                "name": "Escalation",
-                "instructions": // agent instructions,
-                "history": [],
-                "internal_tools": [],
-                "external_tools": [],
-                "child_functions": [],
-                "most_recent_parent_name": "",
-                "parent_function": null
-            },
+            }
         ],
         "last_agent_name": "Outstanding Payments"
     }
@@ -177,17 +150,18 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
 --data '{
     "messages": [
         {
-            "content": "UserID: 345227",
             "role": "system",
+            "content": "UserID: 345227"
         },
         {
-            "content": "What is my outstanding balance and how do I make the payment?",
             "role": "user",
+            "content": "What is my outstanding balance and how do I make the payment?"
         },
         {
-            "content": null,
-            "role": "assistant",
             "sender": "Credit Card Hub",
+            "role": "assistant",
+            "response_type": "internal",
+            "content": null,
             "tool_calls": [
                 {
                 "function": {
@@ -198,22 +172,18 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
                 "type": "function"
                 }
             ],
-            "tool_call_id": null,
-            "tool_name": null,
-            "response_type": "internal"
         },
         {
-            "content": "{\"assistant\": \"Outstanding Payments\"}",
             "role": "tool",
-            "sender": null,
-            "tool_calls": null,
-            "tool_call_id": "call_SLyQKXt9ZMqnxSqJjo9j1fU5",
-            "tool_name": "transfer_to_outstanding_payments"
+            "tool_name": "transfer_to_outstanding_payments",
+            "content": "{\"assistant\": \"Outstanding Payments\"}",
+            "tool_call_id": "call_SLyQKXt9ZMqnxSqJjo9j1fU5"
         },
         {
-            "content": null,
-            "role": "assistant",
             "sender": "Outstanding Payments",
+            "role": "assistant",
+            "response_type": "internal",
+            "content": null,
             "tool_calls": [
                 {
                 "function": {
@@ -224,17 +194,13 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
                 "type": "function"
                 }
             ],
-            "tool_call_id": null,
-            "tool_name": null,
-            "response_type": "internal"
         },
         {
-            "content": "{\"result\":{\"outstanding_balance\":\"$250.00\",\"due_date\":\"2025-02-15\",\"payment_methods\":[\"Credit Card\",\"Bank Transfer\",\"PayPal\"]}}",
+            // New message is a tool response to the previous tool call
             "role": "tool",
-            "sender": null,
-            "tool_calls": null,
-            "tool_call_id": "call_MNAUg7UTszYMt5RL4n5QqUTw",
             "tool_name": "get_outstanding_balance"
+            "content": "{\"result\":{\"outstanding_balance\":\"$250.00\",\"due_date\":\"2025-02-15\",\"payment_methods\":[\"Credit Card\",\"Bank Transfer\",\"PayPal\"]}}",
+            "tool_call_id": "call_MNAUg7UTszYMt5RL4n5QqUTw",
         },
     ],
     "state": {
@@ -246,28 +212,28 @@ curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
 ```json
 {
     "messages": [
-      {
-        "content": "Your outstanding balance is $250.00, due by February 15, 2025.\n\nYou have several payment options available, including:\n- **Credit Card**\n- **Bank Transfer**\n- **PayPal**\n\nPlease let me know which option you'd like to use, and I'll guide you through the process!",
-        "created_at": "2025-02-03T06:01:07.451140",
-        "current_turn": true,
-        "response_type": "internal",
-        "role": "assistant",
-        "sender": "Outstanding Payments"
-      },
-      {
-        "content": "Your outstanding balance is $250.00, due by February 15, 2025. \n\nPayment options include:\n- **Credit Card:** You can use your saved Visa card ending in 1234.\n- **Bank Transfer**\n- **PayPal**\n\nLet me know your preferred payment method, and I’ll assist you!",
-        "created_at": "2025-02-03T06:01:07.451140",
-        "current_turn": true,
-        "response_type": "external",
-        "role": "assistant",
-        "sender": "Outstanding Payments >> Post process"
-      }
+        {
+            "sender": "Outstanding Payments",
+            "role": "assistant",
+            // Response is not user-facing, to enable further post processing
+            "response_type": "internal",
+            "content": "Your outstanding balance is $250.00, due by February 15, 2025.\n\nYou have several payment options available, including:\n- **Credit Card**\n- **Bank Transfer**\n- **PayPal**\n\nPlease let me know which option you'd like to use, and I'll guide you through the process!",
+            "current_turn": true
+        },
+        {
+            "sender": "Outstanding Payments >> Post process",
+            "role": "assistant",
+            // Response is user-facing
+            "response_type": "external",
+            "content": "Your outstanding balance is $250.00, due by February 15, 2025. \n\nPayment options include:\n- **Credit Card:** You can use your saved Visa card ending in 1234.\n- **Bank Transfer**\n- **PayPal**\n\nLet me know your preferred payment method, and I’ll assist you!",
+            "current_turn": true,
+        }
     ],
     "state": {
-      "agent_data": [
-        // Omitted for brevity
-      ],
-      "last_agent_name": "Outstanding Payments"
+        "agent_data": [
+            // Omitted for brevity
+        ],
+        "last_agent_name": "Outstanding Payments"
     }
 }
 ```
