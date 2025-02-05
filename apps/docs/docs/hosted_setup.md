@@ -1,6 +1,6 @@
-# Installation
+# Using the Hosted App
 
-- This is the developers guide to self-hosting the open-source version of RowBoat. If you are looking to use our managed offering, getting in touch at [founders@rowboatlabs.com](mailto:founders@rowboatlabs.com).
+- This is the developers guide to self-hosting the open-source version of RowBoat.
 - Please see our [Introduction](/) page before referring to this guide.
 - For direct installation steps, please head to the README of RowBoat's Github repo: [@rowboatlabs/rowboat](https://github.com/rowboatlabs/rowboat/). This page provides more context about the installation process and the different components involved. 
 

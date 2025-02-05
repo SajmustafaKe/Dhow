@@ -1,9 +1,13 @@
 # Building Assistants in Studio
 This is a guide to building your first assistant on RowBoat Studio, with examples.<br>
-**Prerequisite:** Complete the [installation steps](/installation/) to set up RowBoat Studio.
+
+Prerequisite:
+
+1. **Open Source Users:** Complete the [open-source installation steps](/oss_installation/) to set up RowBoat Studio.
+2. **Hosted App Users:** Sign in to [https://app.rowboatlabs.com/](https://app.rowboatlabs.com/)
 
 ## Create the set of initial agents
-Copilot can sets up agents for you from scratch.
+Copilot can set up agents for you from scratch.
 
 ### Instruct copilot
 First, tell it about the initial set of agents that make up your assistant.

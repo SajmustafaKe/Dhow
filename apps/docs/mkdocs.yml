@@ -7,8 +7,20 @@ nav:
   - Overview:
     - Introduction: index.md
     - Open Source License: license.md
-  - Getting started:
-    - Installation: installation.md
+
+  - Getting Started:
+    - Option 1 - Open Source: oss_installation.md
+    - Option 2 - Hosted App: hosted_setup.md
+    - Testing Your Setup: testing.md
+  
+  - Building With RowBoat:
     - Building in Studio: building_in_studio.md
     - Using the API: using_the_api.md
     - Using the SDK: using_the_sdk.md
+  
+  - Concepts:
+    - Agents: agents.md
+    - Graph: graph.md
+    - Tools: tools.md
+    - Prompts: prompts.md
+    - Data Sources: data_sources.md
