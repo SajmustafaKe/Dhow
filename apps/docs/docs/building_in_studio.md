@@ -38,6 +38,9 @@ The playground is intended to test out the assistant as you build it. The User a
 
 ![Try Chat](img/try-chat.png)
 
+In the playground, you can also set initial context at start of chat, that will be passed to all agents. This is typically used for providing user identity information such as user ID, login email, etc.   
+![Use System Message](img/sys-msg.png)
+
 ### Ask copilot questions
 You can ask copilot clarifications about the chat, such as why the agents responded a certain way or why an agent was invoked.
 
@@ -68,7 +71,6 @@ When agents call tools during a chat in the playground, the tool call parameters
 Copilot can help you update agent behavior. It is also aware of the current chat in the playground so you can make references to the current chat while instructing copilot to update agents.
 
 ![Update Agent Behavior](img/update-agent-with-copilot.png)
-
 
 Playground:
 ![Test Updated Agent](img/test-updated-agent.png)
