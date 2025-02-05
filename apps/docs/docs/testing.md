@@ -7,7 +7,7 @@
 - To use our hosted app, the URL for Studio is [https://app.rowboatlabs.com](https://app.rowboatlabs.com/)
 <br>
 
-2. Once in Studio, create a new blank project or use one of the example templates:
+2. Once in Studio, create a new blank project or browse through one of the example projects:
 ![Create Project](img/project-page.png)
 <br>
 
