@@ -13,8 +13,15 @@ nav:
     - Option 2 - Hosted App: hosted_setup.md
     - Testing Your Setup: testing.md
   
-  - Building With RowBoat:
-    - Building in Studio: building_in_studio.md
+  - Building in Studio: 
+    - Overview: studio_overview.md
+    - Create agents: create_agents.md
+    - Test chats in the playground: playground.md
+    - Add tools: add_tools.md
+    - Update agents: update_agents.md
+    - Simulate scenarios: simulate.md
+
+  - API & SDK:
     - Using the API: using_the_api.md
     - Using the SDK: using_the_sdk.md
   
