@@ -24,12 +24,16 @@ When you provide your Project ID in the API call, RowBoat uses the version of yo
 - `messages`: assistant responses for the current turn (the last message in `messages` is either the user-facing response or a tool call by the assistant)
 - `state`: to be passed to the next turn
 
+### API Host
+- For the open source installation, the `<HOST>` is [http://localhost:3000](http://localhost:3000)
+- When using the hosted app, the `<HOST>` is [https://app.rowboatlabs.com](https://app.rowboatlabs.com)
+ 
 ### Example first turn of a chat
 
 #### Request
 
 ```bash
-curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
+curl --location '<HOST>/api/v1/<PROJECT_ID>/chat' \
 --header 'Content-Type: application/json' \
 --header 'Authorization: Bearer <API_KEY>' \
 --data '{

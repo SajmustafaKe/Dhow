@@ -1,6 +1,8 @@
 # Welcome to Rowboat
 
-Rowboat is an open-source project that helps you build, test, and deploy multi-agent AI customer support assistants.
+Rowboat is an open-source project that helps you build, test, and deploy multi-agent AI customer support assistants. 
+
+**Note:** These docs are intended for both developers who would like to self-host our [open-source code](https://github.com/rowboatlabs/rowboat/) as well as users of our [hosted (managed) app](https://app.rowboatlabs.com/).
 
 - Our source code is on GitHub at [@rowboatlabs/rowboat](https://github.com/rowboatlabs/rowboat/)
 - Join us on [discord](https://discord.gg/jHhUKkKHn8)

@@ -3,8 +3,13 @@
 This is a guide on using the RowBoat Python SDK as an alternative to the [RowBoat HTTP API](/using_the_api) to power conversations with the assistant created in Studio.
 
 ## Prerequisites
-- [Deploy your assistant to production](/using_the_api/#deploy-your-assistant-to-production-on-studio) and [obtain your API key and Project ID](/using_the_api/#obtain-api-key-and-project-id)
 - ``` pip install rowboat ```
+- [Deploy your assistant to production](/using_the_api/#deploy-your-assistant-to-production-on-studio)
+- [Obtain your `<API_KEY>` and `<PROJECT_ID>`](/using_the_api/#obtain-api-key-and-project-id)
+
+### API Host
+- For the open source installation, the `<HOST>` is [http://localhost:3000](http://localhost:3000)
+- When using the hosted app, the `<HOST>` is [https://app.rowboatlabs.com](https://app.rowboatlabs.com)
 
 ## Usage
 
