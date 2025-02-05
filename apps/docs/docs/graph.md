@@ -19,5 +19,5 @@
 
 ## Pipelines
 
-- RowBoat also has the concept of pipelines, which are agents invoked sequentially after an agent in the graph has produced a user-facing response. 
+- RowBoat also has the concept of pipelines - specialized agents invoked sequentially after an agent in the graph has produced a user-facing response. 
 - E.g. a pipeline with a post processing agent and a guardrail agent will ensure that every response is post processed and guardrailed for appropriateness before presenting it to the user.
