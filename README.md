@@ -193,6 +193,16 @@ RowBoat supports RAG capabilities to enhance responses with your custom knowledg
    QDRANT_API_KEY=<your-api-key>  # Only needed for Qdrant Cloud
    ```
 
+3. **Initialize Qdrant Collections**
+   ```bash
+   docker compose --profile setup_qdrant up setup_qdrant
+   ```
+
+   If you need to delete the collections and start fresh, you can run:
+   ```bash
+   docker compose --profile delete_qdrant up delete_qdrant
+   ```
+
 ### RAG Features
 
 RowBoat supports two types of knowledge base ingestion:
