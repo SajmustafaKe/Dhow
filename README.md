@@ -232,7 +232,7 @@ Enable file upload support (PDF, DOCX, TXT) for your knowledge base:
 
 1. **Prerequisites**
    - An AWS S3 bucket for file storage
-   - Google Cloud API key with Vision API enabled (for enhanced document parsing)
+   - Google Cloud API key with Generative Language (Gemini) API enabled (for enhanced document parsing)
 
 2. **Configure AWS S3**
    - Create an S3 bucket
