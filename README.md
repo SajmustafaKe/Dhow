@@ -3,6 +3,26 @@
 
 This guide will help you set up and run the RowBoat applications locally using Docker. Please see our [docs](https://docs.rowboatlabs.com/) for more details.
 
+RowBoat offers several optional services that can be enabled using Docker Compose profiles. You can run multiple profiles simultaneously using:
+```bash
+docker compose --profile rag_urls_worker --profile chat_widget --profile tools_webhook up -d
+```
+See the relevant sections below for details on each service.
+
+## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Local Development Setup](#local-development-setup)
+  - [Python SDK](#option-1-python-sdk)
+  - [HTTP API](#option-2-http-api)
+- [Optional Features](#optional-features)
+  - [Enable RAG](#enable-rag)
+    - [URL Scraping](#url-scraping)
+    - [File Uploads](#file-uploads)
+  - [Enable Chat Widget](#enable-chat-widget)
+  - [Enable Tools Webhook](#enable-tools-webhook)
+- [Troubleshooting](#troubleshooting)
+- [Attribution](#attribution)
+
 ## Prerequisites
 
 Before running RowBoat, ensure you have:
@@ -152,6 +172,194 @@ Before running RowBoat, ensure you have:
 6. **Documentation**
    
    The documentation site is available at [http://localhost:8000](http://localhost:8000)
+
+## Enable RAG
+
+RowBoat supports RAG capabilities to enhance responses with your custom knowledge base. To enable RAG, you'll need:
+
+1. **Qdrant Vector Database**
+   - **Option 1**: Use [Qdrant Cloud](https://cloud.qdrant.io/)
+     - Create an account and cluster
+     - Note your cluster URL and API key
+   - **Option 2**: Run Qdrant locally with Docker:
+     ```bash
+     docker run -p 6333:6333 qdrant/qdrant
+     ```
+
+2. **Update Environment Variables**
+   ```ini
+   USE_RAG=true
+   QDRANT_URL=<your-qdrant-url>  # e.g., http://localhost:6333 for local
+   QDRANT_API_KEY=<your-api-key>  # Only needed for Qdrant Cloud
+   ```
+
+### RAG Features
+
+RowBoat supports two types of knowledge base ingestion:
+
+#### URL Scraping
+
+Enable web page scraping to build your knowledge base:
+
+1. **Get Firecrawl API Key**
+   - Sign up at [Firecrawl](https://firecrawl.co)
+   - Generate an API key
+
+2. **Update Environment Variables**
+   ```ini
+   USE_RAG_SCRAPING=true
+   FIRECRAWL_API_KEY=<your-firecrawl-api-key>
+   ```
+
+3. **Start the URLs Worker**
+   ```bash
+   docker compose --profile rag_urls_worker up -d
+   ```
+
+#### File Uploads
+
+Enable file upload support (PDF, DOCX, TXT) for your knowledge base:
+
+1. **Prerequisites**
+   - An AWS S3 bucket for file storage
+   - Google Cloud API key with Vision API enabled (for enhanced document parsing)
+
+2. **Configure AWS S3**
+   - Create an S3 bucket
+   - Add the following CORS configuration to your bucket:
+     ```json
+     [
+         {
+             "AllowedHeaders": [
+                 "*"
+             ],
+             "AllowedMethods": [
+                 "PUT",
+                 "POST",
+                 "DELETE",
+                 "GET"
+             ],
+             "AllowedOrigins": [
+                 "http://localhost:3000",
+             ],
+             "ExposeHeaders": [
+                 "ETag"
+             ]
+         }
+     ]
+     ```
+   - Ensure your AWS credentials have the following IAM policy:
+     ```json
+     {
+         "Version": "2012-10-17",
+         "Statement": [
+             {
+                 "Sid": "VisualEditor0",
+                 "Effect": "Allow",
+                 "Action": [
+                     "s3:PutObject",
+                     "s3:GetObject",
+                     "s3:DeleteObject",
+                     "s3:ListBucket"
+                 ],
+                 "Resource": [
+                     "arn:aws:s3:::<your-bucket-name>/*",
+                     "arn:aws:s3:::<your-bucket-name>"
+                 ]
+             }
+         ]
+     }
+     ```
+
+3. **Update Environment Variables**
+   ```ini
+   USE_RAG_UPLOADS=true
+   AWS_ACCESS_KEY_ID=<your-aws-access-key>
+   AWS_SECRET_ACCESS_KEY=<your-aws-secret-key>
+   RAG_UPLOADS_S3_BUCKET=<your-s3-bucket-name>
+   RAG_UPLOADS_S3_REGION=<your-s3-region>
+   GOOGLE_API_KEY=<your-google-api-key>
+   ```
+
+4. **Start the Files Worker**
+   ```bash
+   docker compose --profile rag_files_worker up -d
+   ```
+
+After enabling RAG and starting the required workers, you can manage your knowledge base through the RowBoat UI at `/projects/<PROJECT_ID>/sources`.
+
+## Enable Chat Widget
+
+RowBoat provides an embeddable chat widget that you can add to any website. To enable and use the chat widget:
+
+1. **Generate JWT Secret**
+   Generate a secret for securing chat widget sessions:
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Update Environment Variables**
+   ```ini
+   USE_CHAT_WIDGET=true
+   CHAT_WIDGET_SESSION_JWT_SECRET=<your-generated-secret>
+   ```
+
+3. **Start the Chat Widget Service**
+   ```bash
+   docker compose --profile chat_widget up -d
+   ```
+
+4. **Add Widget to Your Website**
+   You can find the chat-widget embed code under `/projects/<PROJECT_ID>/config`
+
+After setup, the chat widget will appear on your website and connect to your RowBoat project.
+
+## Enable Tools Webhook
+
+RowBoat includes a built-in webhook service that allows you to implement custom tool functions. To use this feature:
+
+1. **Generate Signing Secret**
+   Generate a secret for securing webhook requests:
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Update Environment Variables**
+   ```ini
+   SIGNING_SECRET=<your-generated-secret>
+   ```
+
+3. **Implement Your Functions**
+   Add your custom functions to `apps/tools_webhook/function_map.py`:
+   ```python
+   def get_weather(location: str, units: str = "metric"):
+       """Return weather data for the given location."""
+       # Your implementation here
+       return {"temperature": 20, "conditions": "sunny"}
+
+   def check_inventory(product_id: str):
+       """Check inventory levels for a product."""
+       # Your implementation here
+       return {"in_stock": 42, "warehouse": "NYC"}
+
+   # Add your functions to the map
+   FUNCTIONS_MAP = {
+       "get_weather": get_weather,
+       "check_inventory": check_inventory
+   }
+   ```
+
+4. **Start the Tools Webhook Service**
+   ```bash
+   docker compose --profile tools_webhook up -d
+   ```
+
+5. **Register Tools in RowBoat**
+   - Navigate to your project config at `/projects/<PROJECT_ID>/config`
+   - Ensure that the webhook URL is set to: `http://tools_webhook:3005/tool_call`
+   - Tools will automatically be forwarded to your webhook implementation
+
+The webhook service handles all the security and parameter validation, allowing you to focus on implementing your tool logic.
 
 ## Troubleshooting
 

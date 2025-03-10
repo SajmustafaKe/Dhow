@@ -48,6 +48,10 @@ ApiMessage = Union[
 class ApiRequest(BaseModel):
     messages: List[ApiMessage]
     state: Any
+    skipToolCalls: Optional[bool] = None
+    maxTurns: Optional[int] = None
+    workflowId: Optional[str] = None
+    testProfileId: Optional[str] = None
 
 class ApiResponse(BaseModel):
     messages: List[ApiMessage]

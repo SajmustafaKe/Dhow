@@ -82,3 +82,55 @@ response = chat.run("Hello, how are you?")
 print(response)
 # I'm good, thanks! How can I help you today?
 ```
+
+### Advanced Usage
+
+#### Using a specific workflow
+
+```python
+response_messages, state = client.chat(
+    messages=messages,
+    workflow_id="<WORKFLOW_ID>"
+)
+
+# or
+
+chat = StatefulChat(
+    client,
+    workflow_id="<WORKFLOW_ID>"
+)
+```
+
+#### Using a test profile
+You can specify a test profile ID to use a specific test configuration:
+
+```python
+response_messages, state = client.chat(
+    messages=messages,
+    test_profile_id="<TEST_PROFILE_ID>"
+)
+
+# or
+
+chat = StatefulChat(
+    client,
+    test_profile_id="<TEST_PROFILE_ID>"
+)
+```
+
+#### Skip tool call runs
+This will surface the tool calls to the SDK instead of running them automatically on the Rowboat server.
+
+```python
+response_messages, state = client.chat(
+    messages=messages,
+    skip_tool_calls=True
+)
+
+# or
+
+chat = StatefulChat(
+    client,
+    skip_tool_calls=True
+)
+```
