@@ -9,6 +9,20 @@ docker compose --profile rag_urls_worker --profile chat_widget --profile tools_w
 ```
 See the relevant sections below for details on each service.
 
+## Table of Contents
+- [Prerequisites](#prerequisites)
+- [Local Development Setup](#local-development-setup)
+  - [Python SDK](#option-1-python-sdk)
+  - [HTTP API](#option-2-http-api)
+- [Optional Features](#optional-features)
+  - [Enable RAG](#enable-rag)
+    - [URL Scraping](#url-scraping)
+    - [File Uploads](#file-uploads)
+  - [Enable Chat Widget](#enable-chat-widget)
+  - [Enable Tools Webhook](#enable-tools-webhook)
+- [Troubleshooting](#troubleshooting)
+- [Attribution](#attribution)
+
 ## Prerequisites
 
 Before running RowBoat, ensure you have:
