@@ -14,7 +14,7 @@ See the relevant sections below for details on each service.
 - [Local Development Setup](#local-development-setup)
   - [Python SDK](#option-1-python-sdk)
   - [HTTP API](#option-2-http-api)
-- [Optional Features](#optional-features)
+- [Optional Features](#enable-rag)
   - [Enable RAG](#enable-rag)
     - [URL Scraping](#url-scraping)
     - [File Uploads](#file-uploads)
