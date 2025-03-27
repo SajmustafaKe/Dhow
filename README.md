@@ -42,20 +42,6 @@ Before running RowBoat, ensure you have:
      brew services start mongodb-community@8.0
      ```
 
-4. **Auth0 Account and Application Setup**
-   - **Create an Auth0 Account**: Sign up at [Auth0](https://auth0.com).
-   - **Create a New Application**: Choose "Regular Web Application", select "Next.js" as the application type, and name it "RowBoat".
-   - **Configure Application**:
-     - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
-   - **Get Credentials**: Collect the following from your Auth0 application settings:
-     - **Domain**: Copy your Auth0 domain (ensure you append `https://` to the Domain that the Auth0 dashboard shows you)
-     - **Client ID**: Your application's unique identifier
-     - **Client Secret**: Your application's secret key
-   - **Generate secret**: Generate a session encryption secret in your terminal and note the output for later:
-     ```bash
-     openssl rand -hex 32
-     ```
-
 ## Local Development Setup
 
 1. **Clone the Repository**
@@ -74,13 +60,6 @@ Before running RowBoat, ensure you have:
      ```ini
      # OpenAI Configuration
      OPENAI_API_KEY=your-openai-api-key
-
-     # Auth0 Configuration
-     AUTH0_SECRET=your-generated-secret               # Generated using openssl command
-     AUTH0_BASE_URL=http://localhost:3000             # Your application's base URL
-     AUTH0_ISSUER_BASE_URL=https://example.auth0.com  # Your Auth0 domain (ensure it is prefixed with https://)
-     AUTH0_CLIENT_ID=your-client-id
-     AUTH0_CLIENT_SECRET=your-client-secret
 
      # MongoDB Configuration (choose one based on your setup)
      # For local MongoDB
@@ -172,6 +151,37 @@ Before running RowBoat, ensure you have:
 6. **Documentation**
    
    The documentation site is available at [http://localhost:8000](http://localhost:8000)
+
+## Enable Authentication
+
+By default, RowBoat runs without authentication. To enable user authentication using Auth0:
+
+1. **Auth0 Setup**
+   - **Create an Auth0 Account**: Sign up at [Auth0](https://auth0.com).
+   - **Create a New Application**: Choose "Regular Web Application", select "Next.js" as the application type, and name it "RowBoat".
+   - **Configure Application**:
+     - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
+   - **Get Credentials**: Collect the following from your Auth0 application settings:
+     - **Domain**: Copy your Auth0 domain (ensure you append `https://` to the Domain that the Auth0 dashboard shows you)
+     - **Client ID**: Your application's unique identifier
+     - **Client Secret**: Your application's secret key
+   - **Generate secret**: Generate a session encryption secret in your terminal and note the output for later:
+     ```bash
+     openssl rand -hex 32
+     ```
+
+2. **Update Environment Variables**
+   Add the following to your `.env` file:
+   ```ini
+   USE_AUTH=true
+   AUTH0_SECRET=your-generated-secret               # Generated using openssl command
+   AUTH0_BASE_URL=http://localhost:3000             # Your application's base URL
+   AUTH0_ISSUER_BASE_URL=https://example.auth0.com  # Your Auth0 domain (ensure it is prefixed with https://)
+   AUTH0_CLIENT_ID=your-client-id
+   AUTH0_CLIENT_SECRET=your-client-secret
+   ```
+
+After enabling authentication, users will need to sign in to access the application.
 
 ## Enable RAG
 
