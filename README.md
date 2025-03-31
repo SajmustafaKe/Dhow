@@ -42,7 +42,7 @@ Before running RowBoat, ensure you have:
      brew services start mongodb-community@8.0
      ```
 
-## Local Development Setup
+## Quickstart
 
 1. **Clone the Repository**
    ```bash
@@ -55,17 +55,11 @@ Before running RowBoat, ensure you have:
      ```bash
      cp .env.example .env
      ```
-   - Update your `.env` file with the following configurations:
+   - Update your `.env` file to add you OpenAI API key:
 
      ```ini
      # OpenAI Configuration
      OPENAI_API_KEY=your-openai-api-key
-
-     # MongoDB Configuration (choose one based on your setup)
-     # For local MongoDB
-     MONGODB_CONNECTION_STRING=mongodb://host.docker.internal:27017/rowboat 
-     # or, for remote MongoDB
-     MONGODB_CONNECTION_STRING=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/rowboat 
      ```
 
 3. **Start the App**
