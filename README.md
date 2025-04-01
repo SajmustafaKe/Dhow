@@ -1,27 +1,7 @@
 # RowBoat
 [![RowBoat Logo](/assets/rb-logo.png)](https://www.rowboatlabs.com/)
 
-This guide will help you set up and run the RowBoat applications locally using Docker. Please see our [docs](https://docs.rowboatlabs.com/) for more details.
-
-RowBoat offers several optional services that can be enabled using Docker Compose profiles. You can run multiple profiles simultaneously using:
-```bash
-docker compose --profile rag_urls_worker --profile chat_widget --profile tools_webhook up -d
-```
-See the relevant sections below for details on each service.
-
-## Table of Contents
-- [Prerequisites](#prerequisites)
-- [Local Development Setup](#local-development-setup)
-  - [Python SDK](#option-1-python-sdk)
-  - [HTTP API](#option-2-http-api)
-- [Optional Features](#enable-rag)
-  - [Enable RAG](#enable-rag)
-    - [URL Scraping](#url-scraping)
-    - [File Uploads](#file-uploads)
-  - [Enable Chat Widget](#enable-chat-widget)
-  - [Enable Tools Webhook](#enable-tools-webhook)
-- [Troubleshooting](#troubleshooting)
-- [Attribution](#attribution)
+RowBoat is the fastest way to build production-ready multi-agent systems with OpenAI's Agents SDK.
 
 ## Prerequisites
 
@@ -34,29 +14,15 @@ Before running RowBoat, ensure you have:
    - Obtain from your OpenAI account.
 
 3. **MongoDB**
-   - **Option 1**: Use an existing MongoDB deployment with your connection string.
-   - **Option 2**: Install MongoDB locally:
+   - macOS (Homebrew)
      ```bash
      brew tap mongodb/brew
      brew install mongodb-community@8.0
      brew services start mongodb-community@8.0
      ```
+   - Other platforms: Refer to the MongoDB documentation for details.
 
-4. **Auth0 Account and Application Setup**
-   - **Create an Auth0 Account**: Sign up at [Auth0](https://auth0.com).
-   - **Create a New Application**: Choose "Regular Web Application", select "Next.js" as the application type, and name it "RowBoat".
-   - **Configure Application**:
-     - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
-   - **Get Credentials**: Collect the following from your Auth0 application settings:
-     - **Domain**: Copy your Auth0 domain (ensure you append `https://` to the Domain that the Auth0 dashboard shows you)
-     - **Client ID**: Your application's unique identifier
-     - **Client Secret**: Your application's secret key
-   - **Generate secret**: Generate a session encryption secret in your terminal and note the output for later:
-     ```bash
-     openssl rand -hex 32
-     ```
-
-## Local Development Setup
+## Quickstart
 
 1. **Clone the Repository**
    ```bash
@@ -69,24 +35,11 @@ Before running RowBoat, ensure you have:
      ```bash
      cp .env.example .env
      ```
-   - Update your `.env` file with the following configurations:
+   - Open the new .env file and update the OPENAI_API_KEY:
 
      ```ini
      # OpenAI Configuration
      OPENAI_API_KEY=your-openai-api-key
-
-     # Auth0 Configuration
-     AUTH0_SECRET=your-generated-secret               # Generated using openssl command
-     AUTH0_BASE_URL=http://localhost:3000             # Your application's base URL
-     AUTH0_ISSUER_BASE_URL=https://example.auth0.com  # Your Auth0 domain (ensure it is prefixed with https://)
-     AUTH0_CLIENT_ID=your-client-id
-     AUTH0_CLIENT_SECRET=your-client-secret
-
-     # MongoDB Configuration (choose one based on your setup)
-     # For local MongoDB
-     MONGODB_CONNECTION_STRING=mongodb://host.docker.internal:27017/rowboat 
-     # or, for remote MongoDB
-     MONGODB_CONNECTION_STRING=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/rowboat 
      ```
 
 3. **Start the App**
@@ -96,82 +49,6 @@ Before running RowBoat, ensure you have:
 
 4. **Access the App**
    - Visit [http://localhost:3000](http://localhost:3000).
-
-5. **Interact with RowBoat**
-
-   There are two ways to interact with RowBoat:
-
-   ### Option 1: Python SDK
-
-   For Python applications, we provide an official SDK for easier integration:
-   ```bash
-   pip install rowboat
-   ```
-
-   ```python
-   from rowboat import Client
-
-   client = Client(
-       host="http://localhost:3000",
-       project_id="<PROJECT_ID>",
-       api_key="<API_KEY>"  # Generate this from /projects/<PROJECT_ID>/config
-   )
-
-   # Simple chat interaction
-   messages = [{"role": "user", "content": "Tell me the weather in London"}]
-   response_messages, state = client.chat(messages=messages)
-   ```
-
-   For more details, see the [Python SDK documentation](./apps/python-sdk/README.md).
-
-   ### Option 2: HTTP API
-
-   You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
-   - Project ID is available in the URL of the project page
-   - API Key can be generated from the project config page at `/projects/<PROJECT_ID>/config`
-
-   ```bash
-   curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
-   --header 'Content-Type: application/json' \
-   --header 'Authorization: Bearer <API_KEY>' \
-   --data '{
-       "messages": [
-           {
-               "role": "user",
-               "content": "tell me the weather in london in metric units"
-           }
-       ]
-   }'
-   ```
-   which gives:
-   ```json
-   {
-       "messages": [
-           {
-               "role": "assistant",
-               "tool_calls": [
-                   {
-                       "function": {
-                           "arguments": "{\"location\":\"London\",\"units\":\"metric\"}",
-                           "name": "weather_lookup_tool"
-                       },
-                       "id": "call_r6XKuVxmGRogofkyFZIacdL0",
-                       "type": "function"
-                   }
-               ],
-               "agenticSender": "Example Agent",
-               "agenticResponseType": "internal"
-           }
-       ],
-       "state": {
-           // .. state data
-       }
-   }
-   ```
-
-6. **Documentation**
-   
-   The documentation site is available at [http://localhost:8000](http://localhost:8000)
 
 ## Enable RAG
 
@@ -298,32 +175,6 @@ Enable file upload support (PDF, DOCX, TXT) for your knowledge base:
 
 After enabling RAG and starting the required workers, you can manage your knowledge base through the RowBoat UI at `/projects/<PROJECT_ID>/sources`.
 
-## Enable Chat Widget
-
-RowBoat provides an embeddable chat widget that you can add to any website. To enable and use the chat widget:
-
-1. **Generate JWT Secret**
-   Generate a secret for securing chat widget sessions:
-   ```bash
-   openssl rand -hex 32
-   ```
-
-2. **Update Environment Variables**
-   ```ini
-   USE_CHAT_WIDGET=true
-   CHAT_WIDGET_SESSION_JWT_SECRET=<your-generated-secret>
-   ```
-
-3. **Start the Chat Widget Service**
-   ```bash
-   docker compose --profile chat_widget up -d
-   ```
-
-4. **Add Widget to Your Website**
-   You can find the chat-widget embed code under `/projects/<PROJECT_ID>/config`
-
-After setup, the chat widget will appear on your website and connect to your RowBoat project.
-
 ## Enable Tools Webhook
 
 RowBoat includes a built-in webhook service that allows you to implement custom tool functions. To use this feature:
@@ -370,6 +221,135 @@ RowBoat includes a built-in webhook service that allows you to implement custom 
    - Tools will automatically be forwarded to your webhook implementation
 
 The webhook service handles all the security and parameter validation, allowing you to focus on implementing your tool logic.
+
+## Enable Chat Widget
+
+RowBoat provides an embeddable chat widget that you can add to any website. To enable and use the chat widget:
+
+1. **Generate JWT Secret**
+   Generate a secret for securing chat widget sessions:
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Update Environment Variables**
+   ```ini
+   USE_CHAT_WIDGET=true
+   CHAT_WIDGET_SESSION_JWT_SECRET=<your-generated-secret>
+   ```
+
+3. **Start the Chat Widget Service**
+   ```bash
+   docker compose --profile chat_widget up -d
+   ```
+
+4. **Add Widget to Your Website**
+   You can find the chat-widget embed code under `/projects/<PROJECT_ID>/config`
+
+After setup, the chat widget will appear on your website and connect to your RowBoat project.
+
+## Enable Authentication
+
+By default, RowBoat runs without authentication. To enable user authentication using Auth0:
+
+1. **Auth0 Setup**
+   - **Create an Auth0 Account**: Sign up at [Auth0](https://auth0.com).
+   - **Create a New Application**: Choose "Regular Web Application", select "Next.js" as the application type, and name it "RowBoat".
+   - **Configure Application**:
+     - **Allowed Callback URLs**: In the Auth0 Dashboard, go to your "RowBoat" application settings and set `http://localhost:3000/api/auth/callback` as an Allowed Callback URL.
+   - **Get Credentials**: Collect the following from your Auth0 application settings:
+     - **Domain**: Copy your Auth0 domain (ensure you append `https://` to the Domain that the Auth0 dashboard shows you)
+     - **Client ID**: Your application's unique identifier
+     - **Client Secret**: Your application's secret key
+   - **Generate secret**: Generate a session encryption secret in your terminal and note the output for later:
+     ```bash
+     openssl rand -hex 32
+     ```
+
+2. **Update Environment Variables**
+   Add the following to your `.env` file:
+   ```ini
+   USE_AUTH=true
+   AUTH0_SECRET=your-generated-secret               # Generated using openssl command
+   AUTH0_BASE_URL=http://localhost:3000             # Your application's base URL
+   AUTH0_ISSUER_BASE_URL=https://example.auth0.com  # Your Auth0 domain (ensure it is prefixed with https://)
+   AUTH0_CLIENT_ID=your-client-id
+   AUTH0_CLIENT_SECRET=your-client-secret
+   ```
+   
+After enabling authentication, users will need to sign in to access the application.
+
+## Interact with RowBoat API
+
+There are two ways to interact with RowBoat's API:
+
+1. **Option 1: Python SDK**
+
+
+   For Python applications, we provide an official SDK for easier integration:
+   ```bash
+   pip install rowboat
+   ```
+
+   ```python
+   from rowboat import Client
+
+   client = Client(
+       host="http://localhost:3000",
+       project_id="<PROJECT_ID>",
+       api_key="<API_KEY>"  # Generate this from /projects/<PROJECT_ID>/config
+   )
+
+   # Simple chat interaction
+   messages = [{"role": "user", "content": "Tell me the weather in London"}]
+   response_messages, state = client.chat(messages=messages)
+   ```
+
+   For more details, see the [Python SDK documentation](./apps/python-sdk/README.md).
+
+1. **Option 2: HTTP API**
+   You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
+   - Project ID is available in the URL of the project page
+   - API Key can be generated from the project config page at `/projects/<PROJECT_ID>/config`
+
+   ```bash
+   curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
+   --header 'Content-Type: application/json' \
+   --header 'Authorization: Bearer <API_KEY>' \
+   --data '{
+       "messages": [
+           {
+               "role": "user",
+               "content": "tell me the weather in london in metric units"
+           }
+       ]
+   }'
+   ```
+   which gives:
+   ```json
+   {
+       "messages": [
+           {
+               "role": "assistant",
+               "tool_calls": [
+                   {
+                       "function": {
+                           "arguments": "{\"location\":\"London\",\"units\":\"metric\"}",
+                           "name": "weather_lookup_tool"
+                       },
+                       "id": "call_r6XKuVxmGRogofkyFZIacdL0",
+                       "type": "function"
+                   }
+               ],
+               "agenticSender": "Example Agent",
+               "agenticResponseType": "internal"
+           }
+       ],
+       "state": {
+           // .. state data
+       }
+   }
+   ```
 
 ## Troubleshooting
 
