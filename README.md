@@ -82,7 +82,11 @@ You can add your tools / APIs to Rowboat through (a) connecting MCP servers, or 
 
 ### 1.1 MCP Servers
 
-You can intergrate any MCP server in Settings -> Tools -> MCP Server. The Tools on the servers will show up inside Rowboats Tools section.
+You can intergrate any MCP server in Settings -> Tools -> MCP Servers. The Tools on the servers will show up inside Rowboats Tools section.
+
+<img src="/assets/mcp-import.png" alt="ui" width="400"/>
+
+Tip: You might want to set the MCP url as http://host.docker.internal/... to allow services to access the MCP servers on your localhost.
 
 ### 1.2 Webhook
 
@@ -173,9 +177,12 @@ To enable RAG you need to first setup Qdrant.
 You can add a knowledge corpus to Rowboat by directly adding text information, uploading supported files or by pointing Rowboat to URLs for scraping.
 
 #### (a) Create Text for Knowledge
+Rowboat support directly creating a corpus of knowledge inside the platform.
 
-Setting up Qdrant automatically enables the RAG by adding text information inside Rowboat's RAG menu.
-
+- Start the Text Worker
+   ```bash
+   docker compose --profile rag_text_worker up -d
+   ```
 #### (b) Scrape URLs for Knowledge
 
 Rowboat supports scraping urls using Firecrawl. To setup scraping:
@@ -294,7 +301,7 @@ Rowboat provides an embeddable chat widget that you can add to any website. To e
 After setup, the chat widget will appear on your website and connect to your Rowboat project.
 
 
-### 4. Interact with Rowboat API
+## 4. Interact with Rowboat API
 
 There are two ways to interact with Rowboat's API:
 
