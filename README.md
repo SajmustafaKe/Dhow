@@ -1,4 +1,4 @@
-[![ui](/assets/banner.png)](https://www.rowboatlabs.com/)
+![ui](/assets/banner.png)
 
 <h2 align="center">The AI-assisted agent builder</h2>
 <h5 align="center">
