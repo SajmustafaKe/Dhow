@@ -31,7 +31,7 @@ Powered by OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents
 
 3. Access the app at [http://localhost:3000](http://localhost:3000).
 
-## Demo
+## Demos
 
 Creating a fully functional multi-agent system with mock tools from a single prompt
 
