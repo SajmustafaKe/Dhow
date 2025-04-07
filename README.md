@@ -33,54 +33,30 @@ Powered by OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents
 
 ## Demo
 
-![ui](/assets/ui_revamp_screenshot.png)
+Creating a fully functional multi-agent system with mock tools from a single prompt
 
-## Integrate with the Rowboat HTTP API
+[![Watch the demo](https://img.youtube.com/vi/FD2B0vxoqPY/0.jpg)](https://www.youtube.com/watch?v=FD2B0vxoqPY)
 
-You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
-   - Project ID is available in the URL of the project page
-   - API Key can be generated from the project config page at `/projects/<PROJECT_ID>/config`
+Adding MCP servers to your multi-agent system
 
-   ```bash
-   curl --location 'http://localhost:3000/api/v1/<PROJECT_ID>/chat' \
-   --header 'Content-Type: application/json' \
-   --header 'Authorization: Bearer <API_KEY>' \
-   --data '{
-       "messages": [
-           {
-               "role": "user",
-               "content": "tell me the weather in london in metric units"
-           }
-       ]
-   }'
-   ```
-   which gives:
-   ```json
-   {
-       "messages": [
-           {
-               "role": "assistant",
-               "tool_calls": [
-                   {
-                       "function": {
-                           "arguments": "{\"location\":\"London\",\"units\":\"metric\"}",
-                           "name": "weather_lookup_tool"
-                       },
-                       "id": "call_r6XKuVxmGRogofkyFZIacdL0",
-                       "type": "function"
-                   }
-               ],
-               "agenticSender": "Example Agent",
-               "agenticResponseType": "internal"
-           }
-       ],
-       "state": {
-           // .. state data
-       }
-   }
-   ```
+[![Watch the demo](https://img.youtube.com/vi/EbkIPCTyD58/0.jpg)](https://www.youtube.com/watch?v=EbkIPCTyD58)
+
+Editing agents 
+
+[![Watch the demo](https://img.youtube.com/vi/uoCEQtOe7eE/0.jpg)](https://www.youtube.com/watch?v=uoCEQtOe7eE)
+
+
+## Integrate with Rowboat agents
+
+There are 2 ways to integrate with the agents you create in Rowboat
+
+1. HTTP API
+   - You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
+   - See [API Docs](https://docs.rowboatlabs.com/using_the_api/) for more details
+
+2. Python SDK
+   - You can you the included python SDK to interact with the Agents
+   - See [SDK Docs](https://docs.rowboatlabs.com/using_the_sdk/) for more details
+
 
 Refer to [Docs](https://docs.rowboatlabs.com/) to learn how to start building agents with Rowboat.
-
-
-   
