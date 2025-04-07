@@ -55,7 +55,7 @@ There are 2 ways to integrate with the agents you create in Rowboat
    - See [API Docs](https://docs.rowboatlabs.com/using_the_api/) for more details
 
 2. Python SDK
-   - You can you the included python SDK to interact with the Agents
+   - You can use the included Python SDK to interact with the Agents
    - See [SDK Docs](https://docs.rowboatlabs.com/using_the_sdk/) for more details
 
 
