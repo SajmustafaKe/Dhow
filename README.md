@@ -33,14 +33,6 @@ Before running Rowboat, ensure you have:
 
 2. **OpenAI API Key**
    - Obtain from your OpenAI account.
-
-3. **MongoDB**
-   - macOS (Homebrew)
-     ```bash
-     brew tap mongodb/brew
-     brew install mongodb-community@8.0
-     brew services start mongodb-community@8.0
-     ```
    - Other platforms: Refer to the [MongoDB documentation](https://www.mongodb.com/docs/manual/installation/) for details.
 
 ## Setup Rowboat
@@ -51,17 +43,10 @@ Before running Rowboat, ensure you have:
    cd rowboat
    ```
 
-2. **Environment Configuration**
-   - Copy the `.env.example` file and rename it to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Open the new .env file and update the OPENAI_API_KEY:
-
-     ```ini
-     # OpenAI Configuration
-     OPENAI_API_KEY=your-openai-api-key
-     ```
+2. **Set OpenAI key**
+   ```bash
+   export OPENAI_API_KEY=your-openai-api-key
+   ```
 
 3. **Start the App**
    ```bash
