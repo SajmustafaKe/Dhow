@@ -1,38 +1,41 @@
 ![ui](/assets/banner.png)
 
-<h2 align="center">Let AI build multi-agents with MCP for you</h2>
+<h2 align="center">Let AI build multi-agent workflows for you in minutes</h2>
 <h5 align="center">
 
 [Quickstart](#quick-start) | [Docs](https://docs.rowboatlabs.com/) | [Website](https://www.rowboatlabs.com/) |  [Discord](https://discord.gg/jHhUKkKHn8) 
 
 </h5>
 
-Build multi-agents in minutes with Rowboat:
-- ✨ Start from an Idea -> AI plans and builds the multi-agent system for you
+- ✨ **Start from an idea -> copilot builds your multi-agent workflows**
    - E.g. "Build me an assistant for a food delivery company to handle delivery status and missing items. Include the necessary tools."
-- 🌐 Connect MCP servers
+- 🌐 **Connect MCP servers**
    - Add the MCP servers in settings -> import the tools into Rowboat.     
-- 📞 Integrate into your app using the HTTP API
+- 📞 **Integrate into your app using the HTTP API**
    - Grab the project ID and generated API key from settings and use the API.
 
-Built with OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents!
+Powered by OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents!
 
 ## Quick start
-
-1. **Clone the Repository and start Rowboat docker**
+1. Set your OpenAI key
+      ```bash
+   export OPENAI_API_KEY=your-openai-api-key
+   ```
+      
+2. Clone the repository and start Rowboat docker
    ```bash
    git clone git@github.com:rowboatlabs/rowboat.git
    cd rowboat
    docker-compose up --build
    ```
 
+3. Access the app at [http://localhost:3000](http://localhost:3000).
 
-4. **Access the App**
-   - Visit [http://localhost:3000](http://localhost:3000).
+## Demo
 
 ![ui](/assets/ui_revamp_screenshot.png)
 
-## Integrate Rowboat to your app with the HTTP API
+## Integrate with the Rowboat HTTP API
 
 You can use the API directly at [http://localhost:3000/api/v1/](http://localhost:3000/api/v1/)
    - Project ID is available in the URL of the project page
