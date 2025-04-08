@@ -41,6 +41,10 @@ Powered by OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents
 
 [![Watch the demo](https://img.youtube.com/vi/EbkIPCTyD58/0.jpg)](https://www.youtube.com/watch?v=EbkIPCTyD58)
 
+#### Use Firecrawl's MCP server and build a quick url scraping agent
+
+[![Watch the demo](https://img.youtube.com/vi/KeXLKh4tUYU/0.jpg)](https://www.youtube.com/watch?v=KeXLKh4tUYU)
+
 #### Improve agents with feedback
 
 [![Watch the demo](https://img.youtube.com/vi/uoCEQtOe7eE/0.jpg)](https://www.youtube.com/watch?v=uoCEQtOe7eE)
