@@ -20,6 +20,5 @@ nav:
 
   - Concepts:
     - Agents: agents.md
-    - Graph: graph.md
     - Tools: tools.md
     - Prompts: prompts.md
