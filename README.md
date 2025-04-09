@@ -74,8 +74,12 @@ There are 2 ways to integrate with the agents you create in Rowboat
    
 
 2. Python SDK
-   - You can use the included Python SDK to interact with the Agents
-   - See [SDK Docs](https://docs.rowboatlabs.com/using_the_sdk/) for details
+   You can use the included Python SDK to interact with the Agents
+   ```
+   pip install rowboat
+   ```
+
+   See [SDK Docs](https://docs.rowboatlabs.com/using_the_sdk/) for details. Here is a quick example:
    ```python
    from rowboat import Client, StatefulChat
    from rowboat.schema import UserMessage, SystemMessage
