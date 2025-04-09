@@ -9,7 +9,6 @@ nav:
     - Open Source License: license.md
 
   - Building in Studio:
-    - Overview: studio_overview.md
     - Create agents: create_agents.md
     - Test chats in the playground: playground.md
     - Add tools: add_tools.md
