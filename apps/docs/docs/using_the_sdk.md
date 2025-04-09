@@ -13,13 +13,68 @@ This is a guide on using the RowBoat Python SDK as an alternative to the [RowBoa
 
 ## Usage
 
-### Basic Usage
+### Basic Usage with StatefulChat
 
-Initialize a client and use the chat method directly:
+The easiest way to interact with Rowboat is using the `StatefulChat` class, which maintains conversation state automatically:
 
 ```python
-from rowboat import Client
-from rowboat.schema import UserMessage, SystemMessage
+from rowboat import Client, StatefulChat
+
+# Initialize the client
+client = Client(
+    host="<HOST>",
+    project_id="<PROJECT_ID>",
+    api_key="<API_KEY>"
+)
+
+# Create a stateful chat session
+chat = StatefulChat(client)
+
+# Have a conversation
+response = chat.run("What is the capital of France?")
+print(response)
+# The capital of France is Paris.
+
+# Continue the conversation - the context is maintained automatically
+response = chat.run("What other major cities are in that country?")
+print(response)
+# Other major cities in France include Lyon, Marseille, Toulouse, and Nice.
+
+response = chat.run("What's the population of the first city you mentioned?")
+print(response)
+# Lyon has a population of approximately 513,000 in the city proper.
+```
+
+### Advanced Usage
+
+#### Using a specific workflow
+
+You can specify a workflow ID to use a particular conversation configuration:
+
+```python
+chat = StatefulChat(
+    client,
+    workflow_id="<WORKFLOW_ID>"
+)
+```
+
+#### Using a test profile
+
+You can specify a test profile ID to use a specific test configuration:
+
+```python
+chat = StatefulChat(
+    client,
+    test_profile_id="<TEST_PROFILE_ID>"
+)
+```
+
+### Low-Level Usage
+
+For more control over the conversation, you can use the `Client` class directly:
+
+```python
+from rowboat.schema import UserMessage
 
 # Initialize the client
 client = Client(
@@ -30,57 +85,15 @@ client = Client(
 
 # Create messages
 messages = [
-    SystemMessage(role='system', content="You are a helpful assistant"),
     UserMessage(role='user', content="Hello, how are you?")
 ]
 
 # Get response
-response_messages, state = client.chat(messages=messages)
-print(response_messages[-1].content)
+response = client.chat(messages=messages)
+print(response.messages[-1].content)
 
-# For subsequent messages, include previous messages and state
-messages.extend(response_messages)
+# For subsequent messages, you need to manage the message history and state manually
+messages.extend(response.messages)
 messages.append(UserMessage(role='user', content="What's your name?"))
-response_messages, state = client.chat(messages=messages, state=state)
-```
-
-### Using Tools
-
-The SDK supports function calling through tools:
-
-```python
-def weather_lookup(city_name: str) -> str:
-    return f"The weather in {city_name} is 22°C."
-
-# Create a tools dictionary
-tools = {
-    'weather_lookup': weather_lookup
-}
-
-# Use tools with the chat method
-response_messages, state = client.chat(
-    messages=messages,
-    tools=tools
-)
-```
-The last message in `response_messages` is either a user-facing response or a tool call by the assistant. 
-
-### Stateful Chat (Convenience Wrapper)
-
-For simpler use cases, the SDK provides a `StatefulChat` class that maintains conversation state automatically:
-
-```python
-from rowboat import StatefulChat
-
-# Initialize stateful chat
-chat = StatefulChat(
-    client,
-    tools=tools,
-    system_prompt="You are a helpful assistant."
-)
-
-# Simply send messages and get responses
-response = chat.run("Hello, how are you?")
-print(response)
-# I'm good, thanks! How can I help you today?
+response = client.chat(messages=messages, state=response.state)
 ```

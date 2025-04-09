@@ -28,8 +28,8 @@ RowBoat Studio lets you create AI agents in minutes, using a visual interface an
 | Copilot    | AI-powered concierge that creates and<br>updates agents and tools on your behalf |• Context-aware of all components including playground<br>• Improves agents based on conversations and feedback <br>• Understands your requests in plain language|
 
 ### RowBoat Chat API & SDK
-- RowBoat Chat API is a stateless HTTP API to interface with the assistant created on RowBoat Studio. You can use the API to drive end-user facing conversations in your app or website.
-- RowBoat Chat SDK is a simple SDK (currently available in Python) which wraps the HTTP API under the hood. It offers both stateful and stateless (OpenAI-style) implementations.
+- [RowBoat Chat API](/using_the_api) is a stateless HTTP API to interface with the assistant created on RowBoat Studio. You can use the API to drive end-user facing conversations in your app or website.
+- [RowBoat Chat SDK](/using_the_sdk) is a simple SDK (currently available in Python) which wraps the HTTP API under the hood. It offers both stateful and stateless (OpenAI-style) implementations.
 
 ### Steps
 **RowBoat Studio:**
