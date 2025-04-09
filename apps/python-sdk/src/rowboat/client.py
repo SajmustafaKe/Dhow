@@ -100,7 +100,7 @@ class StatefulChat:
         )
         
         # Update internal state
-        self.messages = response_data.messages
+        self.messages.extend(response_data.messages)
         self.state = response_data.state
         
         # Return only the final message content
