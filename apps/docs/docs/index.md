@@ -49,5 +49,5 @@ Rowboat is the fastest way to build and deploy MCP connected multi-agents
 
 ## Getting started
 
-- To set up our open-source installation, see [this guide](/installation)
+- To set up our open-source installation, see [Github Readme](https://github.com/rowboatlabs/rowboat)
 - To sign up for our managed offering (beta), please email us at [founders@rowboatlabs.com](mailto:founders@rowboatlabs.com)
