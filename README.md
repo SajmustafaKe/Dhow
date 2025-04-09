@@ -67,7 +67,8 @@ There are 2 ways to integrate with the agents you create in Rowboat
                "role": "user",
                "content": "tell me the weather in london in metric units"
            }
-       ]
+       ],
+       "state": null
    }'
    ```
    
@@ -76,7 +77,7 @@ There are 2 ways to integrate with the agents you create in Rowboat
    - You can use the included Python SDK to interact with the Agents
    - See [SDK Docs](https://docs.rowboatlabs.com/using_the_sdk/) for details
    ```python
-   from rowboat import Client
+   from rowboat import Client, StatefulChat
    from rowboat.schema import UserMessage, SystemMessage
 
    # Initialize the client
@@ -86,20 +87,20 @@ There are 2 ways to integrate with the agents you create in Rowboat
        api_key="<API_KEY>"
    )
 
-   # Create messages
+   # Create a stateful chat session (recommended)
+   chat = StatefulChat(client)
+   response = chat.run("What's the weather in London?")
+   print(response)
+
+   # Or use the low-level client API
    messages = [
        SystemMessage(role='system', content="You are a helpful assistant"),
        UserMessage(role='user', content="Hello, how are you?")
    ]
    
    # Get response
-   response_messages, state = client.chat(messages=messages)
-   print(response_messages[-1].content)
-   
-   # For subsequent messages, include previous messages and state
-   messages.extend(response_messages)
-   messages.append(UserMessage(role='user', content="What's your name?"))
-   response_messages, state = client.chat(messages=messages, state=state)
+   response = client.chat(messages=messages)
+   print(response.messages[-1].content)
    ```
 
 
