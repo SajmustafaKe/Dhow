@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rowboat"
-version = "2.1.0"
+version = "3.0.0"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" },
+    { name = "Ramnique Singh", email = "ramnique@rowboatlabs.com" },
 ]
 description = "Python sdk for the Rowboat API"
 readme = "README.md"

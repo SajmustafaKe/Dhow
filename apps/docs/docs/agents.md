@@ -19,21 +19,11 @@ The agent uses examples as a reference for behavior in different scenarios. Whil
 ### Prompts
 Prompts attached to an agent will be used by the agent in addition to instructions.
 
-### RAG
-Data sources added to an agent will be used as knowledge, retrieved using embedding match in a typical RAG fashion. Advanced configurations allow for setting number of matches, etc. RAG is currently implemented as a predefined tool call which the agent will use when it determines that it needs to retrieve knowledge. This behavior can be further fine-tuned by specifying corresponding instructions or prompts.
-
 ### Tools
 Tools attached to an agent will be put out as tool calls. The behavior of when to invoke tools can be fine-tuned by specifying corresponding instructions or prompts. Adding examples to agents can also be useful in controlling tool call behavior.
 
 ### Connected Agents
-In the agent graph, connected agents refer to children of an agent. An agent can choose to transfer control of the conversation to one of its children, by using internal tool calls (need not be configured separately). Similar to tools, the behavior of when to transfer the chat to a child agent can be fine-tuned by specifying corresponding instructions, examples and prompts.
+In the agent instructions, the connected agents are shown with an '@mention'. If the agent mentioned in an instruction (connected agent) does not actually exist, the connected agent's name would show up with an '!' to call to attention.
 
 ### Model
-RowBoat currently supports OpenAI LLMs. Agents can be configured to use any of the OpenAI LLMs.
-
-### Conversation control after turn
-This setting specifies different options for control of conversation after the current agent has put out a user-facing response (i.e., completed the turn). Currently available options are:
-
-1. Retain control for the next turn of conversation (most common and default setting)
-2. Give up control to the parent agent (used when the agent has narrow scope such as answering a FAQ)
-3. Give up control to the agent designated as Start agent
+RowBoat currently supports OpenAI LLMs. Agents can be configured to use GPT-4o or GPT-4o-mini.

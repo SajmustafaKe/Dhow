@@ -8,26 +8,17 @@ nav:
     - Introduction: index.md
     - Open Source License: license.md
 
-  - Getting Started:
-    - Option 1 - Open Source: oss_installation.md
-    - Option 2 - Hosted App: hosted_setup.md
-    - Testing Your Setup: testing.md
-  
-  - Building in Studio: 
-    - Overview: studio_overview.md
+  - Building in Studio:
     - Create agents: create_agents.md
     - Test chats in the playground: playground.md
     - Add tools: add_tools.md
     - Update agents: update_agents.md
-    - Simulate scenarios: simulate.md
 
   - API & SDK:
     - Using the API: using_the_api.md
     - Using the SDK: using_the_sdk.md
-  
+
   - Concepts:
     - Agents: agents.md
-    - Graph: graph.md
     - Tools: tools.md
     - Prompts: prompts.md
-    - Data Sources: data_sources.md
