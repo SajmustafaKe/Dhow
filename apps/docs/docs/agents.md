@@ -30,10 +30,3 @@ In the agent graph, connected agents refer to children of an agent. An agent can
 
 ### Model
 RowBoat currently supports OpenAI LLMs. Agents can be configured to use any of the OpenAI LLMs.
-
-### Conversation control after turn
-This setting specifies different options for control of conversation after the current agent has put out a user-facing response (i.e., completed the turn). Currently available options are:
-
-1. Retain control for the next turn of conversation (most common and default setting)
-2. Give up control to the parent agent (used when the agent has narrow scope such as answering a FAQ)
-3. Give up control to the agent designated as Start agent
