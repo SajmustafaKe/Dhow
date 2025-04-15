@@ -10,7 +10,15 @@ You can mock any tool you have created by checking the 'Mock tool responses' opt
 
 ### Adding MCP tools
 
-[![MCP server](https://img.youtube.com/vi/EbkIPCTyD58/0.jpg)](https://www.youtube.com/watch?v=EbkIPCTyD58)
+You can add a running MCP server in Settings -> Tools.
+
+![Example Tool](img/add-mcp-server.png)
+
+You can use [supergateway](https://github.com/supercorp-ai/supergateway) to expose any MCP stdio server as an SSE server.
+
+Now, you can import the tools from the MCP server in the Build view.
+
+![Example Tool](img/import-mcp-tools.png)
 
 
 ### Debug tool calls in the playground
