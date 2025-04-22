@@ -73,7 +73,7 @@ There are 2 ways to integrate with the agents you create in Rowboat
 
    # Initialize the client
    client = Client(
-       host="<HOST>",
+       host="http://localhost:3000",
        project_id="<PROJECT_ID>",
        api_key="<API_KEY>"
    )
