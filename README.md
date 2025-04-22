@@ -34,8 +34,7 @@ Powered by OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents
 ## Demo
 
 #### Create a multi-agent assistant with MCP tools by chatting with Rowboat
-
-[![Prompt to agents](https://img.youtube.com/vi/YRTCw9UHRbU/0.jpg)](https://youtu.be/YRTCw9UHRbU)
+[![Screenshot 2025-04-23 at 00 25 31](https://github.com/user-attachments/assets/c8a41622-8e0e-459f-becb-767503489866)](https://youtu.be/YRTCw9UHRbU)
 
 ## Integrate with Rowboat agents
 
