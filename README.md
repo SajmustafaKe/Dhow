@@ -31,6 +31,8 @@ Powered by OpenAI's Agents SDK, Rowboat is the fastest way to build multi-agents
 
 3. Access the app at [http://localhost:3000](http://localhost:3000).
 
+Note: See the [Using custom LLM providers](https://docs.rowboatlabs.com/setup/#using-custom-llm-providers) section of our docs for using custom providers like OpenRouter and LiteLLM.
+
 ## Demo
 
 #### Create a multi-agent assistant with MCP tools by chatting with Rowboat

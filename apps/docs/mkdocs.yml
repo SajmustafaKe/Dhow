@@ -4,6 +4,7 @@ theme:
   name: material
   favicon: img/favicon.ico
 nav:
+  - Getting Started: setup.md
   - Overview:
     - Introduction: index.md
     - Open Source License: license.md
