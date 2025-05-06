@@ -80,6 +80,18 @@ By default, Rowboat uses OpenAI's `text-embedding-3-small` model for generating 
 ```bash
 # Override the default embedding model
 export EMBEDDING_MODEL=your-preferred-model
+export EMBEDDING_VECTOR_SIZE=1536
+```
+
+**Important NOTE**
+
+The default size for the vectors index is 1536. If you change this value, then you must delete the index and set it up again:
+```bash
+docker-compose --profile delete_qdrant --profile qdrant up --build delete_qdrant qdrant
+```
+followed by:
+```bash
+./start # this will recreate the index
 ```
 
 You can also change the model provider like so:
