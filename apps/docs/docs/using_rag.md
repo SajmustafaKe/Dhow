@@ -49,6 +49,8 @@ export FIRECRAWL_API_KEY=your_firecrawl_api_key
 
 ## File Parsing Options
 
+By default, Rowboat uses OpenAI for parsing documents. However, if you have access to Google's Gemini, we highly recommend using Gemini 2.0 for file parsing.
+
 ### Default Parsing (OpenAI)
 By default, uploaded PDF files are parsed using `gpt-4o`. You can customize this by setting the following:
 
