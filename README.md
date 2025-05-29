@@ -13,14 +13,14 @@
   <a href="https://docs.rowboatlabs.com/" target="_blank" rel="noopener">
     <img alt="Docs" src="https://img.shields.io/badge/Docs-8b5cf6?labelColor=8b5cf6&logo=readthedocs&logoColor=white">
   </a>
+  <a href="https://discord.gg/rxB8pzHxaS" target="_blank" rel="noopener">
+    <img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white&labelColor=5865F2">
+  </a>
   <a href="https://www.rowboatlabs.com/" target="_blank" rel="noopener">
     <img alt="Website" src="https://img.shields.io/badge/Website-10b981?labelColor=10b981&logo=window&logoColor=white">
   </a>
   <a href="https://www.youtube.com/@RowBoatLabs" target="_blank" rel="noopener">
     <img alt="YouTube" src="https://img.shields.io/badge/YouTube-FF0000?labelColor=FF0000&logo=youtube&logoColor=white">
-  </a>
-  <a href="https://discord.gg/rxB8pzHxaS" target="_blank" rel="noopener">
-    <img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white&labelColor=5865F2">
   </a>
   <a href="https://www.linkedin.com/company/rowboat-labs" target="_blank" rel="noopener">
     <img alt="LinkedIn" src="https://custom-icon-badges.demolab.com/badge/LinkedIn-0A66C2?logo=linkedin-white&logoColor=fff">
