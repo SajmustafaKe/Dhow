@@ -5,7 +5,10 @@ In Rowboat, you can add tools to your agents by (a) selecting from a in-built li
 
 #### Hosted MCP Library
 
-Rowboat has partnered with ![Kavis AI](https://www.klavis.ai/) to provide a growing library of hosted MCP servers. You can obtain a 'KLAVIS_API_KEY' and add it to your env for the library to show up automatically under the tools section.
+Rowboat has partnered with ![Kavis AI](https://www.klavis.ai/) to provide a growing library of hosted MCP servers. You can obtain a Klavis API key and set it using:
+```bash
+export KLAVIS_API_KEY=your-klavis-api-key
+```
 
 ![Library](img/mcp-library.png)
 
@@ -19,7 +22,16 @@ The servers you have enabled will show up under tools section in the build view 
 
 ![Library](img/mcp-tools-build-view.png)
 
-Note: For GSuite tools, you need to get the google client ID from your GSuite account and set it to the env variable 'KLAVIS_GOOGLE_CLIENT_ID'.
+Note: For GSuite tools, you need to get a Google Client ID and set it using:
+```bash
+export KLAVIS_GOOGLE_CLIENT_ID=your-google-client-id
+```
+
+To obtain a Google Client ID:
+1. Go to the [Google Cloud Console](https://console.cloud.google.com)
+2. Create a new project or select an existing one
+3. Go to "APIs & Services" → "OAuth consent screen" and complete the setup
+4. Go to "APIs & Services" → "Credentials" → "OAuth client ID" and create credentials for web application.
 
 #### Custom MCP Server
 You can add any running MCP server in Settings -> Tools.
