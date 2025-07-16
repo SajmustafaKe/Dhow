@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Any, Literal
+from typing import List, Optional, Union, Any, Literal, Dict
 from pydantic import BaseModel
 
 class SystemMessage(BaseModel):
@@ -12,8 +12,8 @@ class UserMessage(BaseModel):
 class AssistantMessage(BaseModel):
     role: Literal['assistant']
     content: str
-    agenticSender: Optional[str] = None
-    agenticResponseType: Literal['internal', 'external']
+    agenticName: Optional[str] = None
+    responseType: Literal['internal', 'external']
 
 class FunctionCall(BaseModel):
     name: str
@@ -27,15 +27,14 @@ class ToolCall(BaseModel):
 class AssistantMessageWithToolCalls(BaseModel):
     role: Literal['assistant']
     content: Optional[str] = None
-    tool_calls: List[ToolCall]
-    agenticSender: Optional[str] = None
-    agenticResponseType: Literal['internal', 'external']
+    toolCalls: List[ToolCall]
+    agenticName: Optional[str] = None
 
 class ToolMessage(BaseModel):
     role: Literal['tool']
     content: str
-    tool_call_id: str
-    tool_name: str
+    toolCallId: str
+    toolName: str
 
 ApiMessage = Union[
     SystemMessage,
@@ -50,7 +49,8 @@ class ApiRequest(BaseModel):
     state: Any
     workflowId: Optional[str] = None
     testProfileId: Optional[str] = None
+    mockTools: Optional[Dict[str, str]] = None
 
 class ApiResponse(BaseModel):
     messages: List[ApiMessage]
-    state: Any 
+    state: Optional[Any] = None
