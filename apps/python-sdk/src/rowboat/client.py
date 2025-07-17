@@ -22,13 +22,15 @@ class Client:
         messages: List[ApiMessage],
         state: Optional[Dict[str, Any]] = None,
         workflow_id: Optional[str] = None,
-        test_profile_id: Optional[str] = None
+        test_profile_id: Optional[str] = None,
+        mock_tools: Optional[Dict[str, str]] = None
     ) -> ApiResponse:
         request = ApiRequest(
             messages=messages,
             state=state,
             workflowId=workflow_id,
-            testProfileId=test_profile_id
+            testProfileId=test_profile_id,
+            mockTools=mock_tools
         )
         json_data = request.model_dump()
         response = requests.post(self.base_url, headers=self.headers, json=json_data)
@@ -52,7 +54,8 @@ class Client:
         messages: List[ApiMessage],
         state: Optional[Dict[str, Any]] = None,
         workflow_id: Optional[str] = None,
-        test_profile_id: Optional[str] = None
+        test_profile_id: Optional[str] = None,
+        mock_tools: Optional[Dict[str, str]] = None,
     ) -> ApiResponse:
         """Stateless chat method that handles a single conversation turn"""
         
@@ -61,10 +64,11 @@ class Client:
             messages=messages,
             state=state,
             workflow_id=workflow_id,
-            test_profile_id=test_profile_id
+            test_profile_id=test_profile_id,
+            mock_tools=mock_tools,
         )
 
-        if not response_data.messages[-1].agenticResponseType == 'external':
+        if not response_data.messages[-1].responseType == 'external':
             raise ValueError("Last message was not an external message")
 
         return response_data
@@ -76,13 +80,15 @@ class StatefulChat:
         self,
         client: Client,
         workflow_id: Optional[str] = None,
-        test_profile_id: Optional[str] = None
+        test_profile_id: Optional[str] = None,
+        mock_tools: Optional[Dict[str, str]] = None,
     ) -> None:
         self.client = client
         self.messages: List[ApiMessage] = []
         self.state: Optional[Dict[str, Any]] = None
         self.workflow_id = workflow_id
         self.test_profile_id = test_profile_id
+        self.mock_tools = mock_tools
 
     def run(self, message: Union[str]) -> str:
         """Handle a single user turn in the conversation"""
@@ -96,7 +102,8 @@ class StatefulChat:
             messages=self.messages,
             state=self.state,
             workflow_id=self.workflow_id,
-            test_profile_id=self.test_profile_id
+            test_profile_id=self.test_profile_id,
+            mock_tools=self.mock_tools,
         )
         
         # Update internal state

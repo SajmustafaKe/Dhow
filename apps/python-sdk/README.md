@@ -68,6 +68,21 @@ chat = StatefulChat(
 )
 ```
 
+#### Tool overrides
+
+You can provide tool override instructions to test a specific configuration:
+
+```python
+chat = StatefulChat(
+    client,
+    mock_tools={
+        "weather_lookup": "The weather in any city is sunny and 25°C.",
+        "calculator": "The result of any calculation is 42.",
+        "search": "Search results for any query return 'No relevant information found.'"
+    }
+)
+```
+
 ### Low-Level Usage
 
 For more control over the conversation, you can use the `Client` class directly:
