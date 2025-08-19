@@ -25,6 +25,9 @@
   <a href="https://www.linkedin.com/company/rowboat-labs" target="_blank" rel="noopener">
     <img alt="LinkedIn" src="https://custom-icon-badges.demolab.com/badge/LinkedIn-0A66C2?logo=linkedin-white&logoColor=fff">
   </a>
+  <a href="https://x.com/intent/user?screen_name=rowboatlabshq" target="_blank" rel="noopener">
+    <img alt="Twitter" src="https://img.shields.io/twitter/follow/rowboatlabshq?style=social">
+  </a>
   <a href="https://www.ycombinator.com" target="_blank" rel="noopener">
     <img alt="Y Combinator" src="https://img.shields.io/badge/Y%20Combinator-S24-orange">
   </a>
