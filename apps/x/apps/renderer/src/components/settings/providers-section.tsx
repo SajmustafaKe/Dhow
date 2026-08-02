@@ -23,7 +23,7 @@ import {
   ZhipuIcon,
   QwenIcon,
 } from "@/components/onboarding/provider-icons"
-import { PROVIDER_DEFAULT_BASE_URLS } from "@x/shared/dist/provider-endpoints.js"
+import { PROVIDER_DEFAULT_BASE_URLS, connectFailureHint } from "@x/shared/dist/provider-endpoints.js"
 
 // Provider lifecycle: connected-provider cards (status + model counts), the
 // add-provider flow, per-provider manage (replace key / endpoint / refresh
@@ -77,6 +77,15 @@ const DEFAULT_BASE_URLS: Partial<Record<ByokFlavor, string>> = {
   // Presets for the hosted providers. Kimi, GLM and Qwen each run a separate
   // mainland-China host, so their endpoint stays editable (needsEndpoint).
   ...PROVIDER_DEFAULT_BASE_URLS,
+}
+
+/**
+ * A wrong-region key and a wrong key produce the same 401, so append the
+ * alternate-host guidance rather than leaving the user to guess.
+ */
+function withRegionHint(flavor: string, message: string, baseUrl?: string): string {
+  const hint = connectFailureHint(flavor, message, baseUrl)
+  return hint ? `${message}\n\n${hint}` : message
 }
 
 function flavorMeta(flavor: string) {
@@ -360,7 +369,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, chatgptSignedIn, 
       const typed = manualModel.trim()
       const model = typed || (selectInitialModel(list) ?? "")
       if (!listRes.success && !model) {
-        setStep({ kind: "error", flavor, message: listRes.error || "Could not load the provider's model list." })
+        setStep({ kind: "error", flavor, message: withRegionHint(flavor, listRes.error || "Could not load the provider's model list.", url) })
         return
       }
       if (!model) {
@@ -369,7 +378,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, chatgptSignedIn, 
       }
       const testRes = await window.ipc.invoke("models:test", { provider: providerEntry, model })
       if (!testRes.success) {
-        setStep({ kind: "error", flavor, message: testRes.error || "Connection test failed" })
+        setStep({ kind: "error", flavor, message: withRegionHint(flavor, testRes.error || "Connection test failed", url) })
         return
       }
       await window.ipc.invoke("models:setProvider", { id: flavor, provider: providerEntry })
@@ -529,7 +538,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, chatgptSignedIn, 
         {step.kind === "error" && credsMeta && (
           <div className="space-y-3">
             <div className="text-sm font-medium text-destructive">Couldn&apos;t connect</div>
-            <p className="text-xs text-muted-foreground break-words">{step.message}</p>
+            <p className="text-xs text-muted-foreground break-words whitespace-pre-line">{step.message}</p>
             {credsMeta.manualModel && (
               <div className="space-y-1.5">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Model id</span>

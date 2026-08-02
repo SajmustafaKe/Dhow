@@ -36,3 +36,46 @@ export function isOpenAICompatibleFlavor(flavor: string): boolean {
 export function defaultBaseUrlFor(flavor: string): string | undefined {
     return PROVIDER_DEFAULT_BASE_URLS[flavor as PresetProviderFlavor];
 }
+
+/**
+ * Vendors that operate a second, account-incompatible host for mainland China.
+ * A key issued on one console is rejected by the other with a plain 401, which
+ * is indistinguishable from a genuinely bad key — so when a connect fails we
+ * point at the alternate rather than leaving the user to guess.
+ */
+export const REGIONAL_ALTERNATES: Partial<Record<PresetProviderFlavor, {
+    /** The console that issues keys for the alternate host. */
+    console: string;
+    baseURL: string;
+    label: string;
+}>> = {
+    moonshot: {
+        console: "platform.moonshot.cn",
+        baseURL: "https://api.moonshot.cn/v1",
+        label: "mainland China",
+    },
+    zhipu: {
+        console: "open.bigmodel.cn",
+        baseURL: "https://open.bigmodel.cn/api/paas/v4",
+        label: "mainland China",
+    },
+    dashscope: {
+        console: "bailian.console.aliyun.com",
+        baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        label: "mainland China",
+    },
+};
+
+/**
+ * Extra guidance to append to a failed connect. Returns undefined when the
+ * failure is not an auth error or the flavor has no regional twin — a wrong
+ * key should still read as a wrong key.
+ */
+export function connectFailureHint(flavor: string, message: string, currentBaseUrl?: string): string | undefined {
+    const alt = REGIONAL_ALTERNATES[flavor as PresetProviderFlavor];
+    if (!alt) return undefined;
+    if (!/\b401\b|invalid[_ ]authentication|unauthorized|api key/i.test(message)) return undefined;
+    // Already pointed at the alternate — the key really is wrong.
+    if (currentBaseUrl && currentBaseUrl.replace(/\/+$/, "") === alt.baseURL) return undefined;
+    return `If this key came from ${alt.console} (${alt.label}), change the endpoint to ${alt.baseURL} — keys are not shared between the two platforms.`;
+}
