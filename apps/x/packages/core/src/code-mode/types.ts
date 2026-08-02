@@ -18,5 +18,6 @@ export type AgentStatus = z.infer<typeof AgentStatus>;
 export const CodeModeAgentStatus = z.object({
     claude: AgentStatus,
     codex: AgentStatus,
+    omp: AgentStatus,
 });
 export type CodeModeAgentStatus = z.infer<typeof CodeModeAgentStatus>;

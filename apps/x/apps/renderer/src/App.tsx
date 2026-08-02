@@ -1272,7 +1272,7 @@ function App() {
     })
   }, [voice])
 
-  const handlePromptSubmitRef = useRef<((message: PromptInputMessage, mentions?: FileMention[], stagedAttachments?: StagedAttachment[], searchEnabled?: boolean, codeMode?: 'claude' | 'codex', permissionMode?: PermissionMode) => Promise<void>) | null>(null)
+  const handlePromptSubmitRef = useRef<((message: PromptInputMessage, mentions?: FileMention[], stagedAttachments?: StagedAttachment[], searchEnabled?: boolean, codeMode?: 'claude' | 'codex' | 'omp', permissionMode?: PermissionMode) => Promise<void>) | null>(null)
   const pendingVoiceInputRef = useRef(false)
 
   // Palette: per-tab editor handles for capturing cursor context on Cmd+K, and pending payload
@@ -2050,7 +2050,7 @@ function App() {
   // Composer locks for runs that are code sessions: the session's cwd + agent
   // are frozen in the chat input (the backend pins them server-side anyway).
   // Kept after the Code view unmounts — the chat tab stays bound to the run.
-  const [codeSessionLocks, setCodeSessionLocks] = useState<Record<string, { cwd: string; agent: 'claude' | 'codex' }>>({})
+  const [codeSessionLocks, setCodeSessionLocks] = useState<Record<string, { cwd: string; agent: 'claude' | 'codex' | 'omp' }>>({})
   const [editorSessionByTabId, setEditorSessionByTabId] = useState<Record<string, number>>({})
   const fileHistoryHandlersRef = useRef<Map<string, MarkdownHistoryHandlers>>(new Map())
   const fileTabIdCounterRef = useRef(0)
@@ -3382,7 +3382,7 @@ function App() {
     mentions?: FileMention[],
     stagedAttachments: StagedAttachment[] = [],
     searchEnabled?: boolean,
-    codeMode?: 'claude' | 'codex',
+    codeMode?: 'claude' | 'codex' | 'omp',
     permissionMode?: PermissionMode,
   ) => {
     if (activeIsProcessing) {

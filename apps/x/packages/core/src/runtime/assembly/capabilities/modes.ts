@@ -103,7 +103,7 @@ const SEARCH = `# Search\nThe user has requested a search. Use the web-search to
 
 const CODE_MODE_TEMPLATE = (
     agentDisplay: string,
-    codeMode: "claude" | "codex",
+    codeMode: "claude" | "codex" | "omp",
     codeCwd: string | null,
 ): string => `# Code Mode (Active) — Agent: ${agentDisplay}
 The user has turned on **code mode** and the composer chip is set to **${agentDisplay}** (\`${codeMode}\`). For EVERY coding task this turn, use **${agentDisplay}**, and narrate that agent ("Using ${agentDisplay} to …").

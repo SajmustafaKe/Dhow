@@ -45,7 +45,7 @@ export function NewSessionDialog({
   onOpenChange: (open: boolean) => void
   onCreated: (session: CodeSession) => void
 }) {
-  const [agentStatus, setAgentStatus] = useState<{ claude: AgentStatus; codex: AgentStatus } | null>(null)
+  const [agentStatus, setAgentStatus] = useState<Record<CodingAgent, AgentStatus> | null>(null)
   const [agent, setAgent] = useState<CodingAgent>('claude')
   // Direct drive by default; Dhow orchestration remains an opt-in per session.
   const [mode, setMode] = useState<CodeSessionMode>('direct')
@@ -150,9 +150,17 @@ export function NewSessionDialog({
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium">Coding agent</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['claude', 'codex'] as const).map((a) => {
+            <div className="grid grid-cols-3 gap-2">
+              {(['claude', 'codex', 'omp'] as const).map((a) => {
                 const ready = agentReady(a)
+                const label = a === 'claude' ? 'Claude Code' : a === 'codex' ? 'Codex' : 'Oh My Pi'
+                // omp is installed by the user rather than downloaded by Dhow,
+                // so "Enable in Settings" would be misleading for it.
+                const hint = ready
+                  ? 'Ready'
+                  : a === 'omp'
+                    ? 'Not installed'
+                    : agentStatus?.[a]?.installed ? 'Not signed in' : 'Enable in Settings'
                 return (
                   <button
                     key={a}
@@ -165,10 +173,8 @@ export function NewSessionDialog({
                       !ready && 'cursor-not-allowed opacity-50',
                     )}
                   >
-                    <div className="font-medium">{a === 'claude' ? 'Claude Code' : 'Codex'}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {ready ? 'Ready' : agentStatus?.[a]?.installed ? 'Not signed in' : 'Enable in Settings'}
-                    </div>
+                    <div className="font-medium">{label}</div>
+                    <div className="text-[11px] text-muted-foreground">{hint}</div>
                   </button>
                 )
               })}

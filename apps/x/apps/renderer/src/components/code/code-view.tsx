@@ -180,7 +180,7 @@ export function CodeView({
     }
   }, [refresh, selectedSessionId])
 
-  const handleUpdateSession = useCallback(async (patch: { mode?: 'direct' | 'dhow'; policy?: ApprovalPolicy; agent?: 'claude' | 'codex'; agentModel?: string; agentEffort?: string }) => {
+  const handleUpdateSession = useCallback(async (patch: { mode?: 'direct' | 'dhow'; policy?: ApprovalPolicy; agent?: 'claude' | 'codex' | 'omp'; agentModel?: string; agentEffort?: string }) => {
     if (!selectedSessionId) return
     try {
       await window.ipc.invoke('codeSession:update', { sessionId: selectedSessionId, patch })

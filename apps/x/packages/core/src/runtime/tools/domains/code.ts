@@ -45,11 +45,11 @@ export const codeAgentRunTools: z.infer<typeof BuiltinToolsSchema> = {
         permission: "none",
         description: 'Run a coding/software task with the selected on-device coding agent (Claude Code or Codex) inside a project folder. Streams the agent\'s tool calls, file diffs, and plan into the chat and surfaces permission requests inline. Use this for ALL code-mode work (writing/editing/reading code, running tests, debugging, exploring a repo). Reuses one persistent session per chat, so follow-up requests keep context.',
         inputSchema: z.object({
-            agent: z.enum(['claude', 'codex']).describe('Which coding agent to use: "claude" (Claude Code) or "codex". Set this to the active code-mode chip agent. Note: when the chip is set, the backend uses the chip agent regardless of this value — this only takes effect in the ask-human flow where no chip is set.'),
+            agent: z.enum(['claude', 'codex', 'omp']).describe('Which coding agent to use: "claude" (Claude Code), "codex", or "omp" (Oh My Pi). Set this to the active code-mode chip agent. Note: when the chip is set, the backend uses the chip agent regardless of this value — this only takes effect in the ask-human flow where no chip is set.'),
             cwd: z.string().describe('Absolute path to the working directory / project folder the agent should operate in.'),
             prompt: z.string().describe('The full, self-contained coding instruction for the agent (file names, expected behavior, constraints).'),
         }),
-        execute: async ({ agent, cwd, prompt }: { agent: 'claude' | 'codex', cwd: string, prompt: string }, ctx?: ToolContext) => {
+        execute: async ({ agent, cwd, prompt }: { agent: 'claude' | 'codex' | 'omp', cwd: string, prompt: string }, ctx?: ToolContext) => {
             if (!ctx) {
                 throw new Error('code_agent_run requires run context (runId / streaming).');
             }

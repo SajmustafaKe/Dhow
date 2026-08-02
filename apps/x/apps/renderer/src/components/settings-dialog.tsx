@@ -1190,6 +1190,50 @@ function AgentStatusRow({
   )
 }
 
+/**
+ * Oh My Pi is user-installed and speaks ACP natively, so it gets no Enable
+ * button (there is nothing for Dhow to download) and no separate sign-in row
+ * (it uses the provider credentials already configured under ~/.omp).
+ */
+function OmpStatusRow({ status, onRecheck }: { status: AgentStatus | null; onRecheck: () => void }) {
+  const installed = status?.installed ?? false
+  return (
+    <div className="rounded-md border px-3 py-2.5 flex items-center gap-3">
+      <Terminal className="size-5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium">Oh My Pi</div>
+        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
+          <span className={cn("inline-flex items-center gap-1", installed ? "text-green-600" : "text-muted-foreground")}>
+            {installed ? <CheckCircle2 className="size-3" /> : <X className="size-3" />}
+            {installed ? 'Installed' : 'Not installed'}
+          </span>
+        </div>
+        {!installed && (
+          <div className="text-xs text-muted-foreground mt-1">
+            Install it yourself, then re-check:{' '}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">npm i -g @oh-my-pi/pi-coding-agent</code>
+            {' '}or{' '}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">brew install omp</code>
+          </div>
+        )}
+      </div>
+      {installed ? (
+        <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium leading-none text-green-600">
+          Ready
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onRecheck}
+          className="rounded-full border px-3 py-1 text-xs font-medium hover:bg-muted shrink-0"
+        >
+          Re-check
+        </button>
+      )}
+    </div>
+  )
+}
+
 function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
   const [enabled, setEnabled] = useState(false)
   const [approvalPolicy, setApprovalPolicy] = useState<ApprovalPolicy>('ask')
@@ -1324,6 +1368,7 @@ function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
             status={status?.codex ?? null}
             onProvisioned={loadStatus}
           />
+          <OmpStatusRow status={status?.omp ?? null} onRecheck={loadStatus} />
         </div>
       </div>
 

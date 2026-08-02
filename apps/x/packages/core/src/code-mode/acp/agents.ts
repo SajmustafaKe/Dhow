@@ -8,7 +8,8 @@ import { loginShellPath } from './shell-env.js';
 const require = createRequire(import.meta.url);
 
 // The ACP adapter npm package that exposes each coding agent as an ACP server.
-const ADAPTER_PACKAGE: Record<CodingAgent, string> = {
+// omp is absent by design — it implements ACP natively via `omp acp`.
+const ADAPTER_PACKAGE: Record<Exclude<CodingAgent, 'omp'>, string> = {
     claude: '@agentclientprotocol/claude-agent-acp',
     codex: '@agentclientprotocol/codex-acp',
 };
@@ -59,20 +60,34 @@ function resolveAdapterEntry(pkg: string): string {
     }
     return path.join(pkgDir, rel);
 }
-
-export function getAgentLaunchSpec(agent: CodingAgent): AgentLaunchSpec {
-    const entry = resolveAdapterEntry(ADAPTER_PACKAGE[agent]);
-    const env: NodeJS.ProcessEnv = { ...process.env };
-
-    // Graft the user's login-shell PATH onto the engine's env. GUI (Finder) launches
-    // inherit launchd's stripped PATH, so tools the engine spawns — git, gh, rg, bash —
-    // would otherwise fail with "command not found" even though they work from a
-    // terminal. No-op on Windows / when the probe fails.
+/**
+ * Graft the user's login-shell PATH onto the engine's env. GUI (Finder)
+ * launches inherit launchd's stripped PATH, so tools the engine spawns — git,
+ * gh, rg, bash — would otherwise fail with "command not found" even though
+ * they work from a terminal. No-op on Windows / when the probe fails.
+ */
+function applyLoginShellPath(env: NodeJS.ProcessEnv): void {
     const shellPath = loginShellPath();
     if (shellPath && shellPath !== env.PATH) {
         const dirs = [...shellPath.split(path.delimiter), ...(env.PATH ?? '').split(path.delimiter)];
         env.PATH = [...new Set(dirs.filter(Boolean))].join(path.delimiter);
     }
+}
+
+export function getAgentLaunchSpec(agent: CodingAgent): AgentLaunchSpec {
+    const env: NodeJS.ProcessEnv = { ...process.env };
+
+    // omp needs no adapter: `omp acp` IS an ACP server. Resolve the binary the
+    // user installed and spawn it directly, so the branch below (which stages
+    // an npm adapter and points it at a downloaded engine) does not apply.
+    if (agent === 'omp') {
+        const exe = getProvisionedEnginePath('omp');
+        applyLoginShellPath(env);
+        return { command: exe, args: ['acp'], env };
+    }
+
+    const entry = resolveAdapterEntry(ADAPTER_PACKAGE[agent]);
+    applyLoginShellPath(env);
 
     // Point the adapter at the engine the user already enabled in Settings. We do NOT
     // download here — getProvisionedEnginePath throws a clear "enable it in Settings"

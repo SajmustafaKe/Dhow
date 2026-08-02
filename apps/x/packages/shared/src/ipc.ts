@@ -424,7 +424,7 @@ const ipcSchemas = {
       voiceInput: z.boolean().optional(),
       voiceOutput: z.enum(['summary', 'full']).optional(),
       searchEnabled: z.boolean().optional(),
-      codeMode: z.enum(['claude', 'codex']).optional(),
+      codeMode: z.enum(['claude', 'codex', 'omp']).optional(),
       // Code-section sessions pin the coding agent's working directory and
       // approval policy for the whole turn (see code_agent_run overrides).
       codeCwd: z.string().optional(),
@@ -1229,6 +1229,10 @@ const ipcSchemas = {
     res: z.object({
       claude: z.object({ installed: z.boolean(), signedIn: z.boolean() }),
       codex: z.object({ installed: z.boolean(), signedIn: z.boolean() }),
+      // omp is user-installed and carries its own model credentials, so
+      // `signedIn` mirrors `installed` — there is no separate auth step Dhow
+      // can observe.
+      omp: z.object({ installed: z.boolean(), signedIn: z.boolean() }),
     }),
   },
   // Download + install an agent's native engine (the Settings "Enable" action).

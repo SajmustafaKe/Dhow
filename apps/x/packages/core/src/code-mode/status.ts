@@ -156,8 +156,14 @@ export async function checkCodeModeAgentStatus(): Promise<CodeModeAgentStatus> {
     // `installed` means the engine is provisioned (downloaded) locally — the user has
     // clicked Enable in Settings → Code Mode. We no longer look for a global claude/codex
     // CLI on PATH; code mode runs our own pinned engine from ~/.dhow/engines.
+    //
+    // omp is the exception: it is user-installed and speaks ACP itself, so
+    // "installed" means the binary is discoverable, and there is no separate
+    // sign-in for Dhow to observe (it carries its own provider credentials).
+    const ompInstalled = isEngineProvisioned('omp');
     return {
         claude: { installed: isEngineProvisioned('claude'), signedIn: claudeSignedIn },
         codex: { installed: isEngineProvisioned('codex'), signedIn: codexSignedIn },
+        omp: { installed: ompInstalled, signedIn: ompInstalled },
     };
 }

@@ -19,6 +19,7 @@ import { spawnSync } from 'child_process';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { ENGINE_MANIFEST } from './engine-manifest.js';
+import { isOmpInstalled, resolveOmpExecutable, OMP_INSTALL_HINT } from './omp.js';
 import type { CodingAgent } from './types.js';
 
 export const ENGINES_ROOT = path.join(os.homedir(), '.dhow', 'engines');
@@ -50,7 +51,7 @@ export interface ProvisionedEngine {
 
 // Map this process's platform/arch (+ libc on linux) to a manifest platform key for the
 // given agent. Returns null when no engine is published for this platform.
-function platformKey(agent: CodingAgent): string | null {
+function platformKey(agent: Exclude<CodingAgent, 'omp'>): string | null {
     const arch = process.arch === 'arm64' ? 'arm64' : process.arch === 'x64' ? 'x64' : null;
     if (!arch) return null;
     const plats = ENGINE_MANIFEST[agent].platforms as Record<string, PlatformEntry>;
@@ -107,18 +108,23 @@ function locateExecutable(agent: CodingAgent, root: string): string | null {
 // True when this OS/arch has a published engine for `agent` — i.e. we can provision it.
 // (Used for status: code mode no longer requires a user-installed CLI.)
 export function isEngineSupported(agent: CodingAgent): boolean {
+    // omp is never provisioned by us — it speaks ACP itself and the user
+    // installs it — so it is "supported" everywhere; availability is purely
+    // whether the binary is on PATH.
+    if (agent === 'omp') return true;
     return platformKey(agent) !== null;
 }
 
 // True when the pinned engine for `agent` is already downloaded and intact locally.
 export function isEngineProvisioned(agent: CodingAgent): boolean {
+    if (agent === 'omp') return isOmpInstalled();
     const version = ENGINE_MANIFEST[agent].version;
     const versionDir = path.join(ENGINES_ROOT, agent, version);
     const metaPath = path.join(ENGINES_ROOT, agent, '.meta', `${agent}-${version}.json`);
     return locateExecutable(agent, versionDir) !== null && fs.existsSync(metaPath);
 }
 
-const AGENT_LABEL: Record<CodingAgent, string> = { claude: 'Claude Code', codex: 'Codex' };
+const AGENT_LABEL: Record<CodingAgent, string> = { claude: 'Claude Code', codex: 'Codex', omp: 'Oh My Pi' };
 
 // Return the provisioned engine's executable path, or throw a clear, user-facing error.
 // The chat/run path uses this — we deliberately do NOT download here: the engine must be
@@ -126,6 +132,11 @@ const AGENT_LABEL: Record<CodingAgent, string> = { claude: 'Claude Code', codex:
 // download mid-conversation. ensureEngine() (the downloading path) is driven only by the
 // Settings "Enable" action.
 export function getProvisionedEnginePath(agent: CodingAgent): string {
+    if (agent === 'omp') {
+        const exe = resolveOmpExecutable();
+        if (!exe) throw new Error(OMP_INSTALL_HINT);
+        return exe;
+    }
     const version = ENGINE_MANIFEST[agent].version;
     const exe = locateExecutable(agent, path.join(ENGINES_ROOT, agent, version));
     if (!exe) {
@@ -241,6 +252,14 @@ function makeExecutable(agent: CodingAgent, root: string, exe: string): void {
  * use. Returns the absolute path to the engine executable. Idempotent and cached.
  */
 export async function ensureEngine(agent: CodingAgent, opts: EnsureEngineOptions = {}): Promise<ProvisionedEngine> {
+    if (agent === 'omp') {
+        // omp is user-installed and self-hosting over ACP — there is no engine
+        // tarball to fetch. Surface the install instructions instead of
+        // pretending the "Enable" action can do anything.
+        const exe = resolveOmpExecutable();
+        if (!exe) throw new Error(OMP_INSTALL_HINT);
+        return { version: 'user-installed', executablePath: exe };
+    }
     const entry = ENGINE_MANIFEST[agent];
     const version = entry.version;
     const key = platformKey(agent);

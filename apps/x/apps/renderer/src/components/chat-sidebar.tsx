@@ -147,7 +147,7 @@ interface ChatSidebarProps {
   isWaitingOnHuman?: boolean
   isStopping?: boolean
   onStop?: () => void
-  onSubmit: (message: PromptInputMessage, mentions?: FileMention[], attachments?: StagedAttachment[], searchEnabled?: boolean, codeMode?: 'claude' | 'codex', permissionMode?: PermissionMode) => void
+  onSubmit: (message: PromptInputMessage, mentions?: FileMention[], attachments?: StagedAttachment[], searchEnabled?: boolean, codeMode?: 'claude' | 'codex' | 'omp', permissionMode?: PermissionMode) => void
   knowledgeFiles?: string[]
   recentFiles?: string[]
   visibleFiles?: string[]
@@ -160,7 +160,7 @@ interface ChatSidebarProps {
   onReasoningEffortChangeForTab?: (tabId: string, effort: ReasoningEffortLevel | null) => void
   workDirByTab?: Record<string, string | null>
   /** Composer locks for runs bound to Code-section sessions (cwd + agent frozen). */
-  codeSessionLocks?: Record<string, { cwd: string; agent: 'claude' | 'codex' }>
+  codeSessionLocks?: Record<string, { cwd: string; agent: 'claude' | 'codex' | 'omp' }>
   /**
    * Set while a Dhow-mode code session owns this pane: the chat is pinned to
    * the session, so the chat switcher / new-chat / history affordances hide.
