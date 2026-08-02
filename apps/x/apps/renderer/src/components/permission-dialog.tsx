@@ -18,27 +18,27 @@ const COPY: Record<
 > = {
   microphone: {
     icon: Mic,
-    title: 'Rowboat needs microphone access',
+    title: 'Dhow needs microphone access',
     body:
-      'Voice input is off because macOS is blocking the microphone for Rowboat. ' +
+      'Voice input is off because macOS is blocking the microphone for Dhow. ' +
       'Enable it under System Settings → Privacy & Security → Microphone, then try again.',
     section: 'microphone',
   },
   camera: {
     icon: Video,
-    title: 'Rowboat needs camera access',
+    title: 'Dhow needs camera access',
     body:
-      'Video calls are off because macOS is blocking the camera for Rowboat. ' +
+      'Video calls are off because macOS is blocking the camera for Dhow. ' +
       'Enable it under System Settings → Privacy & Security → Camera, then start the call again.',
     section: 'camera',
   },
   'screen-recording': {
     icon: MonitorUp,
-    title: 'Rowboat can’t see your screen',
+    title: 'Dhow can’t see your screen',
     body:
       'macOS is blocking Screen Recording, so the assistant would only see black frames. ' +
-      'Enable Rowboat under System Settings → Privacy & Security → Screen Recording, then ' +
-      'relaunch Rowboat. If Rowboat is already enabled there, toggle it off and on — an ' +
+      'Enable Dhow under System Settings → Privacy & Security → Screen Recording, then ' +
+      'relaunch Dhow. If Dhow is already enabled there, toggle it off and on — an ' +
       'updated app needs a fresh grant — and relaunch.',
     section: 'screen-recording',
   },
@@ -47,9 +47,9 @@ const COPY: Record<
     title: 'Enable push-to-talk from any app',
     body:
       'Hold Right ⌘ to talk during a call — even while you’re in another app. ' +
-      'For Rowboat to see that key outside its own window, macOS requires the ' +
+      'For Dhow to see that key outside its own window, macOS requires the ' +
       'Input Monitoring permission. Without it, push-to-talk still works while ' +
-      'Rowboat is focused.',
+      'Dhow is focused.',
     section: 'input-monitoring',
   },
 }
@@ -103,7 +103,7 @@ export function PermissionDialog({
                   className="w-full"
                   onClick={() => void window.ipc.invoke('app:relaunch', null).catch(() => {})}
                 >
-                  Relaunch Rowboat
+                  Relaunch Dhow
                 </Button>
               )}
               {kind === 'input-monitoring' && onRetry && (

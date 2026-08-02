@@ -4,20 +4,20 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // index.js scans the disk skill roots at module init, and the roots are fixed
-// when disk-loader.js/config.js load — so the ROWBOAT_WORKDIR and homedir
+// when disk-loader.js/config.js load — so the DHOW_WORKDIR and homedir
 // overrides must be in place before the dynamic import in each test, mirroring
 // filesystem/files.test.ts.
 let tmpDir: string;
 let workDir: string;
 let fakeHomeDir: string;
-let rowboatSkillsRoot: string;
+let dhowSkillsRoot: string;
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "skills-index-test-"));
-  workDir = path.join(tmpDir, "rowboat");
+  workDir = path.join(tmpDir, "dhow");
   fakeHomeDir = path.join(tmpDir, "home");
-  rowboatSkillsRoot = path.join(workDir, "skills");
-  process.env.ROWBOAT_WORKDIR = workDir;
+  dhowSkillsRoot = path.join(workDir, "skills");
+  process.env.DHOW_WORKDIR = workDir;
   vi.resetModules();
   // config.js kicks off these imports on load; stub them so tests stay
   // hermetic (no git init or Today.md migration against the temp workdir).
@@ -42,7 +42,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.ROWBOAT_WORKDIR;
+  delete process.env.DHOW_WORKDIR;
   vi.doUnmock("../../../knowledge/version_history.js");
   vi.doUnmock("../../../knowledge/deprecate_today_note.js");
   vi.doUnmock("node:os");
@@ -55,7 +55,7 @@ async function loadSkillsIndex() {
 }
 
 function writeSkill(folder: string, contents: string): string {
-  const dir = path.join(rowboatSkillsRoot, folder);
+  const dir = path.join(dhowSkillsRoot, folder);
   fs.mkdirSync(dir, { recursive: true });
   const skillFile = path.join(dir, "SKILL.md");
   fs.writeFileSync(skillFile, contents);
@@ -137,7 +137,7 @@ describe("skills index (disk skill merge layer)", () => {
     expect(skills.resolveSkill("late-arrival")?.content).toBe(raw);
     expect(skills.resolveSkill(skillFile)?.content).toBe(raw);
 
-    fs.rmSync(path.join(rowboatSkillsRoot, "late-arrival"), { recursive: true, force: true });
+    fs.rmSync(path.join(dhowSkillsRoot, "late-arrival"), { recursive: true, force: true });
 
     expect(skills.refreshDiskSkills()).toBe(0);
     expect(skills.availableSkills).not.toContain("late-arrival");

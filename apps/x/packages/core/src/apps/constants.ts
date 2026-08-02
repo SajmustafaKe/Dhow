@@ -1,7 +1,7 @@
 import path from 'path';
 import { WorkDir } from '../config/config.js';
 
-// Rowboat Apps constants (spec §3). All apps constants live here; values the
+// Dhow Apps constants (spec §3). All apps constants live here; values the
 // renderer needs are mirrored through IPC responses, never imported directly.
 
 export const APPS_DIR = path.join(WorkDir, 'apps');
@@ -10,7 +10,7 @@ export const APPS_PORT = 3210; // reuses the local-sites port (D8)
 export const APPS_HOST_SUFFIX = '.apps.localhost'; // full host: <slug>.apps.localhost:3210
 export const CONTROL_HOST = 'apps.localhost'; // control endpoints only (§6.4)
 
-export const REGISTRY_REPO = process.env.ROWBOAT_APPS_REGISTRY || 'rowboatlabs/apps-registry';
+export const REGISTRY_REPO = process.env.DHOW_APPS_REGISTRY || 'dhow/apps-registry';
 export const REGISTRY_BRANCH = 'main';
 
 export const CATALOG_CACHE_PATH = path.join(WorkDir, 'config', 'apps-catalog.json');

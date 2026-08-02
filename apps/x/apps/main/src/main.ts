@@ -41,9 +41,6 @@ import { init as initAppsServer, shutdown as shutdownAppsServer } from "@x/core/
 import { registerAppsHostApi } from "@x/core/dist/apps/host-api.js";
 import { setTokenCipher as setGithubTokenCipher } from "@x/core/dist/apps/github-auth.js";
 import { setTokenCipher as setChatGPTTokenCipher } from "@x/core/dist/auth/chatgpt-auth.js";
-import { shutdown as shutdownAnalytics } from "@x/core/dist/analytics/posthog.js";
-import { identifyIfSignedIn } from "@x/core/dist/analytics/identify.js";
-import { syncModelProviderPersonProperties } from "@x/core/dist/analytics/model-providers.js";
 import { migrateRuns } from "@x/core/dist/migrations/runs/migrate.js";
 
 import { initConfigs } from "@x/core/dist/config/initConfigs.js";
@@ -104,15 +101,15 @@ process.on('uncaughtException', (err) => {
 // run this as early in the main process as possible
 if (started) app.quit();
 
-// Single-instance lock: route a second launch (e.g. clicking a rowboat:// link)
+// Single-instance lock: route a second launch (e.g. clicking a dhow:// link)
 // back into the existing process via the 'second-instance' event.
 if (app.isPackaged && !app.requestSingleInstanceLock()) {
-  console.error('[Main] Another Rowboat instance is already running; exiting this process.');
+  console.error('[Main] Another Dhow instance is already running; exiting this process.');
   app.quit();
   process.exit(0);
 }
 
-// Register as the OS handler for rowboat:// URLs.
+// Register as the OS handler for dhow:// URLs.
 // In dev, point at the right argv so the OS can re-invoke us correctly.
 if (process.defaultApp) {
   if (process.argv.length >= 2) {
@@ -507,18 +504,6 @@ app.whenReady().then(async () => {
   // leave any existing cache in use and never block boot.
   startModelsDevRefresh();
 
-  // PostHog identify() is idempotent — call it on every startup so existing
-  // signed-in installs (and every cold start of v0.3.4+) get re-identified.
-  // Otherwise main-process events stay anonymous until the user re-signs-in.
-  identifyIfSignedIn().catch((error) => {
-    console.error('[Analytics] Failed to identify on startup:', error);
-  });
-  // Baseline the provider person properties (llm_provider_flavors et al) on
-  // every launch — existing installs get them without any provider action.
-  syncModelProviderPersonProperties().catch((error) => {
-    console.error('[Analytics] Failed to sync provider properties:', error);
-  });
-
   registerBrowserControlService(new ElectronBrowserControlService());
   registerNotificationService(new ElectronNotificationService(APP_LAUNCHED_AT));
 
@@ -530,7 +515,7 @@ app.whenReady().then(async () => {
   // window over whatever app the user is in.
   initQuickAsk();
 
-  // Start the Rowboat Apps server (per-app origins on 127.0.0.1:3210) BEFORE
+  // Start the Dhow Apps server (per-app origins on 127.0.0.1:3210) BEFORE
   // the window and the long service-init chain below. The Apps view is
   // reachable as soon as the window paints; starting the server last meant
   // every app iframe hit connection-refused (blank app) for the first ~10s of
@@ -691,7 +676,7 @@ app.whenReady().then(async () => {
   initBackgroundTaskScheduler();
 
   // start disk-skills watcher: live-reload skills dropped into
-  // ~/.rowboat/skills or ~/.agents/skills without an app restart
+  // ~/.dhow/skills or ~/.agents/skills without an app restart
   startSkillsWatcher();
 
   // register event consumers and start the shared event processor
@@ -724,7 +709,7 @@ app.whenReady().then(async () => {
   // start note tagging service
   initNoteTagging();
 
-  // start inline task service (@rowboat: mentions)
+  // start inline task service (@dhow: mentions)
   initInlineTasks();
 
   // start background agent runner (scheduled agents)
@@ -773,8 +758,5 @@ stopSkillsWatcher();
   disposeAllTerminals();
   shutdownAppsServer().catch((error) => {
     console.error('[Apps] Failed to shut down cleanly:', error);
-  });
-  shutdownAnalytics().catch((error) => {
-    console.error('[Analytics] Failed to flush on quit:', error);
   });
 });

@@ -3,7 +3,7 @@ export const skill = String.raw`
 
 **Load this skill** when the user asks to interact with ANY third-party service — email, GitHub, Slack, LinkedIn, Notion, Jira, Google Sheets, calendar, etc. This skill provides the complete workflow for discovering, connecting, and executing Composio tools.
 
-**Native connections win over Composio.** If the system prompt says a service is connected natively in Rowboat (e.g. "Gmail is connected natively" or "Slack is connected natively"), do NOT use Composio for that service — follow the native routing in the system prompt instead (Gmail reading → \`app-navigation\` \`read-view\` \`view: "email"\`; Slack → the \`slack\` skill).
+**Native connections win over Composio.** If the system prompt says a service is connected natively in Dhow (e.g. "Gmail is connected natively" or "Slack is connected natively"), do NOT use Composio for that service — follow the native routing in the system prompt instead (Gmail reading → \`app-navigation\` \`read-view\` \`view: "email"\`; Slack → the \`slack\` skill).
 
 ## Available Tools
 
@@ -120,17 +120,17 @@ If the first search returns 0 results, try a different short query (e.g., "issue
 **ALWAYS include the \`arguments\` field** when calling \`composio-execute-tool\`, even if the tool has no required parameters.
 
 - Read the \`inputSchema\` from search results carefully
-- Extract user-provided values into the correct fields (e.g., "rowboatlabs/rowboat" → \`owner: "rowboatlabs", repo: "rowboat"\`)
+- Extract user-provided values into the correct fields (e.g., "SajmustafaKe/Dhow" → \`owner: "dhow", repo: "dhow"\`)
 - For tools with empty \`properties: {}\`, pass \`arguments: {}\`
 - For tools with required fields, pass all of them
 
 ### Example: GitHub Issues
 
-User says: "Get me the open issues on rowboatlabs/rowboat"
+User says: "Get me the open issues on SajmustafaKe/Dhow"
 
 1. \`composio-search-tools({ query: "list issues", toolkitSlug: "github" })\`
    → finds \`GITHUB_ISSUES_LIST_FOR_REPO\` with required: ["owner", "repo"]
-2. \`composio-execute-tool({ toolSlug: "GITHUB_ISSUES_LIST_FOR_REPO", toolkitSlug: "github", arguments: { owner: "rowboatlabs", repo: "rowboat", state: "open", per_page: 100 } })\`
+2. \`composio-execute-tool({ toolSlug: "GITHUB_ISSUES_LIST_FOR_REPO", toolkitSlug: "github", arguments: { owner: "dhow", repo: "dhow", state: "open", per_page: 100 } })\`
 
 ### Example: Gmail Fetch
 

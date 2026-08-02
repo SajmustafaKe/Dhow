@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Dhow</title>
+  <g fill="#000000" fill-rule="evenodd">
+    <!-- lateen sail: luff along the raked yard, convex leech falling to the foot -->
+    <path d="M 150,716
+             L 616,96
+             C 700,300 702,528 656,688
+             Z"/>
+    <!-- yard: the long spar carrying the head of the sail, overshooting fore and aft -->
+    <path d="M 128,742 L 638,64 L 660,82 L 150,760 Z"/>
+    <!-- mast, raked slightly forward, crossing the yard -->
+    <path d="M 444,286 L 470,286 L 476,752 L 438,752 Z"/>
+    <!-- hull: long low sheer, upswept prow to starboard -->
+    <path d="M 135,748
+             L 835,748
+             C 872,742 900,716 926,670
+             C 930,744 906,796 856,823
+             C 790,846 640,851 430,846
+             C 266,842 176,808 135,748
+             Z"/>
+    <!-- crew -->
+    <circle cx="527" cy="700" r="12"/>
+    <path d="M 517,714 L 537,714 L 542,748 L 512,748 Z"/>
+    <circle cx="590" cy="706" r="11"/>
+    <path d="M 581,719 L 599,719 L 603,748 L 577,748 Z"/>
+  </g>
+</svg>

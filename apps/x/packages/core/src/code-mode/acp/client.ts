@@ -32,9 +32,9 @@ export interface AcpClientOptions {
 // a wedged engine takes this long. Without a deadline that failure mode is an infinite
 // "(pending...)" with zero feedback. Prompts are intentionally NOT time-limited: turns
 // legitimately run for many minutes and may wait on user permission asks. Overridable
-// via ROWBOAT_ACP_STARTUP_TIMEOUT_MS (CI smoke test; escape hatch for MCP-heavy setups).
-const STARTUP_TIMEOUT_MS = Number(process.env.ROWBOAT_ACP_STARTUP_TIMEOUT_MS) > 0
-    ? Number(process.env.ROWBOAT_ACP_STARTUP_TIMEOUT_MS)
+// via DHOW_ACP_STARTUP_TIMEOUT_MS (CI smoke test; escape hatch for MCP-heavy setups).
+const STARTUP_TIMEOUT_MS = Number(process.env.DHOW_ACP_STARTUP_TIMEOUT_MS) > 0
+    ? Number(process.env.DHOW_ACP_STARTUP_TIMEOUT_MS)
     : 60_000;
 
 export interface CodeAgentOption { value: string; label: string }

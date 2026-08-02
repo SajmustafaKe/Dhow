@@ -205,7 +205,7 @@ export class TelegramTransport {
         if (!this.opts.allowFrom.includes(chatId)) {
             void this.send(
                 chatId,
-                `⛔ Not authorized. Your chat ID is ${chatId} — add it under Rowboat → Settings → Mobile to pair this chat.`,
+                `⛔ Not authorized. Your chat ID is ${chatId} — add it under Dhow → Settings → Mobile to pair this chat.`,
             ).catch(() => undefined);
             return;
         }

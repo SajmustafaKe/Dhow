@@ -33,7 +33,7 @@ for i in $(seq 0 $((FRAMES - 1))); do
 
   magick -size 480x320 xc:'#252525' \
     \( "$ICON" -resize 84x84 \) -gravity center -geometry +0-72 -composite \
-    -gravity center -font "$FONT" -pointsize 21 -fill '#e8e8e8' -annotate +0+8 'Installing Rowboat' \
+    -gravity center -font "$FONT" -pointsize 21 -fill '#e8e8e8' -annotate +0+8 'Installing Dhow' \
     -gravity center -font "$FONT" -pointsize 14 -fill '#9a9a9a' -annotate +0+78 "$label" \
     -gravity center -font "$FONT" -pointsize 14 -fill '#6f6f6f' -annotate +0+100 "$dots" \
     "$OUT_DIR/frame-$(printf '%03d' "$i").png"

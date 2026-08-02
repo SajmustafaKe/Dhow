@@ -86,7 +86,7 @@ PostHog — the adoption metric for this feature.
 
 **Popout mechanics**: a small always-on-top frameless window (camera tile
 when on + mascot tile, live caption, control bar) floating over every app —
-including Rowboat. Control-bar actions round-trip `video:popoutAction` →
+including Dhow. Control-bar actions round-trip `video:popoutAction` →
 main → `video:popout-action` → app window, which owns the mic/camera/capture;
 `expand` also refocuses the app window (handled in main).
 
@@ -190,7 +190,7 @@ the key while muted does nothing; muting mid-capture discards it).
   skipTransformProcessType: true })`: it floats over every Space INCLUDING
   other apps' fullscreen Spaces, and `skipTransformProcessType` keeps the
   Dock icon (without it, `visibleOnFullScreen` turns the app into a macOS
-  "agent" app while the window exists — looks like Rowboat vanished). It is
+  "agent" app while the window exists — looks like Dhow vanished). It is
   also `fullscreenable: false` — a window created while the active Space is
   fullscreen can otherwise open AS a fullscreen window (the pill swallowing
   the whole screen). The quick-ask bar uses the same setup.
@@ -244,7 +244,7 @@ reused untouched — calls set `voiceInput` per utterance and force
 
 ## Driving the app on a call
 
-The assistant can drive the Rowboat UI itself via the extended
+The assistant can drive the Dhow UI itself via the extended
 `app-navigation` builtin ("app driver"): `open-view` (any main view),
 `read-view` (returns the emails / background agents / chat-history data the
 view renders — and the renderer simultaneously navigates there so the user
@@ -310,7 +310,7 @@ engine's capture wholesale (`video.start({camera:false})` +
 along with bar submits and `composition.videoMode` is set. The bar owns
 the consent surface outside calls — a lit share toggle with a pulsing dot
 is the badge, no floating pill appears, and the share STOPS whenever the
-bar goes away (blur, Esc, the Open-in-Rowboat jump). Bar toggles never
+bar goes away (blur, Esc, the Open-in-Dhow jump). Bar toggles never
 touch devices while a call is live.
 
 ## Cost notes

@@ -8,7 +8,7 @@ interface WelcomeStepProps {
 }
 
 export function WelcomeStep({ state }: WelcomeStepProps) {
-  const rowboatState = state.providerStates['rowboat'] || { isConnected: false, isLoading: false, isConnecting: false }
+  const dhowState = state.providerStates['dhow'] || { isConnected: false, isLoading: false, isConnecting: false }
 
   return (
     <div className="flex flex-col items-center justify-center text-center flex-1">
@@ -20,12 +20,12 @@ export function WelcomeStep({ state }: WelcomeStepProps) {
         className="flex items-center gap-4 mb-4"
       >
         <h1 className="text-3xl font-bold tracking-tight">
-          Welcome to Rowboat
+          Welcome to Dhow
         </h1>
         {/* Logo with ambient glow */}
         <div className="relative shrink-0">
           <div className="absolute inset-0 size-12 rounded-2xl bg-primary/10 blur-xl scale-[2.5]" />
-          <img src="/logo-only.png" alt="Rowboat" className="relative size-12" />
+          <img src="/logo-only.png" alt="Dhow" className="relative size-12" />
         </div>
       </motion.div>
 
@@ -45,7 +45,7 @@ export function WelcomeStep({ state }: WelcomeStepProps) {
         transition={{ delay: 0.3 }}
         className="text-base text-muted-foreground leading-relaxed max-w-sm mb-10"
       >
-        Rowboat connects to your work, builds a knowledge graph, and uses that context to help you get things done. Private and on your machine.
+        Dhow connects to your work, builds a knowledge graph, and uses that context to help you get things done. Private and on your machine.
       </motion.p>
 
       {/* Sign in / connected state */}
@@ -55,15 +55,15 @@ export function WelcomeStep({ state }: WelcomeStepProps) {
         transition={{ delay: 0.4 }}
         className="w-full max-w-xs"
       >
-        {rowboatState.isConnected ? (
+        {dhowState.isConnected ? (
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
               <CheckCircle2 className="size-5" />
-              <span className="text-sm font-medium">Connected to Rowboat</span>
+              <span className="text-sm font-medium">Connected to Dhow</span>
             </div>
             <Button
               onClick={() => {
-                state.setOnboardingPath('rowboat')
+                state.setOnboardingPath('dhow')
                 state.setCurrentStep(2)
               }}
               size="lg"
@@ -76,20 +76,20 @@ export function WelcomeStep({ state }: WelcomeStepProps) {
           <div className="flex flex-col items-center gap-4">
             <Button
               onClick={() => {
-                state.setOnboardingPath('rowboat')
-                state.startConnect('rowboat')
+                state.setOnboardingPath('dhow')
+                state.startConnect('dhow')
               }}
               size="lg"
               className="w-full h-12 text-base font-medium"
-              disabled={rowboatState.isConnecting}
+              disabled={dhowState.isConnecting}
             >
-              {rowboatState.isConnecting ? (
+              {dhowState.isConnecting ? (
                 <><Loader2 className="size-5 animate-spin mr-2" />Waiting for sign in...</>
               ) : (
-                "Sign in with Rowboat"
+                "Sign in with Dhow"
               )}
             </Button>
-            {rowboatState.isConnecting && (
+            {dhowState.isConnecting && (
               <p className="text-xs text-muted-foreground animate-pulse">
                 Complete sign in in your browser, then return here.
               </p>

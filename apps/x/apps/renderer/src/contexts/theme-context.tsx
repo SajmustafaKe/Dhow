@@ -18,9 +18,9 @@ type ThemeContextProps = {
 
 const ThemeContext = React.createContext<ThemeContextProps | null>(null)
 
-const STORAGE_KEY = "rowboat-theme"
-const CHAT_PANE_PLACEMENT_STORAGE_KEY = "rowboat-chat-pane-placement"
-const CHAT_PANE_SIZE_STORAGE_KEY = "rowboat-chat-pane-size"
+const STORAGE_KEY = "dhow-theme"
+const CHAT_PANE_PLACEMENT_STORAGE_KEY = "dhow-chat-pane-placement"
+const CHAT_PANE_SIZE_STORAGE_KEY = "dhow-chat-pane-size"
 
 function isChatPanePlacement(value: string | null): value is ChatPanePlacement {
   return value === "right" || value === "middle"

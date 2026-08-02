@@ -20,7 +20,7 @@ const BuiltinToolsSchema = z.record(z.string(), z.object({
 
 export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     loadSkill: {
-        description: "Load a Rowboat skill definition into context by fetching its guidance string",
+        description: "Load a Dhow skill definition into context by fetching its guidance string",
         inputSchema: z.object({
             skillName: z.string().describe("Skill identifier or path (e.g., 'workflow-run-ops' or 'src/application/assistant/skills/workflow-run-ops/skill.ts')"),
         }),
@@ -93,7 +93,7 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     readFile: {
         description: 'Read and parse file contents. For JSON files, provides parsed structure.',
         inputSchema: z.object({
-            filename: z.string().describe('The name of the file to read (relative to .rowboat directory)'),
+            filename: z.string().describe('The name of the file to read (relative to .dhow directory)'),
         }),
         execute: async ({ filename }: { filename: string }) => {
             try {
@@ -132,7 +132,7 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     createFile: {
         description: 'Create a new file with content. Automatically creates parent directories if needed.',
         inputSchema: z.object({
-            filename: z.string().describe('The name of the file to create (relative to .rowboat directory)'),
+            filename: z.string().describe('The name of the file to create (relative to .dhow directory)'),
             content: z.string().describe('The content to write to the file'),
             description: z.string().optional().describe('Optional description of why this file is being created'),
         }),
@@ -166,7 +166,7 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     updateFile: {
         description: 'Update or overwrite the contents of an existing file',
         inputSchema: z.object({
-            filename: z.string().describe('The name of the file to update (relative to .rowboat directory)'),
+            filename: z.string().describe('The name of the file to update (relative to .dhow directory)'),
             content: z.string().describe('The new content to write to the file'),
             reason: z.string().optional().describe('Optional reason for the update'),
         }),
@@ -197,9 +197,9 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     },
     
     deleteFile: {
-        description: 'Delete a file from the .rowboat directory',
+        description: 'Delete a file from the .dhow directory',
         inputSchema: z.object({
-            filename: z.string().describe('The name of the file to delete (relative to .rowboat directory)'),
+            filename: z.string().describe('The name of the file to delete (relative to .dhow directory)'),
         }),
         execute: async ({ filename }: { filename: string }) => {
             try {
@@ -221,9 +221,9 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     },
     
     listFiles: {
-        description: 'List all files and directories in the .rowboat directory or subdirectory',
+        description: 'List all files and directories in the .dhow directory or subdirectory',
         inputSchema: z.object({
-            subdirectory: z.string().optional().describe('Optional subdirectory to list (relative to .rowboat directory)'),
+            subdirectory: z.string().optional().describe('Optional subdirectory to list (relative to .dhow directory)'),
         }),
         execute: async ({ subdirectory }: { subdirectory?: string }) => {
             try {
@@ -413,7 +413,7 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
         description: 'Execute a shell command and return the output. Use this to run bash/shell commands.',
         inputSchema: z.object({
             command: z.string().describe('The shell command to execute (e.g., "ls -la", "cat file.txt")'),
-            cwd: z.string().optional().describe('Working directory to execute the command in (defaults to .rowboat directory)'),
+            cwd: z.string().optional().describe('Working directory to execute the command in (defaults to .dhow directory)'),
         }),
         execute: async ({ command, cwd }: { command: string, cwd?: string }) => {
             try {

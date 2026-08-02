@@ -36,7 +36,7 @@ export type { BrowserPageSnapshot, BrowserState, BrowserTabState, DisplayMediaRe
  * standard Chrome UA so sites like Google (OAuth) don't reject it.
  */
 
-export const BROWSER_PARTITION = 'persist:rowboat-browser';
+export const BROWSER_PARTITION = 'persist:dhow-browser';
 
 // Spoof a real Chrome UA so OAuth servers don't reject the embedded browser.
 // The Chrome major version is derived from the running Chromium at startup:

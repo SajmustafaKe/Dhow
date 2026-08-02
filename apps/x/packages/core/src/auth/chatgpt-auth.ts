@@ -257,7 +257,7 @@ export async function exchangeChatGPTCode(
 }
 
 // Single-flight refresh: concurrent expired-token callers share one request
-// (same pattern as the Rowboat gateway token in auth/tokens.ts). One refresh
+// (same pattern as the Dhow gateway token in auth/tokens.ts). One refresh
 // owner matters here — parallel refreshes racing on one refresh_token can
 // invalidate each other's grant.
 let refreshInFlight: Promise<string> | null = null;

@@ -1,10 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { buildDeepgramListenUrl } from '@/lib/deepgram-listen-url';
 import { finalizeDeepgramStream } from '@/lib/deepgram-finalize';
-import { useRowboatAccount } from '@/hooks/useRowboatAccount';
-import { fetchRowboatConfig } from '@/hooks/use-rowboat-config';
-import posthog from 'posthog-js';
-import * as analytics from '@/lib/analytics';
 
 export type VoiceState = 'idle' | 'connecting' | 'listening' | 'submitting';
 
@@ -36,10 +31,9 @@ const PEAK_DECAY = 0.97;
 const MIN_PEAK = 0.02;
 
 // Cache auth details so we don't need IPC round-trips on every mic click
-let cachedAuth: { type: 'rowboat'; url: string; token: string } | { type: 'local'; apiKey: string } | null = null;
+let cachedAuth: { type: 'local'; apiKey: string } | null = null;
 
 export function useVoiceMode() {
-    const { refresh: refreshRowboatAccount } = useRowboatAccount();
     const [state, setState] = useState<VoiceState>('idle');
     const [interimText, setInterimText] = useState('');
     const wsRef = useRef<WebSocket | null>(null);
@@ -65,26 +59,11 @@ export function useVoiceMode() {
 
     // Refresh cached auth details (called on warmup, not on mic click)
     const refreshAuth = useCallback(async () => {
-        // Auth (account) and the websocket URL (bootstrap config) are
-        // separate concerns: the token comes from account refresh, the URL
-        // from the sign-in-independent config store.
-        const [account, rowboatConfig] = await Promise.all([
-            refreshRowboatAccount(),
-            fetchRowboatConfig(),
-        ]);
-        if (
-            account?.signedIn &&
-            account.accessToken &&
-            rowboatConfig?.websocketApiUrl
-        ) {
-            cachedAuth = { type: 'rowboat', url: rowboatConfig.websocketApiUrl, token: account.accessToken };
-        } else {
-            const config = await window.ipc.invoke('voice:getConfig', null);
-            if (config?.deepgram) {
-                cachedAuth = { type: 'local', apiKey: config.deepgram.apiKey };
-            }
+        const config = await window.ipc.invoke('voice:getConfig', null);
+        if (config?.deepgram) {
+            cachedAuth = { type: 'local', apiKey: config.deepgram.apiKey };
         }
-    }, [refreshRowboatAccount]);
+    }, []);
 
     // Create and connect a Deepgram WebSocket using cached auth.
     // Starts the connection and returns immediately (does not wait for open).
@@ -98,13 +77,7 @@ export function useVoiceMode() {
         if (!cachedAuth) return;
 
         const params = DEEPGRAM_PARAMS;
-        let ws: WebSocket;
-        if (cachedAuth.type === 'rowboat') {
-            const listenUrl = buildDeepgramListenUrl(cachedAuth.url, params);
-            ws = new WebSocket(listenUrl, ['bearer', cachedAuth.token]);
-        } else {
-            ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, ['token', cachedAuth.apiKey]);
-        }
+        const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, ['token', cachedAuth.apiKey]);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -244,8 +217,6 @@ export function useVoiceMode() {
 
         // Show listening immediately — don't wait for WebSocket
         setState('listening');
-        analytics.voiceInputStarted();
-        posthog.people.set_once({ has_used_voice: true });
 
         // Settle the OS-level microphone permission before capturing. On the
         // first-ever use (macOS) the permission is 'not-determined'; calling

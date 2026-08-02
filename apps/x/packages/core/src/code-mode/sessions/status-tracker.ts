@@ -9,7 +9,7 @@ export type StatusListener = (sessionId: string, status: CodeSessionStatus) => v
 
 // Authoritative live status for Code-section sessions, derived in the main
 // process from the run event stream. Works for both modes uniformly because
-// direct turns and Rowboat-mode code_agent_run turns publish the same event
+// direct turns and Dhow-mode code_agent_run turns publish the same event
 // types on the bus. The renderer just renders what this pushes.
 export class CodeSessionStatusTracker {
     private readonly bus: IBus;

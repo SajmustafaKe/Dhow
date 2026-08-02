@@ -21,11 +21,9 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
-import * as analytics from "@/lib/analytics"
 import { useTheme } from "@/contexts/theme-context"
 import { toast } from "sonner"
 import { AnthropicIcon, DiscordIcon, GitHubIcon, OpenAIIcon } from "@/components/onboarding/provider-icons"
-import { AccountSettings } from "@/components/settings/account-settings"
 import { ConnectedAccountsSettings } from "@/components/settings/connected-accounts-settings"
 import { MobileChannelsSettings } from "@/components/settings/mobile-channels-settings"
 import type { ApprovalPolicy } from "@x/shared/src/code-mode.js"
@@ -51,7 +49,7 @@ const tabs: TabConfig[] = [
     id: "account",
     label: "Account",
     icon: User,
-    description: "Manage your Rowboat account",
+    description: "Manage your Dhow account",
   },
   {
     id: "connections",
@@ -63,7 +61,7 @@ const tabs: TabConfig[] = [
     id: "mobile",
     label: "Mobile",
     icon: Smartphone,
-    description: "Chat with Rowboat from WhatsApp or Telegram",
+    description: "Chat with Dhow from WhatsApp or Telegram",
   },
   {
     id: "models",
@@ -175,13 +173,13 @@ function UpdateSettings() {
       body = status.reason === 'not-in-applications' ? (
         <p className="text-xs text-muted-foreground flex items-start gap-1.5">
           <AlertTriangle className="size-3.5 shrink-0 mt-0.5 text-amber-500" />
-          Quit Rowboat and move it to the Applications folder to enable automatic updates.
+          Quit Dhow and move it to the Applications folder to enable automatic updates.
         </p>
       ) : (
         <p className="text-xs text-muted-foreground">
           {"Automatic updates aren't available on this platform. "}
           <a
-            href="https://github.com/rowboatlabs/rowboat/releases/latest"
+            href="https://github.com/SajmustafaKe/Dhow/releases/latest"
             target="_blank"
             rel="noopener noreferrer"
             className="underline hover:text-foreground transition-colors"
@@ -205,7 +203,7 @@ function UpdateSettings() {
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-muted-foreground">
             {status.newVersion
-              ? `Rowboat ${status.newVersion} is ready to install.`
+              ? `Dhow ${status.newVersion} is ready to install.`
               : 'An update is ready to install.'}
           </p>
           <Button
@@ -241,7 +239,7 @@ function UpdateSettings() {
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <CheckCircle2 className="size-3.5 text-green-500 shrink-0" />
               <span>
-                {`You're up to date! Rowboat v${status.version} is the latest version.`}
+                {`You're up to date! Dhow v${status.version} is the latest version.`}
                 <span className="text-muted-foreground/60">
                   {` Checked at ${new Date(status.lastCheckedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}.`}
                 </span>
@@ -261,7 +259,7 @@ function UpdateSettings() {
     <div className="space-y-3">
       <div>
         <h4 className="text-sm font-medium">Updates</h4>
-        <p className="text-xs text-muted-foreground mt-0.5">Rowboat v{status.version}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Dhow v{status.version}</p>
       </div>
       {body}
     </div>
@@ -282,12 +280,12 @@ function HelpSettings() {
       <Button
         variant="outline"
         className="w-full justify-start gap-3 h-auto py-3"
-        onClick={() => window.open("https://github.com/rowboatlabs/rowboat/issues/new", "_blank")}
+        onClick={() => window.open("https://github.com/SajmustafaKe/Dhow/issues/new", "_blank")}
       >
         <GitHubIcon className="size-5 shrink-0" />
         <div className="flex flex-col items-start">
           <span className="text-sm font-medium">Report a bug</span>
-          <span className="text-xs text-muted-foreground">Send feedback to the Rowboat team</span>
+          <span className="text-xs text-muted-foreground">Send feedback to the Dhow team</span>
         </div>
       </Button>
       <Button
@@ -312,25 +310,6 @@ function HelpSettings() {
           <span className="text-xs text-muted-foreground">contact@rowboatlabs.com</span>
         </div>
       </Button>
-      <div className="flex gap-3 text-xs text-muted-foreground">
-        <a
-          href="https://www.rowboatlabs.com/terms-of-service"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground transition-colors"
-        >
-          Terms of Service
-        </a>
-        <span>·</span>
-        <a
-          href="https://www.rowboatlabs.com/privacy-policy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-foreground transition-colors"
-        >
-          Privacy Policy
-        </a>
-      </div>
     </div>
   )
 }
@@ -389,9 +368,9 @@ function LaunchAtLoginSetting() {
   return (
     <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
       <div className="min-w-0">
-        <div className="text-sm font-medium">Start Rowboat when you log in</div>
+        <div className="text-sm font-medium">Start Dhow when you log in</div>
         <div className="text-xs text-muted-foreground mt-0.5">
-          Keeps Rowboat in your menu bar so meeting notes and notifications work without opening the app
+          Keeps Dhow in your menu bar so meeting notes and notifications work without opening the app
         </div>
       </div>
       <Switch checked={openAtLogin} onCheckedChange={handleToggle} disabled={!loaded} />
@@ -493,7 +472,7 @@ interface ToolkitInfo {
   composio_managed_auth_schemes?: string[]
 }
 
-function ToolsLibrarySettings({ dialogOpen, rowboatConnected }: { dialogOpen: boolean; rowboatConnected: boolean }) {
+function ToolsLibrarySettings({ dialogOpen, dhowConnected }: { dialogOpen: boolean; dhowConnected: boolean }) {
   // API key state
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false)
   const [apiKeyInput, setApiKeyInput] = useState("")
@@ -639,7 +618,7 @@ function ToolsLibrarySettings({ dialogOpen, rowboatConnected }: { dialogOpen: bo
   return (
     <div className="space-y-4">
       {/* Section A: API Key (only in BYOK mode) */}
-      {!rowboatConnected && (
+      {!dhowConnected && (
         <div className="space-y-2">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Composio API Key</span>
           {apiKeyConfigured && !showApiKeyInput ? (
@@ -1432,7 +1411,7 @@ const NOTIFICATION_CATEGORIES: { key: NotificationCategoryKey; label: string; de
   {
     key: "meeting_detection",
     label: "Meeting detection",
-    description: "A popup offering to take notes when Rowboat notices you're in a call or meeting. Nothing records until you accept.",
+    description: "A popup offering to take notes when Dhow notices you're in a call or meeting. Nothing records until you accept.",
   },
   {
     key: "meeting_notes_ready",
@@ -1489,7 +1468,7 @@ function NotificationSettings({ dialogOpen }: { dialogOpen: boolean }) {
   return (
     <div className="space-y-5">
       <div className="text-sm text-muted-foreground leading-relaxed">
-        Choose which desktop notifications Rowboat sends you. Ambient notifications are only shown
+        Choose which desktop notifications Dhow sends you. Ambient notifications are only shown
         when the app is in the background.
       </div>
 
@@ -1752,13 +1731,12 @@ export function SettingsDialog({ children, defaultTab = "account", open: control
   // BOTH connect and disconnect (disconnectProvider sends success:false).
   // A dialog-open-time snapshot here went stale when the user signed out
   // with the dialog open, leaving the Models tab on the signed-in section.
-  const { isRowboatConnected: rowboatConnected } = useModels()
+  const { isDhowConnected: dhowConnected } = useModels()
 
   // Reset to the requested default tab each time the dialog is opened
   useEffect(() => {
     if (open) {
       setActiveTab(defaultTab)
-      analytics.settingsOpened(defaultTab)
     }
   }, [open, defaultTab])
 
@@ -1839,7 +1817,6 @@ export function SettingsDialog({ children, defaultTab = "account", open: control
         return
       }
     }
-    analytics.settingsTabChanged(tab)
     setActiveTab(tab)
   }
 
@@ -1894,7 +1871,7 @@ export function SettingsDialog({ children, defaultTab = "account", open: control
               <h3 className="text-lg font-semibold tracking-tight">{activeTabConfig.label}</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 {activeTab === "models"
-                  ? "Choose the models Rowboat uses for chat and background work."
+                  ? "Choose the models Dhow uses for chat and background work."
                   : activeTabConfig.description}
               </p>
             </div>
@@ -1904,9 +1881,7 @@ export function SettingsDialog({ children, defaultTab = "account", open: control
                 note-tagging manages its own scroll region; everything else
                 scrolls here so tall tabs aren't clipped by the fixed dialog. */}
             <div className={cn("flex-1 px-6 pb-5 min-h-0", isJsonTab ? "overflow-hidden" : activeTab === "note-tagging" ? "overflow-hidden flex flex-col" : "overflow-y-auto")}>
-              {activeTab === "account" ? (
-                <AccountSettings dialogOpen={open} />
-              ) : activeTab === "connections" ? (
+              {activeTab === "connections" ? (
                 <div className="space-y-6">
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Primary accounts</h4>
@@ -1915,7 +1890,7 @@ export function SettingsDialog({ children, defaultTab = "account", open: control
                   <Separator />
                   <div className="space-y-2">
                     <h4 className="text-sm font-semibold">Library</h4>
-                    <ToolsLibrarySettings dialogOpen={open} rowboatConnected={rowboatConnected} />
+                    <ToolsLibrarySettings dialogOpen={open} dhowConnected={dhowConnected} />
                   </div>
                 </div>
               ) : activeTab === "mobile" ? (
@@ -1928,10 +1903,10 @@ export function SettingsDialog({ children, defaultTab = "account", open: control
                   <ModelSelectionSection dialogOpen={open} />
                   <Separator />
                   <div className="space-y-2">
-                    <h4 className="text-sm font-semibold">{rowboatConnected ? "Your own providers" : "Providers"}</h4>
+                    <h4 className="text-sm font-semibold">{dhowConnected ? "Your own providers" : "Providers"}</h4>
                     <p className="text-xs text-muted-foreground">
-                      {rowboatConnected
-                        ? "Connect your own API keys or local runtimes (Ollama, LM Studio). Their models appear in every picker alongside your Rowboat models, and are billed to you directly."
+                      {dhowConnected
+                        ? "Connect your own API keys or local runtimes (Ollama, LM Studio). Their models appear in every picker alongside your Dhow models, and are billed to you directly."
                         : "Connect API keys or local runtimes (Ollama, LM Studio). Every connected provider's models appear in the pickers above."}
                     </p>
                     <ProvidersSection dialogOpen={open} />

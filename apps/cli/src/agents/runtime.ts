@@ -262,7 +262,7 @@ function normaliseAskHumanToolCall(message: z.infer<typeof AssistantMessage>) {
 }
 
 export async function loadAgent(id: string): Promise<z.infer<typeof Agent>> {
-    if (id === "copilot" || id === "rowboatx") {
+    if (id === "copilot" || id === "dhowx") {
         return CopilotAgent;
     }
     const repo = container.resolve<IAgentsRepo>('agentsRepo');

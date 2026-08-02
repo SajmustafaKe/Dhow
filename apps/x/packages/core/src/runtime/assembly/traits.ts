@@ -15,7 +15,7 @@ export interface AgentTraits {
     skillCarryForward?: boolean;
 }
 
-// "rowboatx" is a legacy alias for the copilot: both ids share one traits
+// "dhowx" is a legacy alias for the copilot: both ids share one traits
 // object. Agents absent from this table have no traits (user agents, and
 // builtins that need none).
 const COPILOT_TRAITS: AgentTraits = {
@@ -25,7 +25,7 @@ const COPILOT_TRAITS: AgentTraits = {
 
 const agentTraits: Record<string, AgentTraits> = {
     copilot: COPILOT_TRAITS,
-    rowboatx: COPILOT_TRAITS,
+    dhowx: COPILOT_TRAITS,
 };
 
 // Trait lookups for assembly decisions. Unknown/user agents have no traits.

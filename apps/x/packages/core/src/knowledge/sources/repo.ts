@@ -35,10 +35,10 @@ const BUILTIN_SOURCES: KnowledgeSourceConfig[] = [
         scopes: [],
     },
     {
-        id: 'rowboat-meetings',
+        id: 'dhow-meetings',
         provider: 'meeting',
         enabled: true,
-        artifactDir: path.join('knowledge', 'Meetings', 'rowboat'),
+        artifactDir: path.join('knowledge', 'Meetings', 'dhow'),
         syncMode: 'file',
         scopes: [],
     },

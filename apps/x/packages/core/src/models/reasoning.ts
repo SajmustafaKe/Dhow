@@ -34,7 +34,7 @@ export function parseReasoningEffort(value: unknown): ReasoningEffortLevel | und
  * not known to reason, or a level the model family cannot express. Unknown
  * capability fails closed for strict flavors (OpenAI/Anthropic/Google reject
  * reasoning parameters on non-reasoning models); OpenRouter-shaped flavors
- * (openrouter, rowboat) are forgiving — OpenRouter drops the field for
+ * (openrouter, dhow) are forgiving — OpenRouter drops the field for
  * models that cannot reason — so they map unless the model is known-false.
  *
  * Ollama is deliberately absent: its `think` parameter is applied by the
@@ -91,7 +91,7 @@ export function mapReasoningEffort(
             return undefined;
         }
         case "openrouter":
-        case "rowboat": {
+        case "dhow": {
             if (supportsReasoning === false) return undefined;
             return { providerOptions: { openrouter: { reasoning: { effort } } } };
         }

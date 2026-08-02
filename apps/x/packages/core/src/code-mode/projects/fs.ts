@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 
 // Contained file browsing for the Code section. Session cwds are arbitrary
-// user directories (outside the Rowboat workspace), so every access resolves
+// user directories (outside the Dhow workspace), so every access resolves
 // against the session root and is validated to stay inside it — realpath on
 // the containing directory defeats both `..` traversal and symlink escapes.
 

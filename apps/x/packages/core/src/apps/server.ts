@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import type { Server } from 'node:http';
 import chokidar, { type FSWatcher } from 'chokidar';
 import express from 'express';
-import { RowboatAppManifestSchema, type RowboatAppManifest } from '@x/shared/dist/rowboat-app.js';
+import { DhowAppManifestSchema, type DhowAppManifest } from '@x/shared/dist/dhow-app.js';
 import {
     APPS_DIR,
     APPS_PORT,
@@ -16,10 +16,10 @@ import {
     appOrigin,
 } from './constants.js';
 
-// Rowboat Apps server (spec §6–§7). Adapted from the deleted local-sites
+// Dhow Apps server (spec §6–§7). Adapted from the deleted local-sites
 // server: one HTTP server on 127.0.0.1:3210, routing by Host header to
 // per-app origins (<slug>.apps.localhost). Serves static files from each
-// app's dist/ and the same-origin Host API under /_rowboat/*.
+// app's dist/ and the same-origin Host API under /_dhow/*.
 
 const RELOAD_DEBOUNCE_MS = 140;
 const EVENTS_RETRY_MS = 1000;
@@ -81,10 +81,10 @@ function appDirFor(slug: string): string {
     return path.join(APPS_DIR, slug);
 }
 
-function loadManifest(slug: string): { manifest?: RowboatAppManifest; error?: string } {
+function loadManifest(slug: string): { manifest?: DhowAppManifest; error?: string } {
     try {
-        const raw = fs.readFileSync(path.join(appDirFor(slug), 'rowboat-app.json'), 'utf-8');
-        const parsed = RowboatAppManifestSchema.safeParse(JSON.parse(raw));
+        const raw = fs.readFileSync(path.join(appDirFor(slug), 'dhow-app.json'), 'utf-8');
+        const parsed = DhowAppManifestSchema.safeParse(JSON.parse(raw));
         if (!parsed.success) {
             return { error: parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; ') };
         }
@@ -151,14 +151,14 @@ const BOOTSTRAP = String.raw`<script>
 
   const connect = () => {
     if (typeof EventSource === 'undefined') return;
-    source = new EventSource(new URL('/_rowboat/events', window.location.origin).toString());
+    source = new EventSource(new URL('/_dhow/events', window.location.origin).toString());
     source.addEventListener('message', (event) => {
       try {
         const payload = JSON.parse(event.data);
         if (payload?.type !== 'change') return;
         if (payload.area === 'data') {
           // Cancelable: apps that re-fetch data in place call preventDefault().
-          const domEvent = new CustomEvent('rowboat:data-change', { cancelable: true, detail: { path: payload.path } });
+          const domEvent = new CustomEvent('dhow:data-change', { cancelable: true, detail: { path: payload.path } });
           const proceed = window.dispatchEvent(domEvent);
           if (proceed) scheduleReload();
           return;
@@ -173,7 +173,7 @@ const BOOTSTRAP = String.raw`<script>
   // Autosize is opt-in for inline embeds only (§6.5): the full-height app view
   // must keep normal page scrolling.
   const params = new URLSearchParams(window.location.search);
-  if (params.get('__rowboat_embed') !== '1') return;
+  if (params.get('__dhow_embed') !== '1') return;
   if (window.parent === window || typeof window.parent?.postMessage !== 'function') return;
 
   const MIN_HEIGHT = 240;
@@ -195,7 +195,7 @@ const BOOTSTRAP = String.raw`<script>
     const nextHeight = Math.max(MIN_HEIGHT, Math.ceil(measureHeight()));
     if (Math.abs(nextHeight - lastHeight) < 2) return;
     lastHeight = nextHeight;
-    window.parent.postMessage({ type: 'rowboat:iframe-height', height: nextHeight, href: window.location.href }, '*');
+    window.parent.postMessage({ type: 'dhow:iframe-height', height: nextHeight, href: window.location.href }, '*');
   };
   const schedulePublish = () => {
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -317,7 +317,7 @@ export async function readBody(req: express.Request, limit: number): Promise<Buf
     });
 }
 
-function contractFor(manifest: RowboatAppManifest, relPath: string) {
+function contractFor(manifest: DhowAppManifest, relPath: string) {
     return manifest.dataContracts.find((c) => path.posix.normalize(c.file) === relPath);
 }
 
@@ -347,15 +347,15 @@ export function checkDataContract(
 
 async function handleDataApi(
     slug: string,
-    manifest: RowboatAppManifest,
+    manifest: DhowAppManifest,
     req: express.Request,
     res: express.Response,
     pathname: string,
 ): Promise<void> {
     const dataRoot = path.join(appDirFor(slug), 'data');
 
-    // GET /_rowboat/data?list=<dir> — non-recursive listing.
-    if (pathname === '/_rowboat/data' && req.method === 'GET') {
+    // GET /_dhow/data?list=<dir> — non-recursive listing.
+    if (pathname === '/_dhow/data' && req.method === 'GET') {
         const listParam = typeof req.query.list === 'string' ? req.query.list : '';
         const dirRel = listParam === '' || listParam === '.' ? '.' : listParam;
         const abs = dirRel === '.' ? dataRoot : confinePath(dataRoot, dirRel);
@@ -382,8 +382,8 @@ async function handleDataApi(
         return;
     }
 
-    // File operations: /_rowboat/data/<path>
-    const relRaw = pathname.slice('/_rowboat/data/'.length);
+    // File operations: /_dhow/data/<path>
+    const relRaw = pathname.slice('/_dhow/data/'.length);
     let rel: string;
     try {
         rel = decodeURIComponent(relRaw);
@@ -461,20 +461,20 @@ async function handleDataApi(
 // M2 endpoints (§7.4–7.7) register here (tools/fetch/llm/copilot).
 type HostApiHandler = (
     slug: string,
-    manifest: RowboatAppManifest,
+    manifest: DhowAppManifest,
     req: express.Request,
     res: express.Response,
 ) => Promise<void>;
 const extraHostApiRoutes = new Map<string, HostApiHandler>();
 
-/** Register an additional POST /_rowboat/<name> endpoint (used by M2 wiring). */
+/** Register an additional POST /_dhow/<name> endpoint (used by M2 wiring). */
 export function registerHostApiRoute(pathname: string, handler: HostApiHandler): void {
     extraHostApiRoutes.set(pathname, handler);
 }
 
 async function handleHostApi(
     slug: string,
-    manifest: RowboatAppManifest,
+    manifest: DhowAppManifest,
     req: express.Request,
     res: express.Response,
     pathname: string,
@@ -483,8 +483,8 @@ async function handleHostApi(
     // matching Origin. GETs are exempt (side-effect-free; EventSource cannot
     // send custom headers).
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-        if (req.headers['x-rowboat-app'] === undefined) {
-            return sendError(res, 403, 'missing_app_header', 'non-GET /_rowboat requests must set X-Rowboat-App: 1');
+        if (req.headers['x-dhow-app'] === undefined) {
+            return sendError(res, 403, 'missing_app_header', 'non-GET /_dhow requests must set X-Dhow-App: 1');
         }
         const origin = req.headers.origin;
         if (typeof origin !== 'string' || origin.toLowerCase() !== appOrigin(slug)) {
@@ -492,7 +492,7 @@ async function handleHostApi(
         }
     }
 
-    if (pathname === '/_rowboat/app' && req.method === 'GET') {
+    if (pathname === '/_dhow/app' && req.method === 'GET') {
         res.json({
             name: manifest.name,
             version: manifest.version,
@@ -503,12 +503,12 @@ async function handleHostApi(
         return;
     }
 
-    if (pathname === '/_rowboat/events' && req.method === 'GET') {
+    if (pathname === '/_dhow/events' && req.method === 'GET') {
         handleEventsRequest(slug, req, res);
         return;
     }
 
-    if (pathname === '/_rowboat/data' || pathname.startsWith('/_rowboat/data/')) {
+    if (pathname === '/_dhow/data' || pathname.startsWith('/_dhow/data/')) {
         await handleDataApi(slug, manifest, req, res, pathname);
         return;
     }
@@ -561,7 +561,7 @@ async function respondWithFile(res: express.Response, filePath: string, method: 
 
 async function handleStatic(
     slug: string,
-    manifest: RowboatAppManifest,
+    manifest: DhowAppManifest,
     req: express.Request,
     res: express.Response,
     pathname: string,
@@ -652,11 +652,11 @@ function createApp(): express.Express {
 
             const { manifest, error } = loadManifest(slug);
             if (!manifest) {
-                html503(res, 'Invalid app', `“${slug}” has a missing or invalid rowboat-app.json: ${error ?? 'unknown error'}`);
+                html503(res, 'Invalid app', `“${slug}” has a missing or invalid dhow-app.json: ${error ?? 'unknown error'}`);
                 return;
             }
 
-            if (pathname === '/_rowboat' || pathname.startsWith('/_rowboat/')) {
+            if (pathname === '/_dhow' || pathname.startsWith('/_dhow/')) {
                 await handleHostApi(slug, manifest, req, res, pathname);
                 return;
             }
@@ -786,7 +786,7 @@ export async function init(): Promise<void> {
                 const s = expressApp.listen(APPS_PORT, host, () => resolve(s));
                 s.on('error', (error: NodeJS.ErrnoException) => reject(error));
             });
-            // EADDRINUSE almost always means a previous Rowboat instance is
+            // EADDRINUSE almost always means a previous Dhow instance is
             // still shutting down and holding the port (quick relaunch). Retry
             // on the SAME port for a while — never scan for alternate ports
             // (§6.1), origins embed the port — instead of disabling apps for

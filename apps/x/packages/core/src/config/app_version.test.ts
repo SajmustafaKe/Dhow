@@ -4,13 +4,13 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // WorkDir is resolved at module load, so each test gets a fresh temp workdir
-// via ROWBOAT_WORKDIR + resetModules + dynamic import (same pattern as
+// via DHOW_WORKDIR + resetModules + dynamic import (same pattern as
 // filesystem/files.test.ts).
 let tmpDir: string;
 
 beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "rowboat-app-version-test-"));
-  process.env.ROWBOAT_WORKDIR = tmpDir;
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "dhow-app-version-test-"));
+  process.env.DHOW_WORKDIR = tmpDir;
   vi.resetModules();
   // config.js fire-and-forgets a git init + Today.md migration on import;
   // mock them out so no repo appears (and races teardown) in the temp workdir.
@@ -24,7 +24,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  delete process.env.ROWBOAT_WORKDIR;
+  delete process.env.DHOW_WORKDIR;
   vi.doUnmock("../knowledge/version_history.js");
   vi.doUnmock("../knowledge/deprecate_today_note.js");
   vi.resetModules();

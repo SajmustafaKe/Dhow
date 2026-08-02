@@ -20,9 +20,9 @@ export type DiskSkill = ModelCapability & {
   skillFile: string; // absolute path to the SKILL.md
 };
 
-// Locations scanned for <skill-name>/SKILL.md subfolders. The rowboat root is
-// derived from WorkDir so it honors the ROWBOAT_WORKDIR override (defaults to
-// ~/.rowboat/skills); it is scanned first so it wins on id collisions across
+// Locations scanned for <skill-name>/SKILL.md subfolders. The dhow root is
+// derived from WorkDir so it honors the DHOW_WORKDIR override (defaults to
+// ~/.dhow/skills); it is scanned first so it wins on id collisions across
 // the two roots. The ~/.agents/skills root is an external shared convention,
 // not tied to WorkDir. Exported so the live-reload watcher watches exactly the
 // same locations.

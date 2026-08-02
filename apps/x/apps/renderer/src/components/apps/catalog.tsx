@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BadgeCheck, Bot, Download, Link2, RefreshCw, Search, ShieldAlert, Star } from 'lucide-react'
-import type { rowboatApp } from '@x/shared'
+import type { dhowApp } from '@x/shared'
 import { themeForIndex, patternFor } from '@/components/apps/card-theme'
 import { ModelSelector } from '@/components/model-selector'
 
@@ -132,7 +132,7 @@ function EnableAgentsDialog({ appName, names, defaultModel, busy, onEnable, onSk
 }
 
 export function CatalogTab({ onInstalled }: { onInstalled: (folder: string) => void }) {
-  const [records, setRecords] = useState<rowboatApp.RegistryRecord[]>([])
+  const [records, setRecords] = useState<dhowApp.RegistryRecord[]>([])
   const [stale, setStale] = useState(false)
   const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -148,7 +148,7 @@ export function CatalogTab({ onInstalled }: { onInstalled: (folder: string) => v
   const [stars, setStars] = useState<Record<string, number>>({})
   const [starred, setStarred] = useState<Record<string, boolean>>({})
 
-  const loadStars = async (recs: rowboatApp.RegistryRecord[]) => {
+  const loadStars = async (recs: dhowApp.RegistryRecord[]) => {
     if (recs.length === 0) return
     try {
       const r = await window.ipc.invoke('apps:catalogStars', { repos: recs.map((x) => x.repo) })
@@ -379,11 +379,11 @@ export function CatalogTab({ onInstalled }: { onInstalled: (folder: string) => v
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-xl">
             <div className="mb-2 text-base font-semibold">Install from URL</div>
-            <p className="mb-3 text-sm text-muted-foreground">Paste a direct https link to a <code>.rowboat-app</code> bundle (e.g. a GitHub release asset).</p>
+            <p className="mb-3 text-sm text-muted-foreground">Paste a direct https link to a <code>.dhow-app</code> bundle (e.g. a GitHub release asset).</p>
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://github.com/owner/repo/releases/download/v1.0.0/name.rowboat-app"
+              placeholder="https://github.com/owner/repo/releases/download/v1.0.0/name.dhow-app"
               className="mb-3 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs outline-none focus:border-foreground/30"
             />
             <div className="flex justify-end gap-2">

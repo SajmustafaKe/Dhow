@@ -202,7 +202,7 @@ export class FirefliesClientFactory {
         const transport = new StreamableHTTPClientTransport(url, { requestInit });
 
         const client = new Client({
-            name: 'rowboatx-fireflies',
+            name: 'dhowx-fireflies',
             version: '1.0.0',
         });
 

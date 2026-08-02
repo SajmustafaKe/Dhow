@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
-// Rowboat events — the shared queue feeding the live-note + bg-task consumers.
+// Dhow events — the shared queue feeding the live-note + bg-task consumers.
 //
 // Producers (gmail/calendar sync) write JSON files to `$WorkDir/events/pending/`
 // using IDs from the monotonically increasing ID generator. The processor in
@@ -22,7 +22,7 @@ export const ConsumerResultSchema = z.object({
 
 export type ConsumerResult = z.infer<typeof ConsumerResultSchema>;
 
-export const RowboatEventSchema = z.object({
+export const DhowEventSchema = z.object({
     id: z.string().describe('Monotonically increasing ID; also the filename in events/pending/'),
     source: z.string().describe('Producer of the event (e.g. "gmail", "calendar")'),
     type: z.string().describe('Event type (e.g. "email.synced")'),
@@ -62,7 +62,7 @@ export const RowboatEventSchema = z.object({
     error: z.string().optional(),
 });
 
-export type RowboatEvent = z.infer<typeof RowboatEventSchema>;
+export type DhowEvent = z.infer<typeof DhowEventSchema>;
 
 /**
  * Pass-1 routing output. The `ids` strings are consumer-defined:

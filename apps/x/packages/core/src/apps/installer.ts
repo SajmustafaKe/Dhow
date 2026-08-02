@@ -4,13 +4,13 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import yauzl from 'yauzl';
 import {
-    RowboatAppManifestSchema,
+    DhowAppManifestSchema,
     AppInstallRecordSchema,
-    type RowboatAppManifest,
+    type DhowAppManifest,
     type AppInstallRecord,
     type AppSummary,
     type RegistryRecord,
-} from '@x/shared/dist/rowboat-app.js';
+} from '@x/shared/dist/dhow-app.js';
 import { WorkDir } from '../config/config.js';
 import {
     APPS_DIR,
@@ -54,7 +54,7 @@ export interface InstallDone {
     app: AppSummary;
 }
 
-const RELEASE_MANAGED = ['rowboat-app.json', 'dist', 'agents', 'defaults'];
+const RELEASE_MANAGED = ['dhow-app.json', 'dist', 'agents', 'defaults'];
 
 // ---------------------------------------------------------------------------
 // Bundle download + extraction (shared by catalog + URL installs)
@@ -177,7 +177,7 @@ async function chooseTargetFolder(name: string): Promise<string> {
 
 async function assembleInstall(
     pkgDir: string,
-    manifest: RowboatAppManifest,
+    manifest: DhowAppManifest,
     record: Omit<AppInstallRecord, 'files'> & { files: Record<string, string> },
 ): Promise<AppSummary> {
     const folder = await chooseTargetFolder(manifest.name);
@@ -191,7 +191,7 @@ async function assembleInstall(
         });
         await copyDefaultsToData(dir);
         await fsp.writeFile(
-            path.join(dir, '.rowboat-install.json'),
+            path.join(dir, '.dhow-install.json'),
             JSON.stringify(AppInstallRecordSchema.parse(record), null, 2),
         );
         const summary = await getApp(folder);
@@ -204,11 +204,11 @@ async function assembleInstall(
     }
 }
 
-function validatePkgManifest(pkgDir: string, expected?: { name: string; version: string }): RowboatAppManifest {
-    let manifest: RowboatAppManifest;
+function validatePkgManifest(pkgDir: string, expected?: { name: string; version: string }): DhowAppManifest {
+    let manifest: DhowAppManifest;
     try {
-        manifest = RowboatAppManifestSchema.parse(
-            JSON.parse(fs.readFileSync(path.join(pkgDir, 'rowboat-app.json'), 'utf-8')),
+        manifest = DhowAppManifestSchema.parse(
+            JSON.parse(fs.readFileSync(path.join(pkgDir, 'dhow-app.json'), 'utf-8')),
         );
     } catch (e) {
         throw new InstallError('bundle_mismatch', `bundle manifest missing/invalid: ${e instanceof Error ? e.message : String(e)}`);
@@ -221,7 +221,7 @@ function validatePkgManifest(pkgDir: string, expected?: { name: string; version:
 }
 
 /** D18 (§12.1 step 6): the bundle must not exceed what the user confirmed. */
-function checkCapabilitySubset(bundle: RowboatAppManifest, confirmed: { capabilities: string[]; agents: string[] }): void {
+function checkCapabilitySubset(bundle: DhowAppManifest, confirmed: { capabilities: string[]; agents: string[] }): void {
     const extraCaps = bundle.capabilities.filter((c) => !confirmed.capabilities.includes(c));
     const extraAgents = bundle.agents.filter((a) => !confirmed.agents.includes(a));
     if (extraCaps.length || extraAgents.length) {
@@ -249,7 +249,7 @@ export async function previewInstall(record: RegistryRecord): Promise<InstallPre
 export async function installFromRegistry(record: RegistryRecord, confirmed: InstallPreview): Promise<InstallDone> {
     const staging = path.join(TMP_ROOT, `app-install-${crypto.randomBytes(4).toString('hex')}`);
     try {
-        const bundleUrl = `https://github.com/${record.repo}/releases/latest/download/${record.name}.rowboat-app`;
+        const bundleUrl = `https://github.com/${record.repo}/releases/latest/download/${record.name}.dhow-app`;
         const { zipPath, sha256 } = await downloadBundle(bundleUrl, staging);
         const pkgDir = path.join(staging, 'pkg');
         const files = await extractBundle(zipPath, pkgDir);
@@ -277,7 +277,7 @@ export async function installFromRegistry(record: RegistryRecord, confirmed: Ins
 type UrlStaging = {
     staging: string;
     sha256: string;
-    manifest: RowboatAppManifest;
+    manifest: DhowAppManifest;
     files: Record<string, string>;
     createdAt: number;
 };
@@ -354,7 +354,7 @@ export async function confirmUrlInstall(url: string): Promise<InstallDone> {
 async function readInstallRecord(folder: string): Promise<AppInstallRecord> {
     try {
         return AppInstallRecordSchema.parse(
-            JSON.parse(await fsp.readFile(path.join(APPS_DIR, folder, '.rowboat-install.json'), 'utf-8')),
+            JSON.parse(await fsp.readFile(path.join(APPS_DIR, folder, '.dhow-install.json'), 'utf-8')),
         );
     } catch {
         throw new InstallError('not_installed', `${folder} has no install record`);
@@ -394,7 +394,7 @@ export async function updateApp(
 
     const staging = path.join(TMP_ROOT, `app-update-${crypto.randomBytes(4).toString('hex')}`);
     try {
-        const bundleUrl = `https://github.com/${install.repo}/releases/latest/download/${install.name}.rowboat-app`;
+        const bundleUrl = `https://github.com/${install.repo}/releases/latest/download/${install.name}.dhow-app`;
         const { zipPath, sha256 } = await downloadBundle(bundleUrl, staging);
         const pkgDir = path.join(staging, 'pkg');
         const files = await extractBundle(zipPath, pkgDir);
@@ -458,7 +458,7 @@ export async function updateApp(
             updatedAt: new Date().toISOString(),
             previousVersion: install.version,
         };
-        await fsp.writeFile(path.join(dir, '.rowboat-install.json'), JSON.stringify(nextRecord, null, 2));
+        await fsp.writeFile(path.join(dir, '.dhow-install.json'), JSON.stringify(nextRecord, null, 2));
 
         const summary = await getApp(folder);
         if (!summary) throw new InstallError('update_failed', 'updated app failed to index');
@@ -489,7 +489,7 @@ export async function rollbackApp(folder: string): Promise<AppSummary> {
         updatedAt: new Date().toISOString(),
     };
     delete nextRecord.previousVersion;
-    await fsp.writeFile(path.join(dir, '.rowboat-install.json'), JSON.stringify(nextRecord, null, 2));
+    await fsp.writeFile(path.join(dir, '.dhow-install.json'), JSON.stringify(nextRecord, null, 2));
 
     const summary = await getApp(folder);
     if (!summary) throw new InstallError('rollback_failed', 'rolled-back app failed to index');

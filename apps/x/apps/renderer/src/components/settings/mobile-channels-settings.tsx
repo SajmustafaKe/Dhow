@@ -94,10 +94,10 @@ export function MobileChannelsSettings({ dialogOpen }: { dialogOpen: boolean }) 
       <div className="flex items-start gap-2.5 rounded-md bg-muted/50 px-3 py-2.5">
         <Smartphone className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
         <p className="text-xs text-muted-foreground">
-          Chat with Rowboat from your phone. Send <span className="font-mono">help</span> for
+          Chat with Dhow from your phone. Send <span className="font-mono">help</span> for
           commands (<span className="font-mono">list</span>, <span className="font-mono">resume 2</span>,{" "}
           <span className="font-mono">new</span>, <span className="font-mono">stop</span>) — anything
-          else is a message to the current chat. Your computer must be on with Rowboat running.
+          else is a message to the current chat. Your computer must be on with Dhow running.
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export function MobileChannelsSettings({ dialogOpen }: { dialogOpen: boolean }) 
             <span className="text-sm font-medium">Caffeinate</span>
             <span className="text-xs text-muted-foreground">
               {caffeinated
-                ? "Your computer will stay awake while Rowboat is running"
+                ? "Your computer will stay awake while Dhow is running"
                 : "Keep your computer awake so channels stay connected"}
             </span>
           </div>
@@ -179,13 +179,13 @@ export function MobileChannelsSettings({ dialogOpen }: { dialogOpen: boolean }) 
           <div className="flex items-center gap-4 rounded-md border p-3">
             <img src={wa.qrDataUrl} alt="WhatsApp pairing QR" className="size-40 rounded" />
             <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium text-foreground">Link Rowboat to WhatsApp</p>
+              <p className="font-medium text-foreground">Link Dhow to WhatsApp</p>
               <p>1. Open WhatsApp on your phone</p>
               <p>2. Settings → Linked Devices → Link a Device</p>
               <p>3. Scan this code</p>
               <p className="pt-1">
                 Then message <span className="font-medium">yourself</span> (your own contact) to talk
-                to Rowboat.
+                to Dhow.
               </p>
             </div>
           </div>

@@ -5,7 +5,7 @@
 // (that would add ~400 MB). Instead we provision them on demand: the first time an agent
 // is used we download the per-platform npm package AT THE EXACT VERSION OUR ADAPTER WAS
 // BUILT AGAINST (see engine-manifest.ts), verify its integrity, and extract it into
-// ~/.rowboat/engines/<agent>/<version>/. Subsequent runs reuse the cached copy.
+// ~/.dhow/engines/<agent>/<version>/. Subsequent runs reuse the cached copy.
 //
 // The adapters are then pointed at the provisioned binary via CLAUDE_CODE_EXECUTABLE /
 // CODEX_PATH (see agents.ts). This keeps the installer small while making code mode work
@@ -21,7 +21,7 @@ import { pipeline } from 'stream/promises';
 import { ENGINE_MANIFEST } from './engine-manifest.js';
 import type { CodingAgent } from './types.js';
 
-export const ENGINES_ROOT = path.join(os.homedir(), '.rowboat', 'engines');
+export const ENGINES_ROOT = path.join(os.homedir(), '.dhow', 'engines');
 
 interface PlatformEntry {
     pkg: string;

@@ -162,7 +162,7 @@ interface ChatSidebarProps {
   /** Composer locks for runs bound to Code-section sessions (cwd + agent frozen). */
   codeSessionLocks?: Record<string, { cwd: string; agent: 'claude' | 'codex' }>
   /**
-   * Set while a Rowboat-mode code session owns this pane: the chat is pinned to
+   * Set while a Dhow-mode code session owns this pane: the chat is pinned to
    * the session, so the chat switcher / new-chat / history affordances hide.
    */
   pinnedToCodeSession?: { title: string } | null

@@ -8,7 +8,7 @@ import type { KnowledgeSourceConfig } from './types.js';
 // place before sync_slack.js (which imports it) is loaded — hence the
 // dynamic imports in beforeAll.
 const tmpWorkDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slack-sync-test-'));
-process.env.ROWBOAT_WORKDIR = tmpWorkDir;
+process.env.DHOW_WORKDIR = tmpWorkDir;
 
 const sourceA: KnowledgeSourceConfig = {
     id: 'slack-a',

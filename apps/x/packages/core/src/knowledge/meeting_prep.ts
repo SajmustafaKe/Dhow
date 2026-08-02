@@ -75,7 +75,7 @@ function domainOf(email: string | undefined): string {
 }
 
 /** Tidy a field value for display: strip a leading knowledge folder segment so
- *  a link target like "Organizations/Rowboat Labs" reads as "Rowboat Labs". */
+ *  a link target like "Organizations/Dhow" reads as "Dhow". */
 function displayRef(value: string | undefined): string | undefined {
     if (!value) return undefined;
     const m = value.match(/^(?:People|Organizations|Projects|Topics)\/(.+)$/i);

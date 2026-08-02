@@ -139,7 +139,7 @@ const definitions: SkillDefinition[] = [
   {
     id: "app-navigation",
     title: "App Navigation",
-    summary: "Navigate the app UI - open notes, switch views, answer from an installed Rowboat app's data and surface it, filter/search the knowledge base, and manage saved views.",
+    summary: "Navigate the app UI - open notes, switch views, answer from an installed Dhow app's data and surface it, filter/search the knowledge base, and manage saved views.",
     content: appNavigationSkill,
     tools: ["app-navigation", "app-read-data", "app-set-data"],
   },
@@ -152,8 +152,8 @@ const definitions: SkillDefinition[] = [
   },
   {
     id: "apps",
-    title: "Rowboat Apps",
-    summary: "Build a Rowboat App the user opens inside Rowboat — a static web app on its own origin, powered by their integrations and an optional background agent. Use when the user asks to make/build/create an app or dashboard; for ambiguous 'show me X' requests, confirm whether they want an app first.",
+    title: "Dhow Apps",
+    summary: "Build a Dhow App the user opens inside Dhow — a static web app on its own origin, powered by their integrations and an optional background agent. Use when the user asks to make/build/create an app or dashboard; for ambiguous 'show me X' requests, confirm whether they want an app first.",
     content: appsSkill,
     tools: [
       "app-navigation",
@@ -202,7 +202,7 @@ const definitions: SkillDefinition[] = [
   {
     id: "notify-user",
     title: "Notify User",
-    summary: "Send native desktop notifications with optional clickable links — including rowboat:// deep links that open a specific note, chat, or view inside the app.",
+    summary: "Send native desktop notifications with optional clickable links — including dhow:// deep links that open a specific note, chat, or view inside the app.",
     content: notifyUserSkill,
     tools: ["notify-user"],
   },
@@ -219,7 +219,7 @@ const bundledEntries: SkillEntry[] = definitions.map((definition) => ({
 const bundledIds = new Set(definitions.map((d) => d.id));
 
 // ---- Disk skill layer (refreshable at runtime) ----
-// Bundled skills are static. Disk skills (~/.rowboat/skills, ~/.agents/skills)
+// Bundled skills are static. Disk skills (~/.dhow/skills, ~/.agents/skills)
 // can be added/edited/removed while the app runs, so they live in a mutable
 // list rebuilt by refreshDiskSkills() and resolved via a separate alias map.
 let diskEntries: SkillEntry[] = [];
@@ -303,7 +303,7 @@ export function buildCatalogFromEntries(
       : []),
   ].join("\n"));
   return [
-    "# Rowboat Skill Catalog",
+    "# Dhow Skill Catalog",
     "",
     "Use this catalog to see which specialized skills you can load. Each entry lists the exact skill file plus a short description of when it helps.",
     "",

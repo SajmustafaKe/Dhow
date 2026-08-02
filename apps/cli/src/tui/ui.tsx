@@ -4,7 +4,7 @@ import Spinner from "ink-spinner";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import z from "zod";
-import { RowboatApi } from "./api.js";
+import { DhowApi } from "./api.js";
 import { ModelConfig } from "../models/models.js";
 import { Agent } from "../agents/agents.js";
 import { ListRunsResponse } from "../runs/repo.js";
@@ -60,8 +60,8 @@ type SidebarItem =
     | { kind: "action"; action: "new-copilot" | "new-agent"; label: string; hint?: string }
     | { kind: "run"; run: RunSummary; status: { label: string; color: string } };
 
-export function RowboatTui({ serverUrl }: { serverUrl: string }) {
-    const api = useMemo(() => new RowboatApi({ baseUrl: serverUrl }), [serverUrl]);
+export function DhowTui({ serverUrl }: { serverUrl: string }) {
+    const api = useMemo(() => new DhowApi({ baseUrl: serverUrl }), [serverUrl]);
     const { exit } = useApp();
     const { stdout } = useStdout();
 
@@ -736,7 +736,7 @@ function Header({
     return (
         <Box flexDirection="column">
             <Text>
-                <Text color="cyanBright">RowboatX</Text> chat · Server {serverUrl}
+                <Text color="cyanBright">DhowX</Text> chat · Server {serverUrl}
             </Text>
             <Text>
                 {state === "connecting" && (

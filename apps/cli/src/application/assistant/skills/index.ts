@@ -74,7 +74,7 @@ const catalogSections = skillEntries.map((entry) => [
 ].join("\n"));
 
 export const skillCatalog = [
-  "# Rowboat Skill Catalog",
+  "# Dhow Skill Catalog",
   "",
   "Use this catalog to see which specialized skills you can load. Each entry lists the exact skill file plus a short description of when it helps.",
   "",

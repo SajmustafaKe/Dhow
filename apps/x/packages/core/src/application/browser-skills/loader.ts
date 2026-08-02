@@ -69,7 +69,7 @@ async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Respon
       ...init,
       signal: controller.signal,
       headers: {
-        'User-Agent': 'rowboat-browser-skills',
+        'User-Agent': 'dhow-browser-skills',
         Accept: 'application/vnd.github+json',
         ...(init?.headers ?? {}),
       },

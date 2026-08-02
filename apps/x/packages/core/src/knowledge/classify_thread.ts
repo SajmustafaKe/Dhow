@@ -10,7 +10,6 @@ import {
     getKgModel,
     resolveProviderConfig,
 } from '../models/defaults.js';
-import { captureLlmUsage } from '../analytics/usage.js';
 import { withUseCase } from '../analytics/use_case.js';
 import type { GmailThreadSnapshot } from './sync_gmail.js';
 import { formatImportanceFeedbackForPrompt, maybeDistillImportanceRules } from './email_importance_feedback.js';
@@ -336,14 +335,6 @@ export async function classifyThread(
             schema: buildClassificationSchema(labels.map((l) => l.id)),
             retry: true,
         }));
-
-        captureLlmUsage({
-            useCase: 'knowledge_sync',
-            subUseCase: 'email_classifier',
-            model: modelId,
-            provider,
-            usage: result.usage,
-        });
 
         const out: Classification = {
             importance: result.object.importance,

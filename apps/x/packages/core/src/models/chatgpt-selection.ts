@@ -1,57 +1,51 @@
-import container from "../di/container.js";
-import { IModelConfigRepo } from "./repo.js";
+import { FSModelConfigRepo, type IModelConfigRepo } from "./repo.js";
 import { listCodexModels } from "./codex.js";
-import { getRowboatConfig } from "../config/rowboat.js";
-import { selectInitialModel, selectInitialTaskModels } from "./initial-selection.js";
-import { normalizeModelRecommendation } from "@x/shared/dist/rowboat-account.js";
-import { capture } from "../analytics/posthog.js";
+import { selectInitialModel } from "./initial-selection.js";
 
 /**
  * Model-selection hooks for the ChatGPT-subscription (codex) sign-in
  * lifecycle. ChatGPT is a provider like any other: signing in connects it,
  * so it follows the same rules —
  *
- * - Connect with no saved assistant → pick an initial model (backend
- *   recommendation if the subscription lists it, else the first listed
- *   model) and save it. A saved assistant is NEVER replaced.
+ * - Connect with no saved assistant → pick an initial model (the first the
+ *   subscription lists) and save it. A saved assistant is NEVER replaced.
  * - Disconnect → drop the selections that reference the provider (same
  *   dangling-ref cleanup as removing any provider).
  */
 
+/**
+ * The model config repo is constructed directly rather than resolved from the
+ * DI container. chatgpt-auth reaches this module through a dynamic import
+ * during sign-out, and pulling in the container there would both boot the
+ * entire application graph and land its binding in a temporal dead zone.
+ * FSModelConfigRepo holds no state — every method reads and writes
+ * models.json — so a fresh instance is equivalent to the container singleton.
+ */
+function modelConfigRepo(): IModelConfigRepo {
+    return new FSModelConfigRepo();
+}
+
 export async function applyCodexInitialSelection(): Promise<void> {
-    const repo = container.resolve<IModelConfigRepo>("modelConfigRepo");
     try {
+        const repo = modelConfigRepo();
         const cfg = await repo.getConfig().catch(() => null);
         if (cfg?.assistantModel) return; // saved choice — never replaced
         const catalog = await listCodexModels();
         const ids = catalog.providers[0]?.models.map((m) => m.id) ?? [];
-        const recommendations = (await getRowboatConfig().catch(() => null))?.modelRecommendations;
-        const model = selectInitialModel("codex", ids, recommendations);
+        const model = selectInitialModel(ids);
         if (model) {
-            // Task recommendations ride along the seeding moment (codex has
-            // none today; the path is uniform across providers).
-            const taskModels = selectInitialTaskModels("codex", "codex", ids, recommendations, model);
-            await repo.updateConfig({
-                assistantModel: { provider: "codex", model },
-                ...(Object.keys(taskModels).length > 0 ? { taskModels } : {}),
-            });
-            capture("llm_initial_model_selected", {
-                flavor: "codex",
-                model,
-                recommended: model === normalizeModelRecommendation(recommendations, "codex")?.assistantModel,
-                task_overrides_seeded: Object.keys(taskModels).length,
-                source: "sign_in",
-            });
+            await repo.updateConfig({ assistantModel: { provider: "codex", model } });
         }
     } catch (error) {
         // Best-effort: a failed initial selection must never break sign-in.
+        // The picker copes with an unset assistant (shows the connect hint).
         console.warn("[models] Initial selection after ChatGPT sign-in failed:", error);
     }
 }
 
 export async function clearCodexSelections(): Promise<void> {
-    const repo = container.resolve<IModelConfigRepo>("modelConfigRepo");
     try {
+        const repo = modelConfigRepo();
         // "codex" has no providers-map entry; removeProvider still clears
         // the assistantModel / task overrides that reference it.
         await repo.removeProvider("codex");

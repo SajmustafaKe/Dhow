@@ -46,13 +46,13 @@ export async function shouldDeferBackgroundTasks(): Promise<boolean> {
  * by getDefaultModelAndProvider) into the LlmProvider entry that
  * createProvider expects.
  *
- * - "rowboat" → gateway provider (auth via OAuth bearer; no creds field).
+ * - "dhow" → gateway provider (auth via OAuth bearer; no creds field).
  * - "codex" → ChatGPT subscription (auth in chatgpt-auth.json).
  * - other ids → the models.json providers map.
  */
 export async function resolveProviderConfig(name: string): Promise<z.infer<typeof LlmProvider>> {
-    if (name === "rowboat") {
-        return { flavor: "rowboat" };
+    if (name === "dhow") {
+        return { flavor: "dhow" };
     }
     if (name === "codex") {
         return { flavor: "codex" };

@@ -12,7 +12,7 @@ type PopupPayload = {
   hasCalendarEvent: boolean
 }
 
-// Rowboat sail glyph (black on transparent, same asset as the tray icon) —
+// Dhow sail glyph (black on transparent, same asset as the tray icon) —
 // rendered on a white chip inside the "Take notes" pill.
 const SAIL_ICON =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAACfUlEQVR4nMSXO2gUURSGz8yuYuGjsBHFBza+UGwULUxjoY0iWPnA0lZQURDsFC1E7Owt7JQ0SZGQLk2SNoQEQhICCXlUCXk/ZvOf3HM2Z2/uZDM7m90fPnbm3jn3P/e5M0VqsorUZBWocYqogQnEhj1VzwTUsOTBOgJOg1WwYYMiyqdITDe9RK6CW+A2uAYugOPgBhiXuO3kal2E1pg5BO6BJ+A+uEK7OzcJpuVaR6amBArG+Bx4BZ6LqZUOdSI+I+SmoEJZEoilMTa+CN6Cl+CEMUrkuUgS5d91+e33OpApAQ06Cj6CN+CY1G14pqryPMt1b6jhagloI2z+EPwCl4xxgXabqnQXFCW+R8oTaxDvw5z1DbSL+Zpp2D4bpcTz7zAYMomVVaxizkP+FzwydYfJ9Uh3QskYWXGZrolOiamY/7QE1Pwk6AaXwTzoA7OghdyhQtJY7PVWzcnU/fPKK8xC5mdBB1gGv6UHY/IMr/rH4D25gyUtCS3n4efDaJ1Seuvf8xC/BhPgv1dnTz1+7qskogvSrhsu4wPqM/hCgeEPJUC0s99VBbkveWXa2A/wzktC45fILdxJL7kKM1+JV7cZCNRFyIYfwICXqA7/HzGPA22Ue5KmElWXjtYceCrXuiVXwDOp27OBPNJpaAVT5HaVTsVPcv98qb0nqs/7ABvw4XQTXJf7UfBCEkyqBeeV9u6UXHObvIsW9xOcNwFd2WfAHWnvO+iinUV5oAlo/ANyx3Yb+EQpez6keryS8QgMkjvp7oIFStnzIeX5LtAtyK9h3OOWrOZ5E9C/5PPk3gdnspoT5Z8Ce2xnNtegeqgmc1YjP82CavrHadMT2AIAAP//JKuLxQAAAAZJREFUAwAJ75pCeqjxVQAAAABJRU5ErkJggg=='

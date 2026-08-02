@@ -62,7 +62,7 @@ function spawnEntry(id: string, cwd: string, cols: number, rows: number): Termin
     cwd,
     cols,
     rows,
-    env: { ...process.env, TERM_PROGRAM: 'rowboat' } as Record<string, string>,
+    env: { ...process.env, TERM_PROGRAM: 'dhow' } as Record<string, string>,
   });
   const entry: TerminalEntry = { proc, cwd, backlog: '', running: true };
   proc.onData((data) => {

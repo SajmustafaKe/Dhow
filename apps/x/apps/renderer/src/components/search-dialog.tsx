@@ -1,6 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import posthog from 'posthog-js'
-import * as analytics from '@/lib/analytics'
 import { FileTextIcon, MessageSquareIcon } from 'lucide-react'
 import {
   CommandDialog,
@@ -78,7 +76,6 @@ export function CommandPalette({
 
   useEffect(() => {
     if (!open) return
-    analytics.searchOpened()
     searchInputRef.current?.focus()
   }, [open])
 
@@ -100,8 +97,6 @@ export function CommandPalette({
       .then((res) => {
         if (!cancelled) {
           setResults(res.results)
-          analytics.searchExecuted(types)
-          posthog.people.set_once({ has_used_search: true })
         }
       })
       .catch((err) => {
@@ -123,7 +118,6 @@ export function CommandPalette({
   }, [open])
 
   const handleSelect = useCallback((result: SearchResult) => {
-    analytics.searchResultSelected(result.type)
     onOpenChange(false)
     if (result.type === 'knowledge') {
       onSelectFile(result.path)

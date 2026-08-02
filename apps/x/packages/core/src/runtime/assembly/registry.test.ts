@@ -7,11 +7,11 @@ import {
 } from "./registry.js";
 
 describe("agent registry", () => {
-    it("knows every historical builtin id, including the rowboatx alias", () => {
+    it("knows every historical builtin id, including the dhowx alias", () => {
         expect(builtinAgentIds().sort()).toEqual(
             [
                 "copilot",
-                "rowboatx",
+                "dhowx",
                 "live-note-agent",
                 "background-task-agent",
                 "note_creation",
@@ -25,7 +25,7 @@ describe("agent registry", () => {
 
     it("grants workspace context to the copilot ids only", () => {
         expect(hasWorkspaceContext("copilot")).toBe(true);
-        expect(hasWorkspaceContext("rowboatx")).toBe(true);
+        expect(hasWorkspaceContext("dhowx")).toBe(true);
         expect(hasWorkspaceContext("background-task-agent")).toBe(false);
         expect(hasWorkspaceContext("note_creation")).toBe(false);
         expect(hasWorkspaceContext("some-user-agent")).toBe(false);

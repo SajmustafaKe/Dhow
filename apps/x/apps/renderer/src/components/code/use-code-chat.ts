@@ -59,7 +59,7 @@ function messageText(content: unknown): string {
 
 // Conversation state for one coding session, fed by the run JSONL (history)
 // and the live runs:events stream. Handles both modes: direct turns arrive as
-// code-run-events with a `direct-` toolCallId; Rowboat turns arrive as the
+// code-run-events with a `direct-` toolCallId; Dhow turns arrive as the
 // usual LLM message/tool events (incl. code_agent_run blocks).
 export function useCodeChat(session: CodeSession | null) {
   const sessionId = session?.id ?? null
@@ -69,7 +69,7 @@ export function useCodeChat(session: CodeSession | null) {
   const [compactionStatus, setCompactionStatus] = useState<CompactionStatus>('idle')
   const [contextUsage, setContextUsage] = useState<{ used: number; size: number } | null>(null)
   const [pendingPermission, setPendingPermission] = useState<PendingCodePermission | null>(null)
-  // Rowboat-mode copilot gates, same as the main chat: pre-tool-call permission
+  // Dhow-mode copilot gates, same as the main chat: pre-tool-call permission
   // requests and ask-human questions. Keyed by toolCallId.
   const [pendingToolPermissions, setPendingToolPermissions] = useState<Map<string, z.infer<typeof ToolPermissionRequestEvent>>>(new Map())
   const [pendingAskHumans, setPendingAskHumans] = useState<Map<string, z.infer<typeof AskHumanRequestEvent>>>(new Map())
@@ -92,7 +92,7 @@ export function useCodeChat(session: CodeSession | null) {
       })
       return
     }
-    // Rowboat mode: attach to the code_agent_run tool call block.
+    // Dhow mode: attach to the code_agent_run tool call block.
     setItems((prev) => prev.map((item) => {
       if (isChatToolCall(item) && item.id === toolCallId) {
         return { ...item, codeRunEvents: [...(item.codeRunEvents ?? []), event] }
@@ -338,7 +338,7 @@ export function useCodeChat(session: CodeSession | null) {
           break
         }
         case 'llm-stream-event': {
-          // Rowboat mode streaming text.
+          // Dhow mode streaming text.
           const llmEvent = event.event as { type: string; delta?: string; toolCallId?: string; toolName?: string; input?: unknown }
           setIsProcessing(true)
           if (llmEvent.type === 'text-delta' && llmEvent.delta) {
@@ -460,7 +460,7 @@ export function useCodeChat(session: CodeSession | null) {
     })
   }, [pendingPermission])
 
-  // Rowboat-mode copilot gates — same IPC the main chat uses.
+  // Dhow-mode copilot gates — same IPC the main chat uses.
   const respondToToolPermission = useCallback(async (
     toolCallId: string,
     subflow: string[],

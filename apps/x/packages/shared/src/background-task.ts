@@ -33,7 +33,7 @@ export type BackgroundTask = {
     projectId?: string;
     model?: string;
     provider?: string;
-    // Folder slug of the Rowboat App that installed this task (spec §8.2).
+    // Folder slug of the Dhow App that installed this task (spec §8.2).
     // Runtime-managed; tasks with sourceApp are owned by the app lifecycle.
     sourceApp?: string;
     createdAt: string;

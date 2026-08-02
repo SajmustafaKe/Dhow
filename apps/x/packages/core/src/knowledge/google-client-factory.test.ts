@@ -5,9 +5,8 @@ import type { OAuthTokens } from '../auth/types.js';
  * Regression for the cold-start race that left a stuck `error` field in
  * oauth.json: Gmail + Calendar both call getClient() in the same tick, the
  * dedup singleton's check-and-assign were separated by an `await`, two
- * parallel refreshes go out, backend 429s the second one, the upsert(error)
- * write from the 429 path could land last and stick "Needs reconnect" in
- * the UI even though tokens were valid.
+ * parallel refreshes go out, and the failure path from the loser could land
+ * last and stick "Needs reconnect" in the UI even though tokens were valid.
  */
 
 interface MockOAuthRepo {
@@ -18,8 +17,15 @@ interface MockOAuthRepo {
 }
 
 let refreshSpy: ReturnType<typeof vi.fn>;
+let releaseRefresh: () => void;
 let mockOAuthRepo: MockOAuthRepo;
 let storedTokens: OAuthTokens;
+
+const connection = (tokens: OAuthTokens) => ({
+  tokens,
+  clientId: 'client-id.apps.googleusercontent.com',
+  clientSecret: 'client-secret',
+});
 
 beforeEach(() => {
   vi.resetModules();
@@ -34,7 +40,7 @@ beforeEach(() => {
   };
 
   mockOAuthRepo = {
-    read: vi.fn(async () => ({ tokens: storedTokens, mode: 'rowboat' as const })),
+    read: vi.fn(async () => connection(storedTokens)),
     upsert: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
     getClientFacingConfig: vi.fn(async () => ({})),
@@ -49,11 +55,20 @@ beforeEach(() => {
     },
   }));
 
-  // Real-ish delay so two concurrent callers actually have something to
-  // overlap on — without it the spy might resolve synchronously and mask
-  // the very race we're testing for.
-  refreshSpy = vi.fn(async (_rt: string, scopes?: string[]) => {
-    await new Promise((r) => setTimeout(r, 25));
+  vi.doMock('../auth/providers.js', () => ({
+    getProviderConfig: vi.fn(async () => ({
+      discovery: { mode: 'issuer', issuer: 'https://accounts.google.com' },
+      client: { mode: 'static' },
+      scopes: ['https://www.googleapis.com/auth/gmail.modify'],
+    })),
+  }));
+
+  // The refresh is held open until the test releases it, so both concurrent
+  // callers are guaranteed to be in flight simultaneously. A real delay would
+  // make the overlap a timing guess; this makes it a certainty.
+  const gate = new Promise<void>((resolve) => { releaseRefresh = resolve; });
+  refreshSpy = vi.fn(async (_config: unknown, _rt: string, scopes?: string[]) => {
+    await gate;
     return {
       access_token: 'new-access',
       refresh_token: 'rt',
@@ -63,20 +78,22 @@ beforeEach(() => {
     };
   });
 
-  vi.doMock('../auth/google-backend-oauth.js', async () => {
-    const actual = await vi.importActual<typeof import('../auth/google-backend-oauth.js')>(
-      '../auth/google-backend-oauth.js',
+  vi.doMock('../auth/oauth-client.js', async () => {
+    const actual = await vi.importActual<typeof import('../auth/oauth-client.js')>(
+      '../auth/oauth-client.js',
     );
     return {
       ...actual,
-      refreshTokensViaBackend: refreshSpy,
+      discoverConfiguration: vi.fn(async () => ({ mocked: true })),
+      refreshTokens: refreshSpy,
     };
   });
 });
 
 afterEach(() => {
   vi.doUnmock('../di/container.js');
-  vi.doUnmock('../auth/google-backend-oauth.js');
+  vi.doUnmock('../auth/providers.js');
+  vi.doUnmock('../auth/oauth-client.js');
   vi.resetModules();
 });
 
@@ -86,18 +103,20 @@ describe('GoogleClientFactory.getClient', () => {
     GoogleClientFactory.clearCache();
 
     // Same tick — this is the exact pattern that sync_gmail.init() and
-    // sync_calendar.init() produce on cold start.
-    const [a, b] = await Promise.all([
+    // sync_calendar.init() produce on cold start. Both calls are launched
+    // before the refresh is allowed to settle.
+    const pending = Promise.all([
       GoogleClientFactory.getClient(),
       GoogleClientFactory.getClient(),
     ]);
+    releaseRefresh();
+    const [a, b] = await pending;
 
     expect(refreshSpy).toHaveBeenCalledTimes(1);
     expect(a).not.toBeNull();
     expect(a).toBe(b);
 
-    // And the failure-path upsert (error: '429…') is never invoked, so
-    // oauth.json doesn't get a stuck error.
+    // And no failure-path upsert fires, so oauth.json doesn't get a stuck error.
     const errorUpserts = mockOAuthRepo.upsert.mock.calls.filter(
       ([, conn]) => (conn as { error?: string | null }).error,
     );
@@ -113,7 +132,7 @@ describe('GoogleClientFactory.getClient', () => {
       token_type: 'Bearer',
       scopes: ['https://www.googleapis.com/auth/gmail.modify'],
     };
-    mockOAuthRepo.read = vi.fn(async () => ({ tokens: storedTokens, mode: 'rowboat' as const }));
+    mockOAuthRepo.read = vi.fn(async () => connection(storedTokens));
 
     const { GoogleClientFactory } = await import('./google-client-factory.js');
     GoogleClientFactory.clearCache();
@@ -123,21 +142,5 @@ describe('GoogleClientFactory.getClient', () => {
 
     expect(refreshSpy).not.toHaveBeenCalled();
     expect(a).toBe(b);
-  });
-
-  it('does not stick an error on transient (429) refresh failure', async () => {
-    const { TransientRefreshError } = await import('../auth/google-backend-oauth.js');
-    refreshSpy.mockRejectedValueOnce(new TransientRefreshError('refresh failed: 429 Refresh in progress', 429));
-
-    const { GoogleClientFactory } = await import('./google-client-factory.js');
-    GoogleClientFactory.clearCache();
-
-    const result = await GoogleClientFactory.getClient();
-
-    expect(result).toBeNull();
-    const errorUpserts = mockOAuthRepo.upsert.mock.calls.filter(
-      ([, conn]) => (conn as { error?: string | null }).error,
-    );
-    expect(errorUpserts).toHaveLength(0);
   });
 });

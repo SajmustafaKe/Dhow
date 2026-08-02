@@ -12,7 +12,7 @@ export async function GET() {
     // Replace placeholder values with actual URLs
     const contents = template
       .replace('__CHAT_WIDGET_HOST__', process.env.CHAT_WIDGET_HOST || '')
-      .replace('__ROWBOAT_HOST__', process.env.ROWBOAT_HOST || '');
+      .replace('__DHOW_HOST__', process.env.DHOW_HOST || '');
     
     return new Response(contents, {
       headers: {

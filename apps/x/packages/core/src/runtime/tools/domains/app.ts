@@ -8,7 +8,7 @@ import * as fs from "fs/promises";
 import container from "../../../di/container.js";
 import * as files from "../../../filesystem/files.js";
 import { WorkDir } from "../../../config/config.js";
-import { RowboatAppManifestSchema } from "@x/shared/dist/rowboat-app.js";
+import { DhowAppManifestSchema } from "@x/shared/dist/dhow-app.js";
 import { listApps } from "../../../apps/indexer.js";
 import { listImportantThreads, searchThreads } from "../../../knowledge/sync_gmail.js";
 import { formatTimestampForModel } from "@x/shared/dist/time.js";
@@ -20,13 +20,13 @@ import { BuiltinToolsSchema } from "../types.js";
 export const appNavigationTools: z.infer<typeof BuiltinToolsSchema> = {
     'app-navigation': {
         permission: "none",
-        description: 'Drive the Rowboat app UI: navigate to any view, read what a view contains (emails, background agents, chat history), open specific items (an email thread, a note, an agent, a past chat), filter/search the knowledge base, and manage saved views. Use it to SHOW the user things while telling them — navigation happens on their screen.',
+        description: 'Drive the Dhow app UI: navigate to any view, read what a view contains (emails, background agents, chat history), open specific items (an email thread, a note, an agent, a past chat), filter/search the knowledge base, and manage saved views. Use it to SHOW the user things while telling them — navigation happens on their screen.',
         inputSchema: z.object({
             action: z.enum(["open-note", "open-view", "open-app", "read-view", "open-item", "update-base-view", "get-base-state", "create-base"]).describe("The navigation action to perform"),
             // open-note
             path: z.string().optional().describe("Knowledge file path for open-note, e.g. knowledge/People/John.md"),
             // open-app
-            appId: z.string().optional().describe("App folder slug under ~/.rowboat/apps (for open-app) — opens the app in the middle pane."),
+            appId: z.string().optional().describe("App folder slug under ~/.dhow/apps (for open-app) — opens the app in the middle pane."),
             // open-view / read-view
             view: z.enum(["home", "email", "meetings", "live-notes", "bg-tasks", "chat-history", "knowledge", "workspace", "code", "bases", "graph", "apps"]).optional().describe("Which view to open (open-view) or read (read-view; supported for read: email, bg-tasks, chat-history, apps)"),
             // read-view (email)
@@ -88,7 +88,7 @@ export const appNavigationTools: z.infer<typeof BuiltinToolsSchema> = {
                     if (!appId) return { success: false, error: 'open-app requires appId (the app folder slug)' };
                     let appName = appId;
                     try {
-                        const raw = await fs.readFile(path.join(WorkDir, 'apps', appId, 'rowboat-app.json'), 'utf-8');
+                        const raw = await fs.readFile(path.join(WorkDir, 'apps', appId, 'dhow-app.json'), 'utf-8');
                         const m = JSON.parse(raw) as { name?: string };
                         if (m.name) appName = m.name;
                     } catch {
@@ -148,7 +148,7 @@ export const appNavigationTools: z.infer<typeof BuiltinToolsSchema> = {
                                 return { success: true, action: 'read-view', view, sessions };
                             }
                             case 'apps': {
-                                // Installed/local Rowboat apps — the copilot uses this to
+                                // Installed/local Dhow apps — the copilot uses this to
                                 // route questions to an app's data (app-read-data) and to
                                 // surface the app (open-app). Generic: apps are matched by
                                 // their own name/description, nothing app-specific here.
@@ -320,18 +320,18 @@ const APP_READ_DATA_MAX_CHARS = 50_000;
 export const appDataTools: z.infer<typeof BuiltinToolsSchema> = {
     'app-read-data': {
         permission: "none",
-        description: "Read a Rowboat App's data file — the JSON its background agent maintains and its frontend renders. THE way to answer questions an installed app already tracks (fresh, no API calls): find the app via app-navigation read-view apps, read its data file, answer from it. Omit `file` to list the files under the app's data/.",
+        description: "Read a Dhow App's data file — the JSON its background agent maintains and its frontend renders. THE way to answer questions an installed app already tracks (fresh, no API calls): find the app via app-navigation read-view apps, read its data file, answer from it. Omit `file` to list the files under the app's data/.",
         inputSchema: z.object({
-            appFolder: z.string().describe('The app folder slug under ~/.rowboat/apps.'),
+            appFolder: z.string().describe('The app folder slug under ~/.dhow/apps.'),
             file: z.string().optional().describe("Path relative to the app's data/ directory, e.g. \"data.json\". Omit to list available files."),
         }),
         execute: async ({ appFolder, file }: { appFolder: string; file?: string }) => {
             try {
                 const dir = path.join(WorkDir, 'apps', appFolder);
                 try {
-                    RowboatAppManifestSchema.parse(JSON.parse(await fs.readFile(path.join(dir, 'rowboat-app.json'), 'utf-8')));
+                    DhowAppManifestSchema.parse(JSON.parse(await fs.readFile(path.join(dir, 'dhow-app.json'), 'utf-8')));
                 } catch {
-                    return { success: false, error: `No app "${appFolder}" (missing or invalid rowboat-app.json).` };
+                    return { success: false, error: `No app "${appFolder}" (missing or invalid dhow-app.json).` };
                 }
                 const dataRoot = path.join(dir, 'data');
 
@@ -381,9 +381,9 @@ export const appDataTools: z.infer<typeof BuiltinToolsSchema> = {
     },
     'app-set-data': {
         permission: "none",
-        description: "Write a Rowboat App's data file — JSON its frontend reads via GET /_rowboat/data/<file>. Deterministic: you supply the content, code handles the path, atomicity (temp→rename), and the app's dataContracts validation. This is how a background task refreshes an app's data — the agent RETURNS the data; never hand-write files under apps/.",
+        description: "Write a Dhow App's data file — JSON its frontend reads via GET /_dhow/data/<file>. Deterministic: you supply the content, code handles the path, atomicity (temp→rename), and the app's dataContracts validation. This is how a background task refreshes an app's data — the agent RETURNS the data; never hand-write files under apps/.",
         inputSchema: z.object({
-            appFolder: z.string().describe('The app folder slug under ~/.rowboat/apps.'),
+            appFolder: z.string().describe('The app folder slug under ~/.dhow/apps.'),
             file: z.string().describe("Path relative to the app's data/ directory, e.g. \"data.json\"."),
             data: z.unknown().describe('Full payload to store. Pass the object directly — do NOT JSON.stringify it.'),
         }),
@@ -402,11 +402,11 @@ export const appDataTools: z.infer<typeof BuiltinToolsSchema> = {
 
                 // The app must exist with a valid manifest — never create stray folders.
                 const dir = path.join(WorkDir, 'apps', appFolder);
-                let manifest: z.infer<typeof RowboatAppManifestSchema>;
+                let manifest: z.infer<typeof DhowAppManifestSchema>;
                 try {
-                    manifest = RowboatAppManifestSchema.parse(JSON.parse(await fs.readFile(path.join(dir, 'rowboat-app.json'), 'utf-8')));
+                    manifest = DhowAppManifestSchema.parse(JSON.parse(await fs.readFile(path.join(dir, 'dhow-app.json'), 'utf-8')));
                 } catch {
-                    return { success: false, error: `No app "${appFolder}" (missing or invalid rowboat-app.json).` };
+                    return { success: false, error: `No app "${appFolder}" (missing or invalid dhow-app.json).` };
                 }
 
                 // Same path rules as the data API: confined to data/.

@@ -105,7 +105,7 @@ function ChatWindowMessages({
 
   return <div className="flex flex-col grow p-2 gap-4 overflow-auto">
     <AssistantMessage>
-      Hello! I&apos;m Rowboat, your personal assistant. How can I help you today?
+      Hello! I&apos;m Dhow, your personal assistant. How can I help you today?
     </AssistantMessage>
     {messages.map((message, index) => {
       switch (message.role) {

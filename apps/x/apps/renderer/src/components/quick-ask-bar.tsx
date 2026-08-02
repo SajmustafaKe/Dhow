@@ -263,13 +263,13 @@ export function QuickAskBar() {
               <button
                 type="button"
                 onClick={openInApp}
-                aria-label="Open in Rowboat"
+                aria-label="Open in Dhow"
                 className="absolute right-5 top-4 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.04] text-neutral-400 ring-1 ring-inset ring-white/10 transition-colors hover:bg-white/10 hover:text-white"
               >
                 <ArrowUpRight className="h-3.5 w-3.5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Open in Rowboat</TooltipContent>
+            <TooltipContent side="bottom">Open in Dhow</TooltipContent>
           </Tooltip>
           <div className="min-h-0 flex-1 overflow-y-auto text-sm leading-relaxed text-neutral-100">
             <div ref={panelContentRef}>
@@ -289,7 +289,7 @@ export function QuickAskBar() {
             </div>
           </div>
           <div className="mt-2 shrink-0 text-[11px] text-neutral-600">
-            Also in your Rowboat chat · Esc to {answer?.processing ? 'dismiss' : 'clear'}
+            Also in your Dhow chat · Esc to {answer?.processing ? 'dismiss' : 'clear'}
           </div>
         </div>
       )}
@@ -325,7 +325,7 @@ export function QuickAskBar() {
           type="text"
           value={inputValue}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder={recording ? 'Listening…' : 'Ask Rowboat anything…'}
+          placeholder={recording ? 'Listening…' : 'Ask Dhow anything…'}
           className="h-full min-w-0 flex-1 bg-transparent text-lg font-light outline-none placeholder:text-neutral-500"
         />
         {micDenied ? (

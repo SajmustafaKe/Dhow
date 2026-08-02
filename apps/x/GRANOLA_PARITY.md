@@ -1,6 +1,6 @@
 # Granola Parity — Research & Gap Analysis
 
-Goal: make Rowboat's meeting feature work exactly like Granola (granola.ai). We copy Granola's behavior — no new invention. This doc is the source of truth: how Granola works, what Rowboat has today (with file:line pointers), the gaps, and the parity plan.
+Goal: make Dhow's meeting feature work exactly like Granola (granola.ai). We copy Granola's behavior — no new invention. This doc is the source of truth: how Granola works, what Dhow has today (with file:line pointers), the gaps, and the parity plan.
 
 Research basis: Granola's official docs (docs.granola.ai), granola.ai blog/security/jobs pages, third-party reviews and reverse-engineering writeups, plus a full audit of this codebase. Claims that are inferred (not directly documented by Granola) are marked **[inference]**.
 
@@ -76,10 +76,10 @@ Granola detects meetings via **calendar events + microphone-in-use detection**, 
 
 ---
 
-## Part 2 — What Rowboat has today (audit of main)
+## Part 2 — What Dhow has today (audit of main)
 
 Two separate feature families exist in `apps/x`; only the second is Granola-adjacent:
-- **"Calls" (video mode)** — live voice/video chat *with the Rowboat AI* (`VIDEO_MODE.md`). Not meeting capture.
+- **"Calls" (video mode)** — live voice/video chat *with the Dhow AI* (`VIDEO_MODE.md`). Not meeting capture.
 - **"Meetings"** — real meeting capture → transcript → AI notes. Working pipeline, but **calendar-triggered and manual-click only**.
 
 ### What EXISTS (and is solid)
@@ -89,11 +89,11 @@ Two separate feature families exist in `apps/x`; only the second is Granola-adja
 | Mic + system-audio capture, 2-channel | ✅ | `apps/renderer/src/hooks/useMeetingTranscription.ts:282-299` — mic `getUserMedia` (ch 0) + `getDisplayMedia({audio})` loopback (ch 1), merged to 16 kHz PCM (`:424-485`); loopback auto-approved in `apps/main/src/main.ts:216-226` |
 | Realtime ASR | ✅ | Deepgram realtime WS, `nova-3`, multichannel + diarize (`useMeetingTranscription.ts:9-21`); proxy or raw key (`:253-280`) |
 | Speaker labels | ✅ | ch 0 → "You", ch 1 → diarized `Speaker N` (`:335-347`) |
-| Transcript storage | ✅ | Markdown + frontmatter + fenced transcript block, `knowledge/Meetings/rowboat/<date>/<name>.md` (`:93-136`, `:487-510`) |
+| Transcript storage | ✅ | Markdown + frontmatter + fenced transcript block, `knowledge/Meetings/dhow/<date>/<name>.md` (`:93-136`, `:487-510`) |
 | AI meeting notes on stop | ✅ | `packages/core/src/knowledge/summarize_meeting.ts` — LLM summary, attendee-name resolution from calendar; orchestrated in `App.tsx:5601-5661`; notes prepended above transcript |
 | Auto-stop heuristics | ✅ (partial) | silence RMS backstop, calendar-end gating, system-track ended/muted — `useMeetingTranscription.ts:378-549` |
-| Calendar sync | ✅ | Google OAuth via `googleapis`, `packages/core/src/knowledge/sync_calendar.ts`, per-event JSON in `~/.rowboat/calendar_sync/` |
-| Pre-meeting notification | ✅ (system toast) | `packages/core/src/knowledge/notify_calendar_meetings.ts` — polls every 30s, notifies ~1 min before, deep-links `rowboat://action?type=join-and-take-meeting-notes` |
+| Calendar sync | ✅ | Google OAuth via `googleapis`, `packages/core/src/knowledge/sync_calendar.ts`, per-event JSON in `~/.dhow/calendar_sync/` |
+| Pre-meeting notification | ✅ (system toast) | `packages/core/src/knowledge/notify_calendar_meetings.ts` — polls every 30s, notifies ~1 min before, deep-links `dhow://action?type=join-and-take-meeting-notes` |
 | Meetings screen | ✅ | `apps/renderer/src/components/meetings-view.tsx` — "Coming up" (+Join / Take-notes buttons, inline prep) + past-notes table |
 | Transcript rendering | ✅ | `apps/renderer/src/extensions/transcript-block.tsx` (TipTap, colored speakers, collapsible) |
 | Meeting prep briefs | ✅ | `meeting_prep_scheduler.ts`, `meeting_prep_brief.ts` (Granola has this too) |
@@ -113,7 +113,7 @@ Two separate feature families exist in `apps/x`; only the second is Granola-adja
 
 ### Honest assessment
 
-Rowboat has built the *second half* of Granola well — what happens once you're recording, and after the meeting ends. It has essentially none of the *first half* — noticing a meeting is happening and quietly being there without the user opening the app. That first half is exactly items 1–5 above, and it's where all the work is.
+Dhow has built the *second half* of Granola well — what happens once you're recording, and after the meeting ends. It has essentially none of the *first half* — noticing a meeting is happening and quietly being there without the user opening the app. That first half is exactly items 1–5 above, and it's where all the work is.
 
 ---
 
@@ -123,7 +123,7 @@ Ordered so each phase is shippable and testable on its own.
 
 ### Phase 1 — Resident app: login item + tray
 - `app.setLoginItemSettings({ openAtLogin: true })`, default on, toggle in Settings. When launched at login: no window, tray only **[inference — Granola undocumented, but implied]**.
-- Electron `Tray` with template icon; menu: "Start recording", "Open Rowboat", recording status line, Quit. Keep app alive on window close (already macOS default; add tray so it's reachable).
+- Electron `Tray` with template icon; menu: "Start recording", "Open Dhow", recording status line, Quit. Keep app alive on window close (already macOS default; add tray so it's reachable).
 - Acceptance: reboot → icon in menu bar, no window; click tray → start an ad-hoc meeting note.
 
 ### Phase 2 — Meeting detection + "Take notes?" popup

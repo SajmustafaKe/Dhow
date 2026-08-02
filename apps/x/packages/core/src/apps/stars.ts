@@ -36,7 +36,7 @@ function noteRateLimit(res: Response): void {
 async function ghHeaders(): Promise<Record<string, string>> {
     const headers: Record<string, string> = {
         'Accept': 'application/vnd.github+json',
-        'User-Agent': 'rowboat-apps',
+        'User-Agent': 'dhow-apps',
     };
     const auth = await getGithubToken();
     if (auth) headers['Authorization'] = `Bearer ${auth.token}`;

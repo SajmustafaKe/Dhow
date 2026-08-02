@@ -1,9 +1,6 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { isSignedIn } from '../account/account.js';
-import { getAccessToken } from '../auth/tokens.js';
 import { WorkDir } from '../config/config.js';
-import { API_URL } from '../config/env.js';
 
 export interface VoiceConfig {
     deepgram: { apiKey: string } | null;
@@ -34,22 +31,6 @@ export async function getVoiceConfig(): Promise<VoiceConfig> {
 
 async function resolveTtsEndpoint(streaming: boolean): Promise<{ url: string; headers: Record<string, string> }> {
     const config = await getVoiceConfig();
-    const signedIn = await isSignedIn();
-
-    if (signedIn) {
-        const voiceId = config.elevenlabs?.voiceId || 's3TPKV1kjDlVtZbl4Ksh';
-        const accessToken = await getAccessToken();
-        // The proxy has no dedicated /stream route — the same endpoint is
-        // used and the body is consumed progressively; if the proxy buffers,
-        // streaming degrades to today's full-body latency, never worse.
-        return {
-            url: `${API_URL}/v1/voice/text-to-speech/${voiceId}`,
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-            },
-        };
-    }
 
     if (!config.elevenlabs) {
         throw new Error(`ElevenLabs not configured. Create ${path.join(WorkDir, 'config', 'elevenlabs.json')} with { "apiKey": "<your-key>" }`);

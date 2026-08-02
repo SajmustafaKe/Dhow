@@ -10,7 +10,7 @@ export interface ProviderState {
 
 export type Step = 0 | 1 | 2 | 3 | 4
 
-export type OnboardingPath = 'rowboat' | 'byok' | null
+export type OnboardingPath = 'dhow' | 'byok' | null
 
 export function useOnboardingState(open: boolean, onComplete: (opts?: { startTour?: boolean }) => void) {
   const [currentStep, setCurrentStep] = useState<Step>(0)
@@ -275,7 +275,7 @@ export function useOnboardingState(open: boolean, onComplete: (opts?: { startTou
   }, [startGoogleCalendarConnect])
 
   // New step flow:
-  // Rowboat path: 0 (welcome) → 2 (connect) → 3 (code mode) → 4 (done)
+  // Dhow path: 0 (welcome) → 2 (connect) → 3 (code mode) → 4 (done)
   // BYOK path: 0 (welcome) → 1 (llm setup) → 2 (connect) → 3 (code mode) → 4 (done)
   const handleNext = useCallback(() => {
     if (currentStep === 0) {
@@ -379,12 +379,12 @@ export function useOnboardingState(open: boolean, onComplete: (opts?: { startTou
     return cleanup
   }, [])
 
-  // Auto-advance from Rowboat sign-in step when OAuth completes
+  // Auto-advance from Dhow sign-in step when OAuth completes
   useEffect(() => {
-    if (onboardingPath !== 'rowboat' || currentStep !== 0) return
+    if (onboardingPath !== 'dhow' || currentStep !== 0) return
 
     const cleanup = window.ipc.on('oauth:didConnect', async (event) => {
-      if (event.provider === 'rowboat' && event.success) {
+      if (event.provider === 'dhow' && event.success) {
         // (Composio Gmail/Calendar flag re-check removed — sync was deleted.)
         setCurrentStep(2) // Go to Connect Accounts
       }
@@ -445,11 +445,11 @@ export function useOnboardingState(open: boolean, onComplete: (opts?: { startTou
   // Connect to a provider
   const handleConnect = useCallback(async (provider: string) => {
     if (provider === 'google') {
-      // Signed-in users use the rowboat (managed-credentials) flow: opens
+      // Signed-in users use the dhow (managed-credentials) flow: opens
       // the webapp in the browser, no BYOK modal. Falls back to BYOK modal
       // for not-signed-in users. (Mirrors useConnectors.handleConnect.)
-      const isSignedIntoRowboat = providerStates.rowboat?.isConnected ?? false
-      if (isSignedIntoRowboat) {
+      const isSignedIntoDhow = providerStates.dhow?.isConnected ?? false
+      if (isSignedIntoDhow) {
         await startConnect('google')
         return
       }

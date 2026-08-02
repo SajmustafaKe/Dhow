@@ -5,7 +5,6 @@ import { WorkDir } from '../config/config.js';
 import { createLanguageModel } from '../models/models.js';
 import { generateObjectSafe } from '../models/structured.js';
 import { getKgModel, resolveProviderConfig } from '../models/defaults.js';
-import { captureLlmUsage } from '../analytics/usage.js';
 import { withUseCase } from '../analytics/use_case.js';
 
 /**
@@ -161,14 +160,6 @@ export async function syncCustomLabelsFromInstructions(instructions: string): Pr
         schema: ExtractedLabels,
         retry: true,
     }));
-
-    captureLlmUsage({
-        useCase: 'knowledge_sync',
-        subUseCase: 'email_label_extractor',
-        model: modelId,
-        provider,
-        usage: result.usage,
-    });
 
     const seen = new Set<string>();
     const custom: EmailLabelDef[] = [];

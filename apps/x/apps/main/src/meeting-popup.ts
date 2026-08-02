@@ -107,7 +107,7 @@ export function showMeetingPopup(meeting: DetectedMeeting): void {
         y: workArea.y + 44,
         // NSPanel (macOS): non-activating, and — unlike a regular window with
         // visibleOnFullScreen — can float over fullscreen Spaces without
-        // turning Rowboat into an "agent" app that loses its Dock icon.
+        // turning Dhow into an "agent" app that loses its Dock icon.
         ...(process.platform === "darwin" ? { type: "panel" as const } : {}),
         frame: false,
         resizable: false,

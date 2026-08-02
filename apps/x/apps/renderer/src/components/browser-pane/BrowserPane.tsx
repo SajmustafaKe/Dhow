@@ -710,7 +710,7 @@ export function BrowserPane({ onClose, forceHidden = false }: BrowserPaneProps) 
           />
         </form>
         <browser-action-list
-          partition="persist:rowboat-browser"
+          partition="persist:dhow-browser"
           alignment="bottom right"
           className="ml-1 flex shrink-0 items-center"
         />

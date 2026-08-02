@@ -26,7 +26,7 @@ function scheduleReload(): void {
 }
 
 /**
- * Start watching the disk skill roots (~/.rowboat/skills, ~/.agents/skills) for
+ * Start watching the disk skill roots (~/.dhow/skills, ~/.agents/skills) for
  * changes and live-reload the skill catalog. Idempotent. Roots that don't exist
  * yet (e.g. ~/.agents/skills before the first install) are watched anyway —
  * chokidar handles absent paths and emits events once they are created.

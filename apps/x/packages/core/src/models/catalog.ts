@@ -1,10 +1,8 @@
 import z from "zod";
 import { LlmModelConfig, LlmProvider } from "@x/shared/dist/models.js";
-import { isSignedIn } from "../account/account.js";
 import { getChatGPTStatus } from "../auth/chatgpt-auth.js";
 import container from "../di/container.js";
 import { IModelConfigRepo } from "./repo.js";
-import { listGatewayModels } from "./gateway.js";
 import { listCodexModels } from "./codex.js";
 import { listModelsForProvider } from "./models.js";
 import { listOnboardingModels } from "./models-dev.js";
@@ -13,7 +11,7 @@ import { getDefaultModelAndProvider } from "./defaults.js";
 /**
  * The unified model catalog: one function that answers "which providers are
  * connected and what models does each offer", treating every provider the
- * same way — the Rowboat gateway, the ChatGPT subscription (codex), BYOK
+ * same way — the Dhow gateway, the ChatGPT subscription (codex), BYOK
  * cloud keys, and local/custom endpoints are all just providers. The
  * per-provider listing mechanics (which endpoint, which fallback) live here
  * and nowhere else; the renderer consumes this through the single models:list
@@ -32,12 +30,12 @@ export interface CatalogProviderEntry {
      * Provider INSTANCE identifier — what ModelRef.provider, assistantModel,
      * task overrides, and refreshProvider all reference. Today one instance
      * exists per flavor, so id always equals the flavor key ("openai",
-     * "ollama", "rowboat", …); a future multi-key setup ("openai-work" /
+     * "ollama", "dhow", …); a future multi-key setup ("openai-work" /
      * "openai-personal") would yield two entries with distinct ids sharing
      * one flavor, without changing what an id means anywhere.
      */
     id: string;
-    /** Provider TYPE ("openai", "ollama", …, "rowboat", "codex") — drives
+    /** Provider TYPE ("openai", "ollama", …, "dhow", "codex") — drives
      * display naming, listing mechanics, and credential-field UI. */
     flavor: string;
     /** "error" = the provider is connected but its model list failed to load. */
@@ -53,7 +51,7 @@ export interface ModelCatalogResult {
 }
 
 const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-    rowboat: "Rowboat",
+    dhow: "Dhow",
     codex: "OpenAI Codex",
     openai: "OpenAI",
     anthropic: "Anthropic",
@@ -104,7 +102,7 @@ type ProviderConfig = z.infer<typeof LlmProvider>;
 interface DiscoveredProvider {
     id: string;
     flavor: string;
-    /** Absent for rowboat/codex — their auth lives outside models.json. */
+    /** Absent for dhow/codex — their auth lives outside models.json. */
     config?: ProviderConfig;
 }
 
@@ -119,7 +117,7 @@ async function readModelConfig(): Promise<z.infer<typeof LlmModelConfig> | null>
 }
 
 /**
- * Which providers are connected right now. Rowboat and ChatGPT come from
+ * Which providers are connected right now. Dhow and ChatGPT come from
  * their auth state; everything else from the models.json providers map
  * (entries carry credentials by construction in v2). The assistant model's
  * provider leads, matching picker ordering.
@@ -127,9 +125,6 @@ async function readModelConfig(): Promise<z.infer<typeof LlmModelConfig> | null>
 async function discoverProviders(): Promise<DiscoveredProvider[]> {
     const discovered: DiscoveredProvider[] = [];
 
-    if (await isSignedIn().catch(() => false)) {
-        discovered.push({ id: "rowboat", flavor: "rowboat" });
-    }
     try {
         const chatgpt = await getChatGPTStatus();
         if (chatgpt.signedIn) discovered.push({ id: "codex", flavor: "codex" });
@@ -170,10 +165,7 @@ async function fetchProviderEntry(
 ): Promise<CacheEntry> {
     try {
         let models: CatalogModelEntry[];
-        if (provider.id === "rowboat") {
-            const result = await listGatewayModels();
-            models = result.providers[0]?.models ?? [];
-        } else if (provider.id === "codex") {
+        if (provider.id === "codex") {
             const result = await listCodexModels();
             models = result.providers[0]?.models ?? [];
         } else if (MODELS_DEV_FLAVORS.has(provider.flavor) && (modelsDevByFlavor.get(provider.flavor)?.length ?? 0) > 0) {

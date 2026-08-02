@@ -32,7 +32,7 @@ function serve(opts: {
 }): void {
   handlers['models:list'] = async () => ({
     providers: [
-      { id: 'rowboat', flavor: 'rowboat', status: 'ok', models: [{ id: 'google/gemini-3.5-flash' }] },
+      { id: 'dhow', flavor: 'dhow', status: 'ok', models: [{ id: 'google/gemini-3.5-flash' }] },
     ],
     defaultModel: opts.assistant ?? null,
   })
@@ -54,14 +54,14 @@ afterEach(cleanup)
 
 describe('ModelSelectionSection', () => {
   it('shows the effective assistant model and "Same as Assistant" for un-overridden tasks', async () => {
-    serve({ assistant: { provider: 'rowboat', model: 'google/gemini-3.5-flash' } })
+    serve({ assistant: { provider: 'dhow', model: 'google/gemini-3.5-flash' } })
     render(<ModelSelectionSection dialogOpen />)
 
     // Assistant trigger shows the actual model — no "Auto" anywhere.
     await waitFor(() => expect(screen.getByTitle('Assistant model')).toHaveTextContent('google/gemini-3.5-flash'))
     // The old sentinel labels are gone for good.
     expect(screen.queryByText(/Auto \(/)).toBeNull()
-    expect(screen.queryByText('Rowboat default')).toBeNull()
+    expect(screen.queryByText('Dhow default')).toBeNull()
 
     // All seven tasks render, inheriting.
     for (const label of ['Background agents', 'Subagents', 'Knowledge graph', 'Meeting notes', 'Live notes', 'Permission checks', 'Chat titles']) {
@@ -69,13 +69,13 @@ describe('ModelSelectionSection', () => {
     }
     expect(screen.getAllByText('Same as Assistant').length).toBe(7)
     // Inherit subtext names the resolved assistant.
-    expect(screen.getAllByText('Currently uses Rowboat · google/gemini-3.5-flash').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Currently uses Dhow · google/gemini-3.5-flash').length).toBeGreaterThan(0)
   })
 
   it('an overridden task shows "Use Assistant model" and clicking it clears the override', async () => {
     serve({
-      assistant: { provider: 'rowboat', model: 'google/gemini-3.5-flash' },
-      taskModels: { knowledgeGraph: { provider: 'rowboat', model: 'google/gemini-3.1-flash-lite' } },
+      assistant: { provider: 'dhow', model: 'google/gemini-3.5-flash' },
+      taskModels: { knowledgeGraph: { provider: 'dhow', model: 'google/gemini-3.1-flash-lite' } },
     })
     render(<ModelSelectionSection dialogOpen />)
 

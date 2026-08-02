@@ -91,7 +91,7 @@ export function ConnectorsPopover({ children, tooltip, open: openProp, onOpenCha
               onClick={() => c.handleDisconnect(provider)}
               className="h-7 px-2 text-xs"
             >
-              {provider === 'rowboat' ? 'Log Out' : 'Disconnect'}
+              {provider === 'dhow' ? 'Log Out' : 'Disconnect'}
             </Button>
           ) : (
             <Button
@@ -104,7 +104,7 @@ export function ConnectorsPopover({ children, tooltip, open: openProp, onOpenCha
               {state.isConnecting ? (
                 <Loader2 className="size-3 animate-spin" />
               ) : (
-                provider === 'rowboat' ? 'Log In' : 'Connect'
+                provider === 'dhow' ? 'Log In' : 'Connect'
               )}
             </Button>
           )}
@@ -138,13 +138,13 @@ export function ConnectorsPopover({ children, tooltip, open: openProp, onOpenCha
     return false
   })()
 
-  const isRowboatUnconnected = (() => {
-    if (!c.providers.includes('rowboat')) return false
-    const rowboatState = c.providerStates['rowboat']
-    return !rowboatState?.isConnected || rowboatState?.isLoading
+  const isDhowUnconnected = (() => {
+    if (!c.providers.includes('dhow')) return false
+    const dhowState = c.providerStates['dhow']
+    return !dhowState?.isConnected || dhowState?.isLoading
   })()
 
-  const allConnected = isUnconnectedMode && !isRowboatUnconnected && !hasUnconnectedEmailCalendar && !hasUnconnectedMeetingNotes
+  const allConnected = isUnconnectedMode && !isDhowUnconnected && !hasUnconnectedEmailCalendar && !hasUnconnectedMeetingNotes
 
   return (
     <>
@@ -208,17 +208,17 @@ export function ConnectorsPopover({ children, tooltip, open: openProp, onOpenCha
             </div>
           ) : (
             <>
-              {/* Rowboat Account - show in "all" mode always, or in "unconnected" mode only when not connected */}
-              {c.providers.includes('rowboat') && (() => {
-                const rowboatState = c.providerStates['rowboat']
-                const isRowboatConnected = rowboatState?.isConnected && !rowboatState?.isLoading
-                if (isUnconnectedMode && isRowboatConnected) return null
+              {/* Dhow Account - show in "all" mode always, or in "unconnected" mode only when not connected */}
+              {c.providers.includes('dhow') && (() => {
+                const dhowState = c.providerStates['dhow']
+                const isDhowConnected = dhowState?.isConnected && !dhowState?.isLoading
+                if (isUnconnectedMode && isDhowConnected) return null
                 return (
                   <>
                     <div className="px-2 py-1.5">
                       <span className="text-xs font-medium text-muted-foreground">Account</span>
                     </div>
-                    {renderOAuthProvider('rowboat', 'Rowboat', <User className="size-4" />, 'Log in to your Rowboat account')}
+                    {renderOAuthProvider('dhow', 'Dhow', <User className="size-4" />, 'Log in to your Dhow account')}
                     <Separator className="my-2" />
                   </>
                 )

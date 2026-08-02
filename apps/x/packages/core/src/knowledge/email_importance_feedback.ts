@@ -5,7 +5,6 @@ import { WorkDir } from '../config/config.js';
 import { createLanguageModel } from '../models/models.js';
 import { generateObjectSafe } from '../models/structured.js';
 import { getKgModel, resolveProviderConfig } from '../models/defaults.js';
-import { captureLlmUsage } from '../analytics/usage.js';
 import { withUseCase } from '../analytics/use_case.js';
 
 /**
@@ -161,14 +160,6 @@ export async function maybeDistillImportanceRules(): Promise<void> {
             schema: DistilledRules,
             retry: true,
         }));
-
-        captureLlmUsage({
-            useCase: 'knowledge_sync',
-            subUseCase: 'importance_rule_distiller',
-            model: modelId,
-            provider,
-            usage: result.usage,
-        });
 
         const updated = loadImportanceFeedback(); // re-read: corrections may have advanced
         updated.rules = result.object.rules.slice(0, MAX_RULES);

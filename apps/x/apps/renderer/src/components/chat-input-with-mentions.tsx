@@ -76,10 +76,10 @@ const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
 const MAX_VISIBLE_RECENT_WORK_DIRS = 3
 const MAX_STORED_RECENT_WORK_DIRS = 8
 const CHAT_INPUT_TOOLTIP_DELAY_MS = 1000
-// Stored in the workspace (~/.rowboat/config) so it travels with the workspace and
+// Stored in the workspace (~/.dhow/config) so it travels with the workspace and
 // stays consistent with the other config/*.json files (e.g. coding-agents.json).
 const RECENT_WORK_DIRS_CONFIG_PATH = 'config/recent-work-dirs.json'
-const RECENT_WORK_DIRS_CHANGED_EVENT = 'rowboat-chat-recent-work-dirs-changed'
+const RECENT_WORK_DIRS_CHANGED_EVENT = 'dhow-chat-recent-work-dirs-changed'
 
 
 type RecentWorkDir = {
@@ -289,7 +289,7 @@ function ChatInputInner({
 
   // Shared model-catalog store (one fetch app-wide); sign-in state also
   // gates search availability below.
-  const { isRowboatConnected, refresh: refreshModels } = useModels()
+  const { isDhowConnected, refresh: refreshModels } = useModels()
   const [selectedModel, setSelectedModel] = useState<SelectedModel | null>(null)
   const [lockedModel, setLockedModel] = useState<SelectedModel | null>(null)
   // '' = auto. Effort is per-turn config: reported up, never persisted.
@@ -536,7 +536,7 @@ function ChatInputInner({
   // Check search tool availability (exa or signed-in via gateway)
   useEffect(() => {
     const checkSearch = async () => {
-      if (isRowboatConnected) {
+      if (isDhowConnected) {
         setSearchAvailable(true)
         return
       }
@@ -549,7 +549,7 @@ function ChatInputInner({
       setSearchAvailable(available)
     }
     checkSearch()
-  }, [isActive, isRowboatConnected])
+  }, [isActive, isDhowConnected])
 
   // Selecting a model here is PER-CHAT: it affects the next run created
   // from this tab (frozen once a run exists) and nothing else. The config's
@@ -683,7 +683,7 @@ function ChatInputInner({
   const currentWorkDirPath = effectiveWorkDir ? compactWorkDirPath(effectiveWorkDir) : ''
 
   return (
-    <div data-tour-id="chat-composer" className="rowboat-chat-input rounded-lg border border-border bg-background shadow-none">
+    <div data-tour-id="chat-composer" className="dhow-chat-input rounded-lg border border-border bg-background shadow-none">
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 px-4 pb-1 pt-3">
           {attachments.map((attachment) => {

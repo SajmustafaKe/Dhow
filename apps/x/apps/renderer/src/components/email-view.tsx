@@ -7,7 +7,6 @@ import Placeholder from '@tiptap/extension-placeholder'
 import type { blocks } from '@x/shared'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/toast'
-import * as analytics from '@/lib/analytics'
 import { prepareEmailHtml, splitPlainTextQuote, stripQuotedReplyText, QUOTED_CLASS } from '@/lib/email-quotes'
 import { useTheme } from '@/contexts/theme-context'
 import { SettingsDialog } from '@/components/settings-dialog'
@@ -1172,7 +1171,6 @@ const ComposeBox = memo(function ComposeBox({
   const aiUsedRef = useRef(false)
 
   useEffect(() => {
-    analytics.emailComposeOpened(mode)
   }, [mode])
 
   const editor = useEditor({
@@ -1342,7 +1340,6 @@ const ComposeBox = memo(function ComposeBox({
       // Replace via a tracked transaction (selectAll + insertContent) so the AI
       // draft lands in the editor's undo history and the toolbar's Undo reverts it.
       aiUsedRef.current = true
-      analytics.emailAiDraftGenerated(aiMode)
       if (aiMode === 'generate') {
         const { subject: generatedSubject, body } = parseGeneratedEmail(res.text)
         // Only new emails take the AI's subject; replies/forwards keep their
@@ -1635,11 +1632,9 @@ const ComposeBox = memo(function ComposeBox({
       })
       if (result.error) {
         sentRef.current = false // allow autosave to resume on a failed send
-        analytics.emailSendFailed()
         toast(`Send failed: ${result.error}`, 'error')
         return
       }
-      analytics.emailSent({ mode, hasAttachments: attachments.length > 0, aiAssisted: aiUsedRef.current })
       // Gmail only auto-cleans drafts on a threaded send; remove any draft we
       // autosaved for a brand-new message so it doesn't linger after sending.
       const leftover = draftIdRef.current
@@ -1652,7 +1647,6 @@ const ComposeBox = memo(function ComposeBox({
       onClose()
     } catch (err) {
       sentRef.current = false
-      analytics.emailSendFailed()
       toast(`Send failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
     } finally {
       setSending(false)
@@ -2369,7 +2363,6 @@ function EmailInstructionsDialog({ open, onOpenChange, onSaved }: { open: boolea
     try {
       const result = await window.ipc.invoke('gmail:setEmailInstructions', { instructions: text })
       if (result.ok) {
-        analytics.emailInstructionsSaved()
         toast('Instructions saved — they apply to every email from now on.', 'success')
         onOpenChange(false)
         onSaved?.()
@@ -2671,7 +2664,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     const handle = window.setTimeout(async () => {
       try {
         const res = await window.ipc.invoke('gmail:search', { query: q, limit: 100 })
-        analytics.emailSearched()
         if (searchEpoch.current !== epoch) return
         setSearchError(res.error ?? null)
         setSearchResults(res.threads ?? [])
@@ -2770,9 +2762,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     }))
     try {
       const result = await window.ipc.invoke('gmail:markThreadRead', { threadId, read })
-      // Marking read happens automatically on open; only the explicit
-      // mark-as-unread gesture is worth an event.
-      if (!read) analytics.emailMarkedUnread()
       if (!result.ok && result.error) console.warn('[Gmail] mark-read failed:', result.error)
     } catch (err) {
       console.warn('[Gmail] mark-read failed:', err)
@@ -2789,7 +2778,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
         new Promise((resolve) => window.setTimeout(resolve, ROW_LEAVE_MS)),
       ])
       if (result.ok) {
-        analytics.emailArchived()
         removeThreadFromState(threadId)
       } else if (result.error) {
         toast(`Archive failed: ${result.error}`, 'error')
@@ -2813,7 +2801,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
         new Promise((resolve) => window.setTimeout(resolve, ROW_LEAVE_MS)),
       ])
       if (result.ok) {
-        analytics.emailImportanceChanged(importance)
         const from = importance === 'important' ? 'other' as const : 'important' as const
         setSection(from, (prev) => ({ ...prev, threads: prev.threads.filter((t) => t.threadId !== threadId) }))
         if (source) {
@@ -2839,7 +2826,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     try {
       const result = await window.ipc.invoke('gmail:setCategory', { threadId, category })
       if (result.ok) {
-        analytics.emailCategoryChanged(category)
         updateThreadInState(threadId, (t) => ({ ...t, category }))
         setCategoryCounts((prev) => {
           const next = { ...prev }
@@ -2869,7 +2855,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
         new Promise((resolve) => window.setTimeout(resolve, ROW_LEAVE_MS)),
       ])
       if (result.ok) {
-        analytics.emailTrashed()
         removeThreadFromState(threadId)
       } else if (result.error) {
         toast(`Delete failed: ${result.error}`, 'error')
@@ -2886,7 +2871,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     setSelectedThreadId((current) => {
       const next = current === thread.threadId ? null : thread.threadId
       if (next) {
-        analytics.emailThreadOpened()
         setOpenedThreadIds((prev) => {
           const without = prev.filter((id) => id !== next)
           return [...without, next].slice(-MAX_KEPT_OPEN)
@@ -3027,7 +3011,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
       if (result.error) {
         toast(`Bulk archive failed: ${result.error}`, 'error')
       } else {
-        analytics.emailCategoryArchived(category)
         toast(
           `Archived ${result.archived} thread${result.archived === 1 ? '' : 's'}${result.failed ? ` (${result.failed} failed)` : ''}. They stay searchable in Gmail.`,
           result.failed ? 'error' : 'success',
@@ -3137,7 +3120,6 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     setRefreshing(true)
     setError(null)
     try {
-      analytics.emailSyncTriggered()
       await window.ipc.invoke('gmail:triggerSync', {})
     } catch (err) {
       console.warn('[Gmail] triggerSync failed:', err)

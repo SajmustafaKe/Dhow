@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Coding Agent Context
 
-This file provides context for AI coding agents working on the Rowboat monorepo.
+This file provides context for AI coding agents working on the Dhow monorepo.
 
 ## Quick Reference Commands
 
@@ -17,11 +17,11 @@ cd apps/x/apps/main && npm run make      # Create DMG distributable
 ## Monorepo Structure
 
 ```
-rowboat/
+dhow/
 ├── apps/
 │   ├── x/                 # Electron desktop app (focus of this doc)
-│   ├── rowboat/           # Next.js web dashboard
-│   ├── rowboatx/          # Next.js frontend
+│   ├── dhow/           # Next.js web dashboard
+│   ├── dhowx/          # Next.js frontend
 │   ├── cli/               # CLI tool
 │   ├── python-sdk/        # Python SDK
 │   └── docs/              # Documentation site
@@ -110,16 +110,15 @@ Long-form docs for specific features. Read the relevant file before making chang
 |---------|-----|
 | Live Notes — single `live:` frontmatter block (one objective + optional cron / windows / eventMatchCriteria) that turns a note into a self-updating artifact, panel UI, Copilot skill, prompts catalog | `apps/x/LIVE_NOTE.md` |
 | Calls (video mode) — one hands-free call engine with four presets (voice / video / share screen / practice coaching), device-derived surfaces (full-screen ⇄ floating popout), frame pipeline, prompts catalog | `apps/x/VIDEO_MODE.md` |
-| Analytics — PostHog event catalog, person properties, use-case taxonomy, how to add a new event | `apps/x/ANALYTICS.md` |
 | Turn/session runtime — event-sourced storage, reference model, the `npm run inspect` debugger | `apps/x/packages/core/docs/turn-runtime-design.md`, `session-design.md` |
 
 ## Common Tasks
 
 ### LLM configuration
-- Config file: `~/.rowboat/config/models.json` (v2; v1 files are migrated on boot by `core/models/migrate.ts`)
+- Config file: `~/.dhow/config/models.json` (v2; v1 files are migrated on boot by `core/models/migrate.ts`)
 - Schema: `{ version: 2, providers: { <id>: { flavor, apiKey?, baseURL?, … } }, assistantModel?: { provider, model }, taskModels?: { knowledgeGraph?, meetingNotes?, liveNoteAgent?, autoPermissionDecision?, chatTitle? }, deferBackgroundTasks? }`
 - Providers carry credentials only (no model fields) — model lists are always fetched live via the unified catalog (`core/models/catalog.ts`, `models:list` IPC). Model choices live in `assistantModel` (the one primary) and `taskModels` (optional overrides that otherwise inherit the assistant).
-- Models catalog cache: `~/.rowboat/config/models.dev.json` (OpenAI/Anthropic/Google only)
+- Models catalog cache: `~/.dhow/config/models.dev.json` (OpenAI/Anthropic/Google only)
 
 ### Add a new shared type
 1. Edit `apps/x/packages/shared/src/`

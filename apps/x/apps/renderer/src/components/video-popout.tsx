@@ -39,7 +39,7 @@ const noDragRegion = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 /**
  * Content of the always-on-top popout window shown for the whole duration of
  * a screen share (Meet-style floating mini-call) — it floats over every app,
- * including Rowboat itself, and is the call's control surface while sharing:
+ * including Dhow itself, and is the call's control surface while sharing:
  * camera toggle, share toggle, end-call. Rendered in its own BrowserWindow
  * (see `video:setPopout` in the main process); call state streams in over
  * the `video:popout-state` push channel and control actions round-trip back
@@ -173,7 +173,7 @@ export function VideoPopout() {
         <div className="relative flex flex-1 items-center justify-center overflow-hidden rounded-lg bg-neutral-800">
           <TalkingHead ttsState={state.ttsState} getLevel={getLevel} size={84} />
           <span className="absolute bottom-1 left-1.5 rounded bg-black/50 px-1 py-px text-[10px] text-white">
-            Rowboat
+            Dhow
           </span>
           {statusDisplay && (
             <span className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/50 px-1.5 py-0.5 text-[10px] font-medium text-white">

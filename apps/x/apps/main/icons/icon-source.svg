@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Dhow app icon</title>
+  <!-- Apple-grid plate: 824x824 inset 100, so the mark reads at 16px and in
+       any dock. The silhouette is pure black, so it needs a light plate. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="#FAF7F2"/>
+  <!-- Dhow, scaled to ~68% and centred on the plate -->
+  <g transform="translate(512 528) scale(0.62) translate(-512 -460)">
+    <g fill="#0B0B0B" fill-rule="evenodd">
+      <path d="M 150,716 L 616,96 C 700,300 702,528 656,688 Z"/>
+      <path d="M 128,742 L 638,64 L 660,82 L 150,760 Z"/>
+      <path d="M 444,286 L 470,286 L 476,752 L 438,752 Z"/>
+      <path d="M 135,748 L 835,748 C 872,742 900,716 926,670 C 930,744 906,796 856,823 C 790,846 640,851 430,846 C 266,842 176,808 135,748 Z"/>
+      <circle cx="527" cy="700" r="12"/>
+      <path d="M 517,714 L 537,714 L 542,748 L 512,748 Z"/>
+      <circle cx="590" cy="706" r="11"/>
+      <path d="M 581,719 L 599,719 L 603,748 L 577,748 Z"/>
+    </g>
+  </g>
+</svg>

@@ -6,45 +6,26 @@ import { getProviderConfig } from '../auth/providers.js';
 import * as oauthClient from '../auth/oauth-client.js';
 import type { Configuration } from '../auth/oauth-client.js';
 import { OAuthTokens } from '../auth/types.js';
-import {
-    ReconnectRequiredError,
-    TransientRefreshError,
-    refreshTokensViaBackend,
-} from '../auth/google-backend-oauth.js';
-
-type Mode = 'byok' | 'rowboat';
 
 /**
  * Factory for creating and managing Google OAuth2Client instances.
  * Handles caching, token refresh, and client reuse for Google API SDKs.
  *
- * Two connection modes share the same `oauth.json` provider entry:
- *   - `byok`    user supplied client_id+secret; refresh runs locally via
- *               openid-client; OAuth2Client built with creds.
- *   - `rowboat` signed-in user; client_id+secret never on the desktop;
- *               refresh goes through the api at /v1/google-oauth/refresh;
- *               OAuth2Client built without creds and without refresh_token
- *               (we own all refreshes — see note below).
- *
- * **Auto-refresh disabled in rowboat mode:** google-auth-library's
- * OAuth2Client will, on a 401 from a Google API call, try to refresh using
- * the refresh_token + client secret it has on hand. In rowboat mode we have
- * no secret, so that would 401-loop. We block this by passing only
- * access_token + expiry_date in setCredentials (no refresh_token), which
- * leaves the library nothing to refresh with. Our proactive expiry check
- * in getClient() is the only refresh path.
+ * One connection mode: the user supplies their own Google OAuth
+ * `client_id` (+ optional secret) — see google-setup.md. Refresh runs
+ * locally via openid-client, and the OAuth2Client is built with those
+ * credentials plus the refresh_token, so the library can also refresh on
+ * its own if a call races our proactive expiry check.
  */
 export class GoogleClientFactory {
     private static readonly PROVIDER_NAME = 'google';
     private static cache: {
-        mode: Mode | null;
         config: Configuration | null;
         client: OAuth2Client | null;
         tokens: OAuthTokens | null;
         clientId: string | null;
         clientSecret: string | null;
     } = {
-        mode: null,
         config: null,
         client: null,
         tokens: null,
@@ -94,30 +75,22 @@ export class GoogleClientFactory {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
         const connection = await oauthRepo.read(this.PROVIDER_NAME);
         const tokens = connection.tokens ?? null;
-        const mode: Mode = connection.mode ?? 'byok';
 
         if (!tokens) {
             this.clearCache();
             return null;
         }
 
-        // Mode flipped (e.g. user disconnected then reconnected differently) — invalidate.
-        if (this.cache.mode && this.cache.mode !== mode) {
+        // Local refresh needs an openid-client Configuration.
+        try {
+            await this.initializeConfigCache();
+        } catch (error) {
+            console.error('[OAuth] Failed to initialize Google OAuth configuration:', error);
             this.clearCache();
+            return null;
         }
-
-        // BYOK needs an openid-client Configuration for local refresh; rowboat doesn't.
-        if (mode === 'byok') {
-            try {
-                await this.initializeConfigCache();
-            } catch (error) {
-                console.error('[OAuth] Failed to initialize Google OAuth configuration:', error);
-                this.clearCache();
-                return null;
-            }
-            if (!this.cache.config) {
-                return null;
-            }
+        if (!this.cache.config) {
+            return null;
         }
 
         // Check expiry against the cached tokens. Note: oauthClient.isTokenExpired
@@ -130,61 +103,42 @@ export class GoogleClientFactory {
                 this.clearCache();
                 return null;
             }
-            return this.refreshAndBuild(tokens, mode);
+            return this.refreshAndBuild(tokens);
         }
 
         // Reuse client if tokens haven't changed
-        if (this.cache.client && this.cache.tokens && this.cache.tokens.access_token === tokens.access_token && this.cache.mode === mode) {
+        if (this.cache.client && this.cache.tokens && this.cache.tokens.access_token === tokens.access_token) {
             return this.cache.client;
         }
 
         // Build a fresh client for current tokens
-        return this.buildAndCacheClient(tokens, mode);
+        return this.buildAndCacheClient(tokens);
     }
 
-    private static async refreshAndBuild(tokens: OAuthTokens, mode: Mode): Promise<OAuth2Client | null> {
+    private static async refreshAndBuild(tokens: OAuthTokens): Promise<OAuth2Client | null> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
 
         try {
             const secsSinceExpiry = Math.floor(Date.now() / 1000) - tokens.expires_at;
-            console.log(`[OAuth] Google token expired ${secsSinceExpiry}s ago, refreshing via ${mode}...`);
+            console.log(`[OAuth] Google token expired ${secsSinceExpiry}s ago, refreshing...`);
             const existingScopes = tokens.scopes;
 
-            let refreshedTokens: OAuthTokens;
-            if (mode === 'rowboat') {
-                refreshedTokens = await refreshTokensViaBackend(tokens.refresh_token!, existingScopes);
-            } else {
-                if (!this.cache.config) {
-                    // Should not happen — initializeConfigCache ran above for byok.
-                    throw new Error('Google OAuth config not initialized');
-                }
-                refreshedTokens = await oauthClient.refreshTokens(this.cache.config, tokens.refresh_token!, existingScopes);
+            if (!this.cache.config) {
+                // Should not happen — initializeConfigCache ran above.
+                throw new Error('Google OAuth config not initialized');
             }
+            const refreshedTokens = await oauthClient.refreshTokens(this.cache.config, tokens.refresh_token!, existingScopes);
 
             await oauthRepo.upsert(this.PROVIDER_NAME, { tokens: refreshedTokens, error: null });
             const ttl = refreshedTokens.expires_at - Math.floor(Date.now() / 1000);
-            console.log(`[OAuth] Google token refreshed successfully (mode=${mode}, new expires_at=${refreshedTokens.expires_at}, ttl=${ttl}s)`);
-            return this.buildAndCacheClient(refreshedTokens, mode);
+            console.log(`[OAuth] Google token refreshed successfully (new expires_at=${refreshedTokens.expires_at}, ttl=${ttl}s)`);
+            return this.buildAndCacheClient(refreshedTokens);
         } catch (error) {
-            if (error instanceof ReconnectRequiredError) {
-                console.log('[OAuth] Reconnect required for Google');
-                await oauthRepo.upsert(this.PROVIDER_NAME, { error: 'Reconnect Google' });
-                this.clearCache();
-                return null;
-            }
-            if (error instanceof TransientRefreshError) {
-                // Transient (rate limit, in-flight dedup, upstream 5xx): leave
-                // stored tokens + cache alone, log, and let the next sync tick
-                // retry. Writing an `error` here would stick "Needs reconnect"
-                // in the UI for a problem the user can't fix by reconnecting.
-                console.warn(`[OAuth] Transient Google refresh failure (status=${error.status}): ${error.message} — will retry on next tick`);
-                return null;
-            }
             const message = error instanceof Error ? error.message : 'Failed to refresh token for Google';
             await oauthRepo.upsert(this.PROVIDER_NAME, { error: message });
             console.error('[OAuth] Failed to refresh token for Google:', error);
-            // Walk cause chain so we can see e.g. `Not signed into Rowboat`
-            // showing up under a generic `fetch failed` outer error.
+            // Walk cause chain so a specific failure isn't hidden under a
+            // generic `fetch failed` outer error.
             let cause: unknown = error;
             while (cause != null && typeof cause === 'object' && 'cause' in cause) {
                 cause = (cause as { cause?: unknown }).cause;
@@ -195,18 +149,15 @@ export class GoogleClientFactory {
         }
     }
 
-    private static async buildAndCacheClient(tokens: OAuthTokens, mode: Mode): Promise<OAuth2Client> {
-        if (mode === 'byok' && !this.cache.clientId) {
+    private static async buildAndCacheClient(tokens: OAuthTokens): Promise<OAuth2Client> {
+        if (!this.cache.clientId) {
             const creds = await this.resolveByokCredentials();
             this.cache.clientId = creds.clientId;
             this.cache.clientSecret = creds.clientSecret ?? null;
         }
 
-        const client = mode === 'rowboat'
-            ? this.createRowboatClient(tokens)
-            : this.createByokClient(tokens, this.cache.clientId!, this.cache.clientSecret ?? undefined);
+        const client = this.createByokClient(tokens, this.cache.clientId!, this.cache.clientSecret ?? undefined);
 
-        this.cache.mode = mode;
         this.cache.tokens = tokens;
         this.cache.client = client;
         return client;
@@ -258,7 +209,6 @@ export class GoogleClientFactory {
      */
     static clearCache(): void {
         console.log('[OAuth] Clearing Google auth cache');
-        this.cache.mode = null;
         this.cache.config = null;
         this.cache.client = null;
         this.cache.tokens = null;
@@ -267,7 +217,7 @@ export class GoogleClientFactory {
     }
 
     /**
-     * Initialize cached configuration for BYOK mode (rowboat doesn't need it).
+     * Initialize the cached openid-client Configuration used for local refresh.
      */
     private static async initializeConfigCache(): Promise<void> {
         const { clientId, clientSecret } = await this.resolveByokCredentials();
@@ -334,28 +284,6 @@ export class GoogleClientFactory {
         client.setCredentials({
             access_token: tokens.access_token,
             refresh_token: tokens.refresh_token || undefined,
-            expiry_date: tokens.expires_at * 1000,
-            scope: tokens.scopes?.join(' ') || undefined,
-        });
-        return client;
-    }
-
-    /**
-     * Rowboat OAuth2Client — no client_id/secret, no refresh_token.
-     * Library auto-refresh is disabled by absence of refresh_token; our
-     * proactive refresh in getClient() is the only refresh path.
-     *
-     * eagerRefreshThresholdMillis must be 0: the library defaults to a
-     * 5-minute window where it preemptively refreshes any token nearing
-     * expiry. Without a refresh_token on the client, that path throws
-     * "No refresh token is set." and the API call fails — even though
-     * our proactive refresh would have handled it on the next tick.
-     */
-    private static createRowboatClient(tokens: OAuthTokens): OAuth2Client {
-        const client = new OAuth2Client();
-        client.eagerRefreshThresholdMillis = 0;
-        client.setCredentials({
-            access_token: tokens.access_token,
             expiry_date: tokens.expires_at * 1000,
             scope: tokens.scopes?.join(' ') || undefined,
         });

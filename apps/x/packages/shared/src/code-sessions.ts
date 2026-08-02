@@ -23,8 +23,8 @@ export const GitRepoInfo = z.object({
 export type GitRepoInfo = z.infer<typeof GitRepoInfo>;
 
 // 'direct': the user's messages go straight to the ACP coding agent.
-// 'rowboat': Rowboat's copilot LLM orchestrates the agent via code_agent_run.
-export const CodeSessionMode = z.enum(["direct", "rowboat"]);
+// 'dhow': Dhow's copilot LLM orchestrates the agent via code_agent_run.
+export const CodeSessionMode = z.enum(["direct", "dhow"]);
 export type CodeSessionMode = z.infer<typeof CodeSessionMode>;
 
 // Derived live in the main process from the run event stream; not persisted.
@@ -54,7 +54,7 @@ export const CodeSession = z.object({
     cwd: z.string(),
     worktree: CodeWorktree.optional(),
     // The coding agent's own model + reasoning effort (applied to the ACP engine,
-    // not the Rowboat-mode LLM). Values come from CODE_AGENT_MODELS /
+    // not the Dhow-mode LLM). Values come from CODE_AGENT_MODELS /
     // CODE_AGENT_EFFORTS; unset (or 'default') leaves the engine's own default.
     agentModel: z.string().optional(),
     agentEffort: z.string().optional(),

@@ -29,8 +29,6 @@ import {
   Settings,
   Square,
   Video,
-  CircleAlert,
-  X,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -60,7 +58,6 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-  PopoverArrow,
 } from "@/components/ui/popover"
 import {
   Tooltip,
@@ -81,15 +78,10 @@ import {
 } from "@/components/ui/context-menu"
 import { cn } from "@/lib/utils"
 import { getPinnedApps, onPinnedAppsChanged, unpinApp } from "@/lib/pinned-apps"
-import { isOutOfCredits, CREDIT_EXHAUSTED_EVENT, CREDIT_REPLENISHED_EVENT } from "@/lib/credit-status"
 import { SettingsDialog } from "@/components/settings-dialog"
-import { SidebarCreditRewards } from "@/components/sidebar-credit-rewards"
 import { MascotFaceIcon } from "@/components/talking-head"
 import { extractConferenceLink } from "@/lib/calendar-event"
-import { useBilling } from "@/hooks/useBilling"
-import { useRowboatConfig } from "@/hooks/use-rowboat-config"
 import { toast } from "@/lib/toast"
-import { getBillingPlanData } from "@x/shared/dist/billing.js"
 import { ServiceEvent } from "@x/shared/src/service-events.js"
 import z from "zod"
 
@@ -472,15 +464,6 @@ export function SidebarContentPanel({
   const [connectionsSettingsOpen, setConnectionsSettingsOpen] = useState(false)
   const [openConnectionsAfterClose, setOpenConnectionsAfterClose] = useState(false)
   const connectorsButtonRef = useRef<HTMLButtonElement | null>(null)
-  const [isRowboatConnected, setIsRowboatConnected] = useState(false)
-  const [creditPopoverOpen, setCreditPopoverOpen] = useState(false)
-  const [outOfCredits, setOutOfCredits] = useState(false)
-  const outOfCreditsRef = useRef(false)
-  const creditPopoverAutoShownRef = useRef(false)
-  const [loggingIn, setLoggingIn] = useState(false)
-  const appUrl = useRowboatConfig()?.appUrl ?? null
-  const { billing, refresh: refreshBilling } = useBilling(isRowboatConnected)
-  const currentBillingPlan = billing ? getBillingPlanData(billing.catalog, billing.subscriptionPlanId) : null
 
   // Nav previews: unread important emails + next upcoming meetings (top 2 each).
   const [unreadEmailCount, setUnreadEmailCount] = useState(0)
@@ -707,18 +690,6 @@ export function SidebarContentPanel({
     return () => clearInterval(tick)
   }, [bgTaskSummaries])
 
-  const handleRowboatLogin = useCallback(async () => {
-    try {
-      setLoggingIn(true)
-      const result = await window.ipc.invoke('oauth:connect', { provider: 'rowboat' })
-      if (!result.success) {
-        setLoggingIn(false)
-      }
-    } catch {
-      setLoggingIn(false)
-    }
-  }, [])
-
   useEffect(() => {
     let mounted = true
 
@@ -727,10 +698,8 @@ export function SidebarContentPanel({
         const result = await window.ipc.invoke('oauth:getState', null)
         const config = result.config || {}
         const hasError = Object.values(config).some((entry) => Boolean(entry?.error))
-        const connected = config['rowboat']?.connected ?? false
         if (mounted) {
           setHasOauthError(hasError)
-          setIsRowboatConnected(connected)
           if (!hasError) {
             setShowOauthAlert(true)
           }
@@ -739,7 +708,6 @@ export function SidebarContentPanel({
         console.error('Failed to fetch OAuth state:', error)
         if (mounted) {
           setHasOauthError(false)
-          setIsRowboatConnected(false)
           setShowOauthAlert(true)
         }
       }
@@ -748,7 +716,6 @@ export function SidebarContentPanel({
     refreshOauthError()
     const cleanup = window.ipc.on('oauth:didConnect', () => {
       refreshOauthError()
-      setLoggingIn(false)
     })
 
     return () => {
@@ -757,49 +724,6 @@ export function SidebarContentPanel({
     }
   }, [])
 
-  // Re-anchor the warning whenever billing (re)loads — billing is authoritative.
-  useEffect(() => {
-    if (billing) {
-      const next = isOutOfCredits(billing)
-      outOfCreditsRef.current = next
-      setOutOfCredits(next)
-    }
-  }, [billing])
-
-  // Live signals: a usage API error flips it on; a successful cost-incurring
-  // call flips it off and triggers a single billing refresh to reconcile.
-  useEffect(() => {
-    const onExhausted = () => {
-      outOfCreditsRef.current = true
-      setOutOfCredits(true)
-    }
-    const onReplenished = () => {
-      const wasOut = outOfCreditsRef.current
-      outOfCreditsRef.current = false
-      setOutOfCredits(false)
-      if (wasOut) void refreshBilling()
-    }
-    window.addEventListener(CREDIT_EXHAUSTED_EVENT, onExhausted)
-    window.addEventListener(CREDIT_REPLENISHED_EVENT, onReplenished)
-    return () => {
-      window.removeEventListener(CREDIT_EXHAUSTED_EVENT, onExhausted)
-      window.removeEventListener(CREDIT_REPLENISHED_EVENT, onReplenished)
-    }
-  }, [refreshBilling])
-
-  // Auto-open the popover the first time we go out of credits; reset when
-  // credits return so it can auto-open again on a future episode.
-  useEffect(() => {
-    if (outOfCredits) {
-      if (!creditPopoverAutoShownRef.current) {
-        creditPopoverAutoShownRef.current = true
-        setCreditPopoverOpen(true)
-      }
-    } else {
-      creditPopoverAutoShownRef.current = false
-      setCreditPopoverOpen(false)
-    }
-  }, [outOfCredits])
 
   // Single preview shown as a sublabel on the Email / Meetings nav buttons.
   const previewEmail = emailThreads[0]
@@ -820,7 +744,7 @@ export function SidebarContentPanel({
     : (previewMeeting ? `${previewMeeting.summary} · ${formatMeetingTime(previewMeeting)}` : null)
 
   return (
-    <Sidebar className="rowboat-sidebar border-r-0" {...props}>
+    <Sidebar className="dhow-sidebar border-r-0" {...props}>
       <SidebarHeader className="titlebar-drag-region">
         {/* Top spacer to clear the traffic lights + fixed toggle row */}
         <div className="h-8" />
@@ -1187,110 +1111,6 @@ export function SidebarContentPanel({
           </AlertDialogContent>
         </AlertDialog>
       </SidebarContent>
-      {/* First-time-action credit rewards (feature-flagged, signed-in only) */}
-      <SidebarCreditRewards
-        onOpenEmail={onOpenEmail}
-        onOpenMeetings={onOpenMeetings}
-        onOpenAgents={onOpenBgTasks}
-        onOpenApps={onOpenApps}
-        onConnectAccounts={() => setConnectionsSettingsOpen(true)}
-      />
-      {/* Billing / upgrade CTA or Log in CTA */}
-      {isRowboatConnected && billing ? (() => {
-        const upgradeLabel = !billing.subscriptionPlanId || currentBillingPlan?.category === 'free' || currentBillingPlan?.category === 'starter' ? 'Upgrade' : 'Manage'
-        if (outOfCredits) {
-          return (
-            <div className="px-3 py-2">
-              <Popover open={creditPopoverOpen} onOpenChange={setCreditPopoverOpen}>
-                <div className="flex items-center justify-between rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2">
-                  <PopoverTrigger asChild>
-                    <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                      <AlertTriangle className="size-4 shrink-0 text-red-500" />
-                      <div className="min-w-0">
-                        <span className="text-xs font-medium capitalize text-sidebar-foreground">
-                          {currentBillingPlan?.displayName ?? (billing.subscriptionPlanId ? 'Unknown' : 'No plan')}
-                        </span>
-                        <p className="text-[10px] text-red-500">Out of credits</p>
-                      </div>
-                    </button>
-                  </PopoverTrigger>
-                  <button
-                    onClick={() => appUrl && window.open(`${appUrl}?intent=upgrade`)}
-                    className="shrink-0 rounded-md bg-sidebar-foreground/10 px-2.5 py-1 text-[11px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-foreground/20"
-                  >
-                    {upgradeLabel}
-                  </button>
-                </div>
-                <PopoverContent side="top" align="start" sideOffset={10} className="w-72">
-                  <PopoverArrow className="fill-popover" />
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-red-500/15 text-red-500">
-                        <CircleAlert className="size-4" />
-                      </span>
-                      <h4 className="text-sm font-bold text-foreground">You&apos;ve run out of credits</h4>
-                    </div>
-                    <button
-                      type="button"
-                      aria-label="Close"
-                      onClick={() => setCreditPopoverOpen(false)}
-                      className="rounded-md p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Upgrade your plan to continue using all features.
-                  </p>
-                  <button
-                    onClick={() => { appUrl && window.open(`${appUrl}?intent=upgrade`); setCreditPopoverOpen(false) }}
-                    className="mt-3 w-full rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-600"
-                  >
-                    Upgrade now
-                  </button>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )
-        }
-        return (
-          <div className="px-3 py-2">
-            <div className="flex items-center justify-between rounded-lg border border-sidebar-border bg-sidebar-accent/20 px-3 py-2">
-              <div className="min-w-0">
-                <span className="text-xs font-medium capitalize text-sidebar-foreground">
-                  {currentBillingPlan?.displayName ?? (billing.subscriptionPlanId ? 'Unknown' : 'No plan')}
-                </span>
-                {billing.subscriptionStatus === 'trialing' && billing.trialExpiresAt && (() => {
-                  const days = Math.max(0, Math.ceil((new Date(billing.trialExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-                  return (
-                    <p className="text-[10px] text-sidebar-foreground/60">
-                      {days === 0 ? 'Trial expires today' : days === 1 ? '1 day left' : `${days} days left`}
-                    </p>
-                  )
-                })()}
-              </div>
-              <button
-                onClick={() => appUrl && window.open(`${appUrl}?intent=upgrade`)}
-                className="shrink-0 rounded-md bg-sidebar-foreground/10 px-2.5 py-1 text-[11px] font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-foreground/20"
-              >
-                {upgradeLabel}
-              </button>
-            </div>
-          </div>
-        )
-      })() : null}
-      {/* Sign in CTA */}
-      {!isRowboatConnected && (
-        <div className="px-3 py-2">
-          <button
-            onClick={handleRowboatLogin}
-            disabled={loggingIn}
-            className="flex w-full items-center justify-center rounded-lg border border-sidebar-border bg-sidebar-accent/20 px-3 py-2.5 text-xs font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/40 disabled:opacity-50"
-          >
-            {loggingIn ? 'Signing in…' : 'Sign in to Rowboat'}
-          </button>
-        </div>
-      )}
       {/* Bottom actions */}
       <div className="border-t border-sidebar-border px-2 py-2">
         <div className="flex flex-col gap-1">

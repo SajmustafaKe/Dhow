@@ -1,7 +1,7 @@
 export const skill = String.raw`
 # Builtin Tools Reference
 
-Load this skill when creating or modifying agents that need access to Rowboat's builtin tools (shell execution, file operations, etc.).
+Load this skill when creating or modifying agents that need access to Dhow's builtin tools (shell execution, file operations, etc.).
 
 ## Available Builtin Tools
 
@@ -162,7 +162,7 @@ While \`executeCommand\` is useful for CLI tools and shell workflows, builtin fi
 
 ### Copilot-Specific Builtin Tools
 
-The Rowboat copilot has access to special builtin tools that regular agents don't typically use. These tools help the copilot assist users with file management, app workflows, and MCP integration:
+The Dhow copilot has access to special builtin tools that regular agents don't typically use. These tools help the copilot assist users with file management, app workflows, and MCP integration:
 
 #### File & Directory Operations
 - \`file-list\` - List directory contents (supports recursive exploration)
@@ -181,7 +181,7 @@ The Rowboat copilot has access to special builtin tools that regular agents don'
 
 #### Agent Operations
 - \`analyzeAgent\` - Read and analyze an agent file structure
-- \`loadSkill\` - Load a Rowboat skill definition into context
+- \`loadSkill\` - Load a Dhow skill definition into context
 
 #### MCP Operations
 - \`addMcpServer\` - Add or update an MCP server configuration (with validation)
@@ -220,7 +220,7 @@ Many tasks can be accomplished with just \`executeCommand\` and common Unix tool
 In the CLI, multi-agent workflows are built by:
 1. Creating specialized agents as Markdown files in the \`agents/\` directory
 2. Creating an orchestrator agent that has other agents in its \`tools\` (YAML frontmatter)
-3. Running the orchestrator with \`rowboatx --agent orchestrator_name\`
+3. Running the orchestrator with \`dhowx --agent orchestrator_name\`
 
 There are no separate "workflow" files - everything is an agent defined in Markdown!
 `;

@@ -37,9 +37,7 @@ import type { ITurnEventBus } from '@x/core/dist/runtime/turns/event-hub.js';
 import container from '@x/core/dist/di/container.js';
 import { testModelConnection, listModelsForProvider, generateOneShot } from '@x/core/dist/models/models.js';
 import { getModelCatalog } from '@x/core/dist/models/catalog.js';
-import { captureProviderConnected, captureProviderDisconnected } from '@x/core/dist/analytics/model-providers.js';
 import { getDefaultModelAndProvider } from '@x/core/dist/models/defaults.js';
-import { isSignedIn } from '@x/core/dist/account/account.js';
 import type { IModelConfigRepo } from '@x/core/dist/models/repo.js';
 import type { IOAuthRepo } from '@x/core/dist/auth/repo.js';
 import { getChatGPTStatus, signOutChatGPT } from '@x/core/dist/auth/chatgpt-auth.js';
@@ -78,7 +76,7 @@ import { notifyIfEnabled } from '@x/core/dist/application/notification/notifier.
 import { consumePendingToggleMeetingNotes, setTrayRecordingState } from './tray.js';
 import { closeMeetingPopup, getMeetingPopupPayload, handleMeetingPopupAction } from './meeting-popup.js';
 
-// Ambient meeting detection must ignore Rowboat's own mic use: meeting
+// Ambient meeting detection must ignore Dhow's own mic use: meeting
 // capture and assistant voice/video calls both hold the mic. Either being
 // active suppresses "Meeting detected" prompts.
 let meetingRecordingActive = false;
@@ -90,7 +88,6 @@ import * as composioHandler from './composio-handler.js';
 import * as appsIndexer from '@x/core/dist/apps/indexer.js';
 import * as appsServer from '@x/core/dist/apps/server.js';
 import * as appsAgents from '@x/core/dist/apps/agents.js';
-import { capture } from '@x/core/dist/analytics/posthog.js';
 import { recordAppVersion, isVersionUpgrade } from '@x/core/dist/config/app_version.js';
 import { getUpdaterStatus, checkForUpdates, quitAndInstallUpdate } from './updater.js';
 import * as githubAuth from '@x/core/dist/apps/github-auth.js';
@@ -105,7 +102,6 @@ const appInstallPreviews = new Map<string, Awaited<ReturnType<typeof appsInstall
 // instructions cache (they embed the installed-apps list).
 let lastAppsFingerprint: string | null = null;
 import { consumePendingDeepLink } from './deeplink.js';
-import { qualifyAndDisconnectComposioGoogle } from '@x/core/dist/migrations/composio-google-migration.js';
 import { IAgentScheduleRepo } from '@x/core/dist/agent-schedule/repo.js';
 import { IAgentScheduleStateRepo } from '@x/core/dist/agent-schedule/state-repo.js';
 import { triggerRun as triggerAgentScheduleRun } from '@x/core/dist/agent-schedule/runner.js';
@@ -114,12 +110,8 @@ import { resolveMeetingPrep } from '@x/core/dist/knowledge/meeting_prep.js';
 import { readPrepNoteForEvent } from '@x/core/dist/knowledge/meeting_prep_brief.js';
 import { invalidateKnowledgeIndex } from '@x/core/dist/knowledge/knowledge_index.js';
 import { versionHistory, voice } from '@x/core';
-import { classifySchedule, processRowboatInstruction } from '@x/core/dist/knowledge/inline_tasks.js';
-import { getBillingInfo } from '@x/core/dist/billing/billing.js';
-import { claimReferralCode, getCreditsState, maybeActivateCredit, subscribeCreditActivations } from '@x/core/dist/billing/credits.js';
+import { classifySchedule, processDhowInstruction } from '@x/core/dist/knowledge/inline_tasks.js';
 import { summarizeMeeting } from '@x/core/dist/knowledge/summarize_meeting.js';
-import { getAccessToken } from '@x/core/dist/auth/tokens.js';
-import { getRowboatConfig } from '@x/core/dist/config/rowboat.js';
 import { runLiveNoteAgent } from '@x/core/dist/knowledge/live-note/runner.js';
 import { listImportantThreads, listEverythingElseThreads, saveMessageBodyHeight, triggerSync as triggerGmailSync, sendThreadReply, saveThreadDraft, deleteThreadDraft, listDraftThreads, searchThreads, archiveThread, archiveCategoryThreads, trashThread, markThreadRead, downloadAttachment, getAccountEmail, getAccountName, getConnectionStatus as getGmailConnectionStatus, setThreadImportance, setThreadCategory } from '@x/core/dist/knowledge/sync_gmail.js';
 import { loadEmailInstructions, saveEmailInstructions } from '@x/core/dist/knowledge/email_instructions.js';
@@ -127,10 +119,7 @@ import { getEmailLabels, syncCustomLabelsFromInstructions } from '@x/core/dist/k
 import { searchContacts as searchGmailContacts, warmContactIndex } from '@x/core/dist/knowledge/gmail_contacts.js';
 import { searchSentContacts, warmSentContacts } from '@x/core/dist/knowledge/gmail_sent_contacts.js';
 import { getGoogleDocsConnectionStatus, importGoogleDoc, syncGoogleDocDown, syncGoogleDocUp, getGoogleDocLink } from '@x/core/dist/knowledge/google_docs.js';
-import { startManagedGooglePick } from './google-picker-managed.js';
 import { liveNoteBus } from '@x/core/dist/knowledge/live-note/bus.js';
-import { getInstallationId } from '@x/core/dist/analytics/installation.js';
-import { API_URL } from '@x/core/dist/config/env.js';
 import {
   fetchLiveNote,
   setLiveNote,
@@ -434,7 +423,7 @@ type InvokeHandlers = {
 const activeTtsStreams = new Map<string, AbortController>();
 
 // Video-mode popout window (shown for the whole duration of a screen share,
-// floating over every app including Rowboat itself) and the last call state
+// floating over every app including Dhow itself) and the last call state
 // pushed by the main window — replayed to the popout when it finishes loading.
 let videoPopoutWin: BrowserWindow | null = null;
 let lastVideoPopoutState: {
@@ -686,11 +675,8 @@ export function emitOAuthEvent(event: { provider: string; success: boolean; erro
   // prompt, so any OAuth state change must rebuild it.
   invalidateCopilotInstructionsCache();
   broadcastToWindows('oauth:didConnect', event);
-  // Google connect (both BYOK and rowboat-mode paths funnel through here) is
+  // Google connect (both BYOK and dhow-mode paths funnel through here) is
   // the "connected Gmail" first-time reward.
-  if (event.provider === 'google' && event.success) {
-    void maybeActivateCredit('first_gmail_connected');
-  }
 }
 
 async function requireCodeSession(sessionId: string): Promise<CodeSession> {
@@ -879,9 +865,6 @@ export function setupIpcHandlers() {
   // Forward knowledge commit events to renderer for panel refresh
   versionHistory.onCommit(() => emitKnowledgeCommitEvent());
 
-  // Relay backend-confirmed credit grants (first-time-action rewards) to all
-  // windows so the UI can update balances and celebrate.
-  subscribeCreditActivations((event) => broadcastToWindows('credits:didActivate', event));
 
   // Pre-warm the Gmail contact indices so the first compose-box keystroke is instant.
   // - warmContactIndex(): synchronous local-snapshot fallback (instant, narrow coverage).
@@ -907,7 +890,6 @@ export function setupIpcHandlers() {
       // don't toast "Updated to vX" or count as a client update.
       const updatedFrom = changedFrom && isVersionUpgrade(changedFrom, version) ? changedFrom : null;
       // 'app_updated' is taken by the in-app apps feature; this is the client itself.
-      if (updatedFrom) capture('client_updated', { from: updatedFrom, to: version });
       return { version, updatedFrom };
     },
     'updater:getStatus': async () => {
@@ -1053,7 +1035,7 @@ export function setupIpcHandlers() {
       void notifyIfEnabled('meeting_notes_ready', {
         title: 'Meeting notes ready',
         message: `Your notes for "${args.title}" are ready.`,
-        link: `rowboat://open?type=file&path=${encodeURIComponent(args.notePath)}`,
+        link: `dhow://open?type=file&path=${encodeURIComponent(args.notePath)}`,
         actionLabel: 'Open notes',
         onlyWhenBackground: true,
       });
@@ -1063,17 +1045,8 @@ export function setupIpcHandlers() {
       return { payload: getMeetingPopupPayload() };
     },
     'meetingDetect:action': async (_event, args) => {
-      // Captured here because the popup window runs without PostHog.
-      capture('meeting_popup_action', { action: args.action });
       handleMeetingPopupAction(args.action);
       return {};
-    },
-    'analytics:bootstrap': async () => {
-      return {
-        installationId: getInstallationId(),
-        apiUrl: API_URL,
-        appVersion: app.getVersion(),
-      };
     },
     'workspace:getRoot': async () => {
       return workspace.getRoot();
@@ -1117,9 +1090,6 @@ export function setupIpcHandlers() {
     },
     'gmail:sendReply': async (_event, args) => {
       const result = await sendThreadReply(args);
-      if (!result.error) {
-        void maybeActivateCredit('first_email_sent');
-      }
       return result;
     },
     'gmail:saveDraft': async (_event, args) => {
@@ -1451,7 +1421,6 @@ export function setupIpcHandlers() {
         // Model lists gate on sign-in state (composer picker, models:list) —
         // push the change so they refresh without polling.
         broadcastToWindows('chatgpt:statusChanged', { signedIn: true });
-        captureProviderConnected('codex');
       }
       return result;
     },
@@ -1463,30 +1432,11 @@ export function setupIpcHandlers() {
       try {
         await signOutChatGPT();
         broadcastToWindows('chatgpt:statusChanged', { signedIn: false });
-        captureProviderDisconnected('codex');
         return { success: true };
       } catch (error) {
         console.error('[ChatGPTAuth] Sign-out failed:', error);
         return { success: false };
       }
-    },
-    'account:getRowboat': async () => {
-      const signedIn = await isSignedIn();
-      if (!signedIn) {
-        return { signedIn: false, accessToken: null };
-      }
-      try {
-        const accessToken = await getAccessToken();
-        return { signedIn: true, accessToken };
-      } catch {
-        return { signedIn: true, accessToken: null };
-      }
-    },
-    // Unauthenticated /v1/config bootstrap, independent of sign-in (signed-out
-    // BYOK users need its model recommendations when connecting a provider).
-    // getRowboatConfig caches once per app run; best-effort null on failure.
-    'rowboat:getConfig': async () => {
-      return await getRowboatConfig().catch(() => null);
     },
     'granola:getConfig': async () => {
       const repo = container.resolve<IGranolaConfigRepo>('granolaConfigRepo');
@@ -1551,7 +1501,6 @@ export function setupIpcHandlers() {
     'codeSession:create': async (_event, args) => {
       const service = container.resolve<CodeSessionService>('codeSessionService');
       const session = await service.create(args);
-      capture('code_session_created', { mode: session.mode, agent: session.agent });
       return { session };
     },
     'codeSession:list': async () => {
@@ -1925,10 +1874,7 @@ export function setupIpcHandlers() {
     'composio:search-tools': async (_event, args) => {
       return composioHandler.searchToolsInToolkit(args.toolkitSlug, args.query);
     },
-    'migration:check-composio-google': async () => {
-      return qualifyAndDisconnectComposioGoogle();
-    },
-    // Rowboat Apps handlers (spec §13)
+    // Dhow Apps handlers (spec §13)
     'apps:serverStatus': async () => {
       return appsServer.getServerStatus();
     },
@@ -1948,13 +1894,6 @@ export function setupIpcHandlers() {
         lastAppsFingerprint = fingerprint;
         invalidateCopilotInstructionsCache();
       }
-      // The copilot builds apps by writing the folder directly — apps:create is
-      // never on that path — so the first-app reward triggers off observed
-      // state instead: a valid non-installed app means the user built one.
-      // Cheap on repeat polls (maybeActivateCredit short-circuits once claimed).
-      if (apps.some((a) => a.kind === 'local' && a.status === 'ok')) {
-        void maybeActivateCredit('first_app_built');
-      }
       return {
         serverRunning: status.running,
         ...(status.error ? { serverError: status.error } : {}),
@@ -1973,8 +1912,6 @@ export function setupIpcHandlers() {
     },
     'apps:create': async (_event, args) => {
       const app = await appsIndexer.createApp(args);
-      capture('app_created', { folder: app.folder });
-      void maybeActivateCredit('first_app_built');
       return { app };
     },
     'apps:delete': async (_event, args) => {
@@ -1982,7 +1919,6 @@ export function setupIpcHandlers() {
       // Remove app-owned bg-tasks too — orphaned app--<folder>-- tasks firing
       // against a deleted app was a painful prototype failure mode.
       await appsAgents.deleteAppAgents(args.folder);
-      capture('app_deleted', { folder: args.folder });
       return { ok: true as const };
     },
     'apps:setTheme': async (_event, args) => {
@@ -2006,7 +1942,6 @@ export function setupIpcHandlers() {
     },
     'apps:star': async (_event, args) => {
       const result = await appsStars.setStar(args.repo, args.star);
-      capture('app_starred', { repo: args.repo, star: args.star });
       return result;
     },
     'apps:catalogDetail': async (_event, args) => {
@@ -2042,7 +1977,6 @@ export function setupIpcHandlers() {
       // Materialize bundled agents NOW, not on the next apps:list poll — the
       // renderer's post-install enable dialog patches these tasks immediately.
       if (result.app) await appsAgents.syncAppAgents(result.app);
-      capture('app_installed', { name: args.name });
       return result;
     },
     'apps:installFromUrl': async (_event, args) => {
@@ -2051,12 +1985,10 @@ export function setupIpcHandlers() {
       }
       const result = await appsInstaller.confirmUrlInstall(args.url);
       if (result.app) await appsAgents.syncAppAgents(result.app);
-      capture('app_installed', { name: result.app.manifest?.name ?? result.app.folder });
       return result;
     },
     'apps:uninstall': async (_event, args) => {
       await appsInstaller.uninstallApp(args.folder);
-      capture('app_uninstalled', { folder: args.folder });
       return { ok: true as const };
     },
     'apps:checkUpdate': async (_event, args) => {
@@ -2068,12 +2000,10 @@ export function setupIpcHandlers() {
         confirmOverwriteModified: args.confirmOverwriteModified,
         confirmNewCapabilities: args.confirmNewCapabilities,
       });
-      capture('app_updated', { from: before, to: app.manifest?.version });
       return { app };
     },
     'apps:rollback': async (_event, args) => {
       const app = await appsInstaller.rollbackApp(args.folder);
-      capture('app_rolled_back', { folder: args.folder });
       return { app };
     },
     'apps:publish': async (event, args) => {
@@ -2081,12 +2011,10 @@ export function setupIpcHandlers() {
       const result = await appsPublisher.publishApp(args.folder, (step, detail) => {
         win?.webContents.send('apps:progress', { folder: args.folder, step, detail });
       });
-      capture('app_published', { firstPublish: true });
       return result;
     },
     'apps:publishUpdate': async (_event, args) => {
       const result = await appsPublisher.publishUpdate(args.folder, args.increment);
-      capture('app_published', { version: result.version, firstPublish: false });
       return result;
     },
     'apps:registerExisting': async (_event, args) => {
@@ -2238,17 +2166,6 @@ export function setupIpcHandlers() {
         throw err;
       }
     },
-    // Managed (rowboat-mode) OAuth-redirect Picker: the Rowboat backend runs the
-    // pick with the company Google client; the desktop opens the start URL,
-    // waits for the deep link, and imports the picked doc with the existing
-    // managed token. No API key, appId, or local credentials.
-    'google-docs:pickViaManaged': async (_event, args) => {
-      console.log(`[GoogleDocs] managed pick -> ${args.targetFolder}`);
-      const result = await startManagedGooglePick(args.targetFolder);
-      if (!result) return null;
-      console.log(`[GoogleDocs] managed pick import OK -> ${result.path}`);
-      return result;
-    },
     'google-docs:refreshSnapshot': async (_event, args) => {
       return syncGoogleDocDown(args.path);
     },
@@ -2348,9 +2265,6 @@ export function setupIpcHandlers() {
     },
     'meeting:summarize': async (_event, args) => {
       const notes = await summarizeMeeting(args.transcript, args.meetingStartTime, args.calendarEventJson);
-      if (notes && notes.trim()) {
-        void maybeActivateCredit('first_meeting_note');
-      }
       return { notes };
     },
     'meeting-prep:resolve': async (_event, args) => {
@@ -2363,7 +2277,7 @@ export function setupIpcHandlers() {
       return { schedule };
     },
     'inline-task:process': async (_event, args) => {
-      return await processRowboatInstruction(args.instruction, args.noteContent, args.notePath);
+      return await processDhowInstruction(args.instruction, args.noteContent, args.notePath);
     },
     'voice:getConfig': async () => {
       return voice.getVoiceConfig();
@@ -2496,7 +2410,7 @@ export function setupIpcHandlers() {
       // Float above other apps on every workspace, INCLUDING fullscreen
       // Spaces. `skipTransformProcessType` keeps the Dock icon: without it,
       // `visibleOnFullScreen` turns the app into a macOS "agent" app for as
-      // long as the window exists (reads as Rowboat having vanished).
+      // long as the window exists (reads as Dhow having vanished).
       win.setAlwaysOnTop(true, 'floating');
       win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true, skipTransformProcessType: true });
       win.webContents.once('did-finish-load', () => {
@@ -2659,7 +2573,6 @@ export function setupIpcHandlers() {
           ...(args.model ? { model: args.model } : {}),
           ...(args.provider ? { provider: args.provider } : {}),
         });
-        void maybeActivateCredit('first_bg_agent');
         return { success: true, slug };
       } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -2691,17 +2604,6 @@ export function setupIpcHandlers() {
     'bg-task:listRunIds': async (_event, args) => {
       const runIds = await readTaskRunIds(args.slug, args.limit);
       return { runIds };
-    },
-    // Billing handler
-    'billing:getInfo': async () => {
-      return await getBillingInfo();
-    },
-    // First-time-action credit rewards
-    'credits:getState': async () => {
-      return await getCreditsState();
-    },
-    'referral:claim': async (_event, args) => {
-      return await claimReferralCode(args.code);
     },
     'notifications:getSettings': async () => {
       return loadNotificationSettings();

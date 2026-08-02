@@ -111,7 +111,7 @@ describe("ChannelBridge commands", () => {
         const h = harness();
         await h.bridge.handleInbound(SENDER, "help", h.reply);
         expect(h.replies).toHaveLength(1);
-        expect(h.replies[0]).toContain("Rowboat commands");
+        expect(h.replies[0]).toContain("Dhow commands");
     });
 
     it("lists recent sessions newest-first and resumes by index", async () => {

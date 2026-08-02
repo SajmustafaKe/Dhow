@@ -16,12 +16,9 @@ import {
 import { UserMessage, UserMessageContent } from './message.js';
 import { RequestedAgent, type TurnBusEvent, type TurnEvent } from './turns.js';
 import type { SessionBusEvent, SessionIndexEntry, SessionState } from './sessions.js';
-import { RowboatApiConfig } from './rowboat-account.js';
 import { ZListToolkitsResponse } from './composio.js';
-import { AppSummarySchema, RegistryRecordSchema, RowboatAppManifestSchema } from './rowboat-app.js';
+import { AppSummarySchema, RegistryRecordSchema, DhowAppManifestSchema } from './dhow-app.js';
 import { BrowserStateSchema, DisplayMediaRequestSchema, HttpAuthRequestSchema } from './browser-control.js';
-import { BillingInfoSchema } from './billing.js';
-import { CreditActivatedEventSchema, CreditsStateSchema, ReferralClaimResultSchema } from './credits.js';
 import { EmailBlockSchema, GmailThreadSchema } from './blocks.js';
 import { PermissionDecision, ApprovalPolicy, CodingAgent, type CodeRunFeedEvent } from './code-mode.js';
 import { NotificationSettingsSchema } from './notification-settings.js';
@@ -83,14 +80,6 @@ const ipcSchemas = {
       chrome: z.string(),
       node: z.string(),
       electron: z.string(),
-    }),
-  },
-  'analytics:bootstrap': {
-    req: z.null(),
-    res: z.object({
-      installationId: z.string(),
-      apiUrl: z.string(),
-      appVersion: z.string(),
     }),
   },
   'workspace:getRoot': {
@@ -647,7 +636,7 @@ const ipcSchemas = {
     res: z.null(),
   },
   // The unified model catalog (core/models/catalog.ts): every connected
-  // provider — Rowboat gateway, ChatGPT subscription (codex), BYOK keys,
+  // provider — Dhow gateway, ChatGPT subscription (codex), BYOK keys,
   // local/custom endpoints — listed the same way, with per-provider status.
   'models:list': {
     req: z.object({
@@ -661,7 +650,7 @@ const ipcSchemas = {
         // always equals the flavor key; kept distinct so a future
         // multi-instance setup ("openai-work") is additive.
         id: z.string(),
-        // Provider TYPE ("openai", "ollama", "rowboat", "codex", …) —
+        // Provider TYPE ("openai", "ollama", "dhow", "codex", …) —
         // drives display naming and credential-field UI.
         flavor: z.string(),
         // 'error' = provider is connected but its model list failed to load.
@@ -831,21 +820,6 @@ const ipcSchemas = {
         clientId: z.string().nullable().optional(),
       })),
     }),
-  },
-  'account:getRowboat': {
-    req: z.null(),
-    res: z.object({
-      signedIn: z.boolean(),
-      accessToken: z.string().nullable(),
-    }),
-  },
-  // The unauthenticated /v1/config bootstrap (service URLs, billing catalog,
-  // model recommendations). Independent of sign-in state — main caches the
-  // fetch once per app run; null when the API is unreachable. Renderer
-  // consumers go through the useRowboatConfig() hook.
-  'rowboat:getConfig': {
-    req: z.null(),
-    res: RowboatApiConfig.nullable(),
   },
   'oauth:didConnect': {
     req: z.object({
@@ -1310,12 +1284,12 @@ const ipcSchemas = {
       mode: CodeSessionMode,
       policy: ApprovalPolicy,
       isolation: z.enum(['in-repo', 'worktree']),
-      // LLM for Rowboat-mode turns. Unset = the configured default. Like any
+      // LLM for Dhow-mode turns. Unset = the configured default. Like any
       // chat, the model is fixed once the session's run exists.
       model: z.string().optional(),
       provider: z.string().optional(),
       // The coding agent's own model + reasoning effort (ACP engine). Unlike the
-      // Rowboat model these are re-applied each turn, so they stay editable.
+      // Dhow model these are re-applied each turn, so they stay editable.
       agentModel: z.string().optional(),
       agentEffort: z.string().optional(),
     }),
@@ -1734,13 +1708,7 @@ const ipcSchemas = {
       toolkits: z.array(z.string()),
     }),
   },
-  'migration:check-composio-google': {
-    req: z.null(),
-    res: z.object({
-      shouldShow: z.boolean(),
-    }),
-  },
-  // Rowboat Apps (spec §13) — M1 local channels.
+  // Dhow Apps (spec §13) — M1 local channels.
   'apps:serverStatus': {
     req: z.object({}),
     res: z.object({
@@ -1801,7 +1769,7 @@ const ipcSchemas = {
     req: z.object({ name: z.string() }),
     res: z.object({
       record: RegistryRecordSchema,
-      manifest: RowboatAppManifestSchema.optional(),
+      manifest: DhowAppManifestSchema.optional(),
       readme: z.string().optional(),
       installedFolder: z.string().optional(),
     }),
@@ -2040,24 +2008,6 @@ const ipcSchemas = {
         owner: z.string().nullable(),
       }),
     }),
-  },
-  // Managed OAuth-redirect Picker: the Rowboat backend runs the pick with the
-  // company Google client; the desktop opens the start URL, waits for the deep
-  // link, and imports with the existing managed token. No API key or BYOK creds.
-  'google-docs:pickViaManaged': {
-    req: z.object({
-      targetFolder: RelPath,
-    }),
-    res: z.object({
-      path: RelPath,
-      doc: z.object({
-        id: z.string(),
-        name: z.string(),
-        url: z.string(),
-        modifiedTime: z.string().nullable(),
-        owner: z.string().nullable(),
-      }),
-    }).nullable(),
   },
   'google-docs:refreshSnapshot': {
     req: z.object({
@@ -2669,28 +2619,6 @@ const ipcSchemas = {
       audio: z.boolean().optional(),
     }),
     res: z.object({ ok: z.boolean() }),
-  },
-  // Billing channels
-  'billing:getInfo': {
-    req: z.null(),
-    res: BillingInfoSchema,
-  },
-  // First-time-action credit rewards (see shared/src/credits.ts)
-  'credits:getState': {
-    req: z.null(),
-    res: CreditsStateSchema,
-  },
-  // Main → renderer: the backend confirmed a credit grant. All activation
-  // triggers live in main/core (oauth success, gmail send, meeting summarize,
-  // bg-task create, app create); the renderer only listens and celebrates.
-  'credits:didActivate': {
-    req: CreditActivatedEventSchema,
-    res: z.null(),
-  },
-  // Redeem another user's invite (referral) code — both sides earn credits.
-  'referral:claim': {
-    req: z.object({ code: z.string() }),
-    res: ReferralClaimResultSchema,
   },
   // Notification settings channels
   'notifications:getSettings': {

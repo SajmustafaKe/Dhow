@@ -89,7 +89,7 @@ Examples:
 const { workdir, steps } = parseArgs();
 
 // Set env BEFORE importing core modules (WorkDir is read at module load time)
-process.env.ROWBOAT_WORKDIR = workdir;
+process.env.DHOW_WORKDIR = workdir;
 
 // --- Now import core modules ---
 

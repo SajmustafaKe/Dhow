@@ -2,13 +2,13 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import {
-    RowboatAppManifestSchema,
+    DhowAppManifestSchema,
     AppPublishRecordSchema,
     PACKAGE_NAME_RE,
-    type RowboatAppManifest,
+    type DhowAppManifest,
     type AppPublishRecord,
     type RegistryRecord,
-} from '@x/shared/dist/rowboat-app.js';
+} from '@x/shared/dist/dhow-app.js';
 import { WorkDir } from '../config/config.js';
 import { REGISTRY_REPO } from './constants.js';
 import { appDir } from './indexer.js';
@@ -17,7 +17,7 @@ import { registryClient } from './registry.js';
 import { getGithubToken, clearAuth } from './github-auth.js';
 
 // Publisher (spec §11): guided first publish as a resumable state machine —
-// each step is persisted to .rowboat-publish.json so a failed publish resumes
+// each step is persisted to .dhow-publish.json so a failed publish resumes
 // instead of duplicating side effects.
 
 export class PublishError extends Error {
@@ -64,7 +64,7 @@ async function gh<T = unknown>(token: string, method: string, url: string, body?
 // ---------------------------------------------------------------------------
 
 function publishRecordPath(folder: string): string {
-    return path.join(appDir(folder), '.rowboat-publish.json');
+    return path.join(appDir(folder), '.dhow-publish.json');
 }
 
 async function readPublishRecord(folder: string): Promise<AppPublishRecord | null> {
@@ -83,11 +83,11 @@ async function writePublishRecord(folder: string, record: AppPublishRecord): Pro
 // Preflight (§11.1)
 // ---------------------------------------------------------------------------
 
-async function preflight(folder: string, firstPublish: boolean): Promise<{ manifest: RowboatAppManifest; token: string; login: string }> {
-    let manifest: RowboatAppManifest;
+async function preflight(folder: string, firstPublish: boolean): Promise<{ manifest: DhowAppManifest; token: string; login: string }> {
+    let manifest: DhowAppManifest;
     try {
-        manifest = RowboatAppManifestSchema.parse(
-            JSON.parse(await fsp.readFile(path.join(appDir(folder), 'rowboat-app.json'), 'utf-8')),
+        manifest = DhowAppManifestSchema.parse(
+            JSON.parse(await fsp.readFile(path.join(appDir(folder), 'dhow-app.json'), 'utf-8')),
         );
     } catch (e) {
         throw new PublishError('invalid_manifest', e instanceof Error ? e.message : String(e));
@@ -116,7 +116,7 @@ async function collectSourceFiles(dir: string, rel = ''): Promise<string[]> {
     const out: string[] = [];
     for (const entry of await fsp.readdir(path.join(dir, rel), { withFileTypes: true })) {
         const relPath = rel ? `${rel}/${entry.name}` : entry.name;
-        if (entry.name.startsWith('.')) continue; // dotfiles incl. .rowboat-*.json
+        if (entry.name.startsWith('.')) continue; // dotfiles incl. .dhow-*.json
         if (PUSH_EXCLUDES.has(entry.name) && !rel) continue;
         if (entry.isSymbolicLink()) continue;
         if (entry.isDirectory()) out.push(...await collectSourceFiles(dir, relPath));
@@ -125,15 +125,15 @@ async function collectSourceFiles(dir: string, rel = ''): Promise<string[]> {
     return out;
 }
 
-function generatedReadme(manifest: RowboatAppManifest): string {
+function generatedReadme(manifest: DhowAppManifest): string {
     return `# ${manifest.name}
 
-${manifest.description || 'A Rowboat app.'}
+${manifest.description || 'A Dhow app.'}
 
-## Install in Rowboat
+## Install in Dhow
 
-Open Rowboat → Apps → Catalog → search for **${manifest.name}** → Install.
-${manifest.agents.length ? `\nBundled background agents: ${manifest.agents.map((a) => `\`${a}\``).join(', ')} (installed disabled; enable them in Rowboat).\n` : ''}`;
+Open Dhow → Apps → Catalog → search for **${manifest.name}** → Install.
+${manifest.agents.length ? `\nBundled background agents: ${manifest.agents.map((a) => `\`${a}\``).join(', ')} (installed disabled; enable them in Dhow).\n` : ''}`;
 }
 
 function generatedLicense(holder: string): string {
@@ -162,7 +162,7 @@ SOFTWARE.
 `;
 }
 
-async function pushSource(token: string, login: string, repoName: string, folder: string, manifest: RowboatAppManifest, version: string): Promise<void> {
+async function pushSource(token: string, login: string, repoName: string, folder: string, manifest: DhowAppManifest, version: string): Promise<void> {
     const dir = appDir(folder);
     const files = await collectSourceFiles(dir);
 
@@ -204,7 +204,7 @@ async function pushSource(token: string, login: string, repoName: string, folder
     };
     await addGenerated('README.md', generatedReadme(manifest));
     await addGenerated('LICENSE', generatedLicense(login));
-    await addGenerated('.gitignore', 'data/\nnode_modules/\n.rowboat-install.json\n.rowboat-publish.json\n.previous/\n');
+    await addGenerated('.gitignore', 'data/\nnode_modules/\n.dhow-install.json\n.dhow-publish.json\n.previous/\n');
 
     const treeRes = await gh<{ sha: string }>(token, 'POST', `/repos/${login}/${repoName}/git/trees`, { tree });
 
@@ -304,9 +304,9 @@ export async function publishApp(
     // 5. assets_uploaded (both REQUIRED — the standalone manifest powers update checks)
     if (!completed.has('assets_uploaded')) {
         const uploadBase = `https://uploads.github.com/repos/${login}/${name}/releases/${releaseId}/assets`;
-        await uploadAsset(token, uploadBase, `${name}.rowboat-app`, await fsp.readFile(pkg.bundlePath), 'application/zip');
-        await uploadAsset(token, uploadBase, 'rowboat-app.json',
-            Buffer.from(await fsp.readFile(path.join(appDir(folder), 'rowboat-app.json'))), 'application/json');
+        await uploadAsset(token, uploadBase, `${name}.dhow-app`, await fsp.readFile(pkg.bundlePath), 'application/zip');
+        await uploadAsset(token, uploadBase, 'dhow-app.json',
+            Buffer.from(await fsp.readFile(path.join(appDir(folder), 'dhow-app.json'))), 'application/json');
         await mark('assets_uploaded');
     }
 
@@ -395,20 +395,20 @@ export async function publishUpdate(
     const version = increment === 'major' ? `${maj + 1}.0.0` : increment === 'minor' ? `${maj}.${min + 1}.0` : `${maj}.${min}.${pat + 1}`;
 
     // Bump the manifest (pretty-printed, §4.2).
-    const manifestPath = path.join(appDir(folder), 'rowboat-app.json');
+    const manifestPath = path.join(appDir(folder), 'dhow-app.json');
     const raw = JSON.parse(await fsp.readFile(manifestPath, 'utf-8')) as Record<string, unknown>;
     raw.version = version;
     await fsp.writeFile(manifestPath, JSON.stringify(raw, null, 2) + '\n');
 
     const repoName = record.repo.split('/')[1];
     const pkg = await packageApp(folder, path.join(WorkDir, 'tmp', `app-publish-${manifest.name}`));
-    await pushSource(token, login, repoName, folder, { ...manifest, version } as RowboatAppManifest, version);
+    await pushSource(token, login, repoName, folder, { ...manifest, version } as DhowAppManifest, version);
     const release = await gh<{ id: number }>(token, 'POST', `/repos/${record.repo}/releases`, {
         tag_name: `v${version}`, name: `v${version}`, body: `sha256: ${pkg.sha256}`,
     });
     const uploadBase = `https://uploads.github.com/repos/${record.repo}/releases/${release.id}/assets`;
-    await uploadAsset(token, uploadBase, `${manifest.name}.rowboat-app`, await fsp.readFile(pkg.bundlePath), 'application/zip');
-    await uploadAsset(token, uploadBase, 'rowboat-app.json', Buffer.from(await fsp.readFile(manifestPath)), 'application/json');
+    await uploadAsset(token, uploadBase, `${manifest.name}.dhow-app`, await fsp.readFile(pkg.bundlePath), 'application/zip');
+    await uploadAsset(token, uploadBase, 'dhow-app.json', Buffer.from(await fsp.readFile(manifestPath)), 'application/json');
 
     await writePublishRecord(folder, { ...record, lastPublishedVersion: version, lastSha256: pkg.sha256, pendingSteps: undefined });
     return { version, releaseUrl: `https://github.com/${record.repo}/releases/tag/v${version}` };
@@ -424,8 +424,8 @@ export async function registerExisting(name: string, repo: string): Promise<{ st
     if (!PACKAGE_NAME_RE.test(name)) throw new PublishError('invalid_name', name);
 
     // Courtesy client-side probe of §9.3 check 7.
-    const probe = await fetch(`https://github.com/${repo}/releases/latest/download/${name}.rowboat-app`, { method: 'HEAD', redirect: 'follow' });
-    if (!probe.ok) throw new PublishError('missing_release_asset', `releases/latest has no ${name}.rowboat-app`);
+    const probe = await fetch(`https://github.com/${repo}/releases/latest/download/${name}.dhow-app`, { method: 'HEAD', redirect: 'follow' });
+    if (!probe.ok) throw new PublishError('missing_release_asset', `releases/latest has no ${name}.dhow-app`);
 
     const [, registryName] = REGISTRY_REPO.split('/');
     await gh(auth.token, 'POST', `/repos/${REGISTRY_REPO}/forks`).catch(() => undefined);

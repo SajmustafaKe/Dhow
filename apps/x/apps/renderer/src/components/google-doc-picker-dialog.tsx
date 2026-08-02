@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileText, Loader2, RefreshCw } from 'lucide-react'
+import { FileText, Loader2 } from 'lucide-react'
 
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toast } from '@/lib/toast'
 
 type GoogleDocPickerDialogProps = {
@@ -18,124 +19,130 @@ type GoogleDocPickerDialogProps = {
   onImported: (path: string) => void
 }
 
+/**
+ * Accepts a Google Docs URL in any of the shapes Google hands out, or a bare
+ * file id pasted on its own. Returns null when nothing id-shaped is present.
+ */
+export function extractGoogleDocId(input: string): string | null {
+  const trimmed = input.trim()
+  if (!trimmed) return null
+  const fromPath = trimmed.match(/\/d\/([A-Za-z0-9_-]{10,})/)
+  if (fromPath) return fromPath[1]
+  const fromQuery = trimmed.match(/[?&]id=([A-Za-z0-9_-]{10,})/)
+  if (fromQuery) return fromQuery[1]
+  // A bare id: no scheme, no slashes, long enough to be real.
+  if (/^[A-Za-z0-9_-]{10,}$/.test(trimmed)) return trimmed
+  return null
+}
+
+/**
+ * Import a Google Doc into the workspace by link. Uses the user's own Google
+ * OAuth client (see google-setup.md) — the same connection Gmail and Calendar
+ * use — so the prerequisite is a connected Google account holding the
+ * drive.file scope.
+ */
 export function GoogleDocPickerDialog({
   open,
   targetFolder,
   onOpenChange,
   onImported,
 }: GoogleDocPickerDialogProps) {
-  // The managed picker runs its own drive.file OAuth in the browser, gated on
-  // the Rowboat web session. So the only desktop prerequisite is being signed
-  // in to Rowboat — it needs NO prior Google connection and NO drive.file scope
-  // on the main grant (the picker grants drive.file per-file as you choose).
-  const [signedIn, setSignedIn] = useState<boolean | null>(null)
-  const [opening, setOpening] = useState(false)
+  const [status, setStatus] = useState<{ connected: boolean; hasRequiredScopes: boolean } | null>(null)
+  const [link, setLink] = useState('')
+  const [importing, setImporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const targetLabel = useMemo(() => targetFolder.replace(/^knowledge\/?/, '') || 'knowledge', [targetFolder])
+  const fileId = useMemo(() => extractGoogleDocId(link), [link])
 
   const loadStatus = useCallback(async () => {
     try {
-      const account = await window.ipc.invoke('account:getRowboat', null)
-      setSignedIn(account.signedIn)
+      const result = await window.ipc.invoke('google-docs:getStatus', null)
+      setStatus({ connected: result.connected, hasRequiredScopes: result.hasRequiredScopes })
       setError(null)
     } catch (err) {
-      setSignedIn(null)
-      setError(err instanceof Error ? err.message : 'Failed to check your Rowboat sign-in')
+      setStatus(null)
+      setError(err instanceof Error ? err.message : 'Failed to check your Google connection')
     }
   }, [])
 
   useEffect(() => {
     if (!open) return
+    setLink('')
+    setError(null)
     void loadStatus()
   }, [loadStatus, open])
 
-  const handleChoose = useCallback(async () => {
+  const handleImport = useCallback(async () => {
+    if (!fileId) return
     setError(null)
-    setOpening(true)
-
-    // Managed pick: the Rowboat backend runs the whole grant + pick in the
-    // browser with the company Google client, then deep-links the selection
-    // back. No API key, BYOK creds, or redirect URL to configure. Close our
-    // modal during the hand-off.
-    onOpenChange(false)
-    toast('Continue in your browser: grant access and pick a document…', 'info')
-    let result: { path: string; doc: { name: string } } | null = null
+    setImporting(true)
     try {
-      result = await window.ipc.invoke('google-docs:pickViaManaged', { targetFolder })
+      const result = await window.ipc.invoke('google-docs:import', { fileId, targetFolder })
+      onOpenChange(false)
+      onImported(result.path)
+      toast(`Imported "${result.doc.name}"`, 'success')
     } catch (err) {
-      setOpening(false)
-      toast(err instanceof Error ? err.message : 'Failed to open the Google Picker', 'error')
-      return
+      setError(err instanceof Error ? err.message : 'Failed to import that document')
+    } finally {
+      setImporting(false)
     }
+  }, [fileId, targetFolder, onImported, onOpenChange])
 
-    if (!result) {
-      setOpening(false)
-      return
-    }
-
-    toast(`Added “${result.doc.name}”`, 'success')
-    onImported(result.path)
-    setOpening(false)
-  }, [targetFolder, onImported, onOpenChange])
+  const ready = status !== null && status.connected && status.hasRequiredScopes
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[min(720px,calc(100vh-4rem))] max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 border-b border-border px-5 py-4">
+      <DialogContent>
+        <DialogHeader>
           <DialogTitle>Add Google Doc</DialogTitle>
           <DialogDescription>
-            Link a Google Doc or Word file from Drive into {targetLabel}.
+            Paste a Google Docs link to import it into <span className="font-medium">{targetLabel}</span>. The
+            imported note stays linked to the original and can be synced both ways.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          {signedIn === null && error ? (
-            <div className="flex min-h-[280px] flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
-              <div className="max-w-sm text-sm text-destructive">{error}</div>
-              <Button variant="outline" onClick={() => void loadStatus()}>
-                <RefreshCw className="size-4" />
-                Retry
-              </Button>
+        {status !== null && !ready ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {status.connected
+                ? 'Your Google connection is missing the Drive access needed to import documents. Reconnect Google from Settings \u2192 Connect Accounts to grant it.'
+                : 'Connect your Google account from Settings \u2192 Connect Accounts to import documents.'}
+            </p>
+            <div className="flex justify-end">
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
             </div>
-          ) : signedIn === null ? (
-            <div className="flex min-h-[280px] flex-1 items-center justify-center text-sm text-muted-foreground">
-              <Loader2 className="mr-2 size-4 animate-spin" />
-              Checking your Rowboat sign-in…
-            </div>
-          ) : !signedIn ? (
-            <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center gap-4 px-8 py-8 text-center">
-              <div className="max-w-sm text-sm text-muted-foreground">
-                Sign in to Rowboat to add Google Docs from Drive. The picker uses your
-                Rowboat account — no Google credentials or API key needed.
-              </div>
-              <Button variant="outline" onClick={() => void loadStatus()}>
-                <RefreshCw className="size-4" />
-                I&apos;ve signed in — retry
-              </Button>
-            </div>
-          ) : (
-            <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center gap-4 px-8 py-8 text-center">
-              <div className="max-w-sm text-sm text-muted-foreground">
-                Pick a Google Doc or Word file from your Drive. It imports as an editable
-                <code> .docx</code> and stays linked for two-way sync.
-              </div>
-              <p className="max-w-sm text-xs text-muted-foreground">
-                You&apos;ll continue in your browser to grant access and choose a document — no
-                API key or setup needed.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Input
+              autoFocus
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && fileId && !importing) void handleImport()
+              }}
+              placeholder="https://docs.google.com/document/d/..."
+            />
+            {link.trim() !== '' && !fileId && (
+              <p className="text-xs text-muted-foreground">
+                That doesn&apos;t look like a Google Docs link. Copy the URL from your browser&apos;s address bar.
               </p>
-              {error && (
-                <div className="w-full max-w-sm rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  {error}
-                </div>
-              )}
-              <Button onClick={() => void handleChoose()} disabled={opening}>
-                {opening ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-                Choose from Google Drive
+            )}
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={importing}>
+                Cancel
+              </Button>
+              <Button onClick={() => void handleImport()} disabled={!fileId || importing}>
+                {importing
+                  ? <Loader2 className="mr-2 size-4 animate-spin" />
+                  : <FileText className="mr-2 size-4" />}
+                {importing ? 'Importing...' : 'Import'}
               </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

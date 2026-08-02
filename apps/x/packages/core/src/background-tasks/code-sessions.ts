@@ -292,7 +292,7 @@ export async function launchCodeTask(args: LaunchCodeTaskArgs): Promise<LaunchCo
         return { success: false, error: `Could not create code session: ${msg}` };
     }
 
-    const branch = session.worktree?.branch ?? 'rowboat/' + session.id;
+    const branch = session.worktree?.branch ?? 'dhow/' + session.id;
     const baseBranch = session.worktree?.baseBranch ?? undefined;
     const worktreePath = session.cwd;
 

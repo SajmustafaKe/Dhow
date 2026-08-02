@@ -6,14 +6,14 @@ export interface ModelRef {
 }
 
 // One picker group per connected provider, straight from the unified model
-// catalog (models:list → core/models/catalog.ts). Every provider — Rowboat
+// catalog (models:list → core/models/catalog.ts). Every provider — Dhow
 // gateway, ChatGPT subscription (codex), BYOK keys, local endpoints — comes
 // through the same pipeline with a resolved list and a status; there is no
 // renderer-side fetching or per-flavor special casing.
 export interface ModelPickerGroup {
   /** Provider instance id — what ModelRef.provider joins on. */
   id: string
-  /** Provider type ("openai", "ollama", "rowboat", …) — display naming. */
+  /** Provider type ("openai", "ollama", "dhow", …) — display naming. */
   flavor: string
   models: string[]
   /** 'error' = provider is connected but its model list failed to load. */
@@ -30,7 +30,7 @@ export interface ModelsSnapshot {
   // hasn't picked a model) — shown in pickers instead of guessing from list
   // order, which can disagree with the real default.
   defaultModel: ModelRef | null
-  isRowboatConnected: boolean
+  isDhowConnected: boolean
   // Raw catalog model ids per provider id, unpinned — for provider-scoped
   // pickers that need a provider's list without group ordering applied.
   catalogByProvider: Record<string, string[]>
@@ -50,7 +50,7 @@ const EMPTY_SNAPSHOT: ModelsSnapshot = {
   groups: [],
   reasoningByKey: {},
   defaultModel: null,
-  isRowboatConnected: false,
+  isDhowConnected: false,
   catalogByProvider: {},
 }
 
@@ -112,7 +112,7 @@ async function buildSnapshot(refreshProvider?: string): Promise<ModelsSnapshot> 
     groups,
     reasoningByKey,
     defaultModel,
-    isRowboatConnected: catalog.providers.some((p) => p.id === 'rowboat'),
+    isDhowConnected: catalog.providers.some((p) => p.id === 'dhow'),
     catalogByProvider,
   }
 }
@@ -157,7 +157,7 @@ function wireGlobalEvents(): void {
   window.addEventListener('models-config-changed', refetch)
   wiredCleanups = [
     () => window.removeEventListener('models-config-changed', refetch),
-    // Rowboat sign-in/out swaps the provider set. Despite the name, main
+    // Dhow sign-in/out swaps the provider set. Despite the name, main
     // broadcasts this channel on every OAuth state change — including
     // disconnect (disconnectProvider emits { provider, success: false }).
     window.ipc.on('oauth:didConnect', refetch),

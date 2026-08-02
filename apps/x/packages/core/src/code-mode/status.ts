@@ -155,7 +155,7 @@ export async function checkCodeModeAgentStatus(): Promise<CodeModeAgentStatus> {
     ]);
     // `installed` means the engine is provisioned (downloaded) locally — the user has
     // clicked Enable in Settings → Code Mode. We no longer look for a global claude/codex
-    // CLI on PATH; code mode runs our own pinned engine from ~/.rowboat/engines.
+    // CLI on PATH; code mode runs our own pinned engine from ~/.dhow/engines.
     return {
         claude: { installed: isEngineProvisioned('claude'), signedIn: claudeSignedIn },
         codex: { installed: isEngineProvisioned('codex'), signedIn: codexSignedIn },

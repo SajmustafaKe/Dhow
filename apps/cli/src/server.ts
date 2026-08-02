@@ -179,7 +179,7 @@ const app = new Hono()
                 info: {
                     title: "Hono",
                     version: "1.0.0",
-                    description: "RowboatX API",
+                    description: "DhowX API",
                 },
             },
         }),

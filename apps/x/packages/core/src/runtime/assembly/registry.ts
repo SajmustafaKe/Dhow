@@ -46,7 +46,7 @@ function promptFileAgent(id: string, getRaw: () => string): BuiltinAgentDefiniti
     return { build: () => agentFromRaw(id, getRaw()) };
 }
 
-// "rowboatx" is a legacy alias for the copilot: both ids share one
+// "dhowx" is a legacy alias for the copilot: both ids share one
 // definition object.
 const COPILOT: BuiltinAgentDefinition = {
     build: buildCopilotAgent,
@@ -54,7 +54,7 @@ const COPILOT: BuiltinAgentDefinition = {
 
 const builtinAgents: Record<string, BuiltinAgentDefinition> = {
     copilot: COPILOT,
-    rowboatx: COPILOT,
+    dhowx: COPILOT,
     "live-note-agent": { build: buildLiveNoteAgent },
     "background-task-agent": { build: buildBackgroundTaskAgent },
     note_creation: promptFileAgent("note_creation", getNoteCreationRaw),

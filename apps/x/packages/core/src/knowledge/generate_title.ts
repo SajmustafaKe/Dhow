@@ -2,7 +2,6 @@ import { generateText } from 'ai';
 import { createLanguageModel } from '../models/models.js';
 import { getChatTitleModel, resolveProviderConfig } from '../models/defaults.js';
 import { mapReasoningEffort } from '../models/reasoning.js';
-import { captureLlmUsage } from '../analytics/usage.js';
 import { withUseCase } from '../analytics/use_case.js';
 
 const SYSTEM_PROMPT = `You name chat conversations. Given the user's first message, reply with a concise title for the conversation.
@@ -49,14 +48,6 @@ export async function generateChatTitle(firstMessage: string): Promise<string | 
         maxOutputTokens: 1000,
         ...(reasoning?.providerOptions ? { providerOptions: reasoning.providerOptions } : {}),
     }));
-
-    captureLlmUsage({
-        useCase: 'copilot_chat',
-        subUseCase: 'chat_title',
-        model: modelId,
-        provider: providerName,
-        usage: result.usage,
-    });
 
     const title = (result.text.trim().split(/\r?\n/)[0] ?? '')
         .trim()

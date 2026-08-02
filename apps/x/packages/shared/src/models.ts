@@ -13,15 +13,15 @@ export const ReasoningEffort = z.enum(["low", "medium", "high"]);
 // fetched from the provider (core/models/catalog.ts), and model choices live
 // in assistantModel / taskModels.
 export const LlmProvider = z.object({
-  // "rowboat" (signed-in gateway) and "codex" (ChatGPT subscription via
+  // "dhow" (signed-in gateway) and "codex" (ChatGPT subscription via
   // "Sign in with ChatGPT") are credential-less flavors: they never appear
   // in models.json's providers map — auth lives in their own token stores.
-  flavor: z.enum(["openai", "anthropic", "google", "openrouter", "aigateway", "ollama", "openai-compatible", "rowboat", "codex"]),
+  flavor: z.enum(["openai", "anthropic", "google", "openrouter", "aigateway", "ollama", "openai-compatible", "dhow", "codex"]),
   apiKey: z.string().optional(),
   baseURL: z.string().optional(),
   headers: z.record(z.string(), z.string()).optional(),
   // Context window (in tokens) to request from local runtimes. Ollama defaults
-  // to a ~4k window that silently truncates Rowboat's prompts; when unset,
+  // to a ~4k window that silently truncates Dhow's prompts; when unset,
   // local providers get a larger default (see core/models/local.ts).
   contextLength: z.number().int().positive().optional(),
   // Default reasoning effort for this provider. For Ollama this drives the
@@ -34,7 +34,7 @@ export const LlmProvider = z.object({
 
 // A provider-qualified model reference. `provider` is a provider INSTANCE id
 // as understood by resolveProviderConfig — a key of the providers map, or
-// "rowboat" / "codex" for the credential-less providers. Today one instance
+// "dhow" / "codex" for the credential-less providers. Today one instance
 // exists per flavor, so instance ids equal flavor keys.
 export const ModelRef = z.object({
   provider: z.string(),

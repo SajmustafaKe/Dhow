@@ -3,13 +3,13 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import yazl from 'yazl';
-import { RowboatAppManifestSchema, type RowboatAppManifest } from '@x/shared/dist/rowboat-app.js';
+import { DhowAppManifestSchema, type DhowAppManifest } from '@x/shared/dist/dhow-app.js';
 import { appDir } from './indexer.js';
 
-// Packager (spec §4.4): builds the `<name>.rowboat-app` ZIP from the ALLOWLIST
-// only — rowboat-app.json, dist/**, agents/<manifest.agents>, defaults/** — in
+// Packager (spec §4.4): builds the `<name>.dhow-app` ZIP from the ALLOWLIST
+// only — dhow-app.json, dist/**, agents/<manifest.agents>, defaults/** — in
 // sorted path order (determinism). Personal data cannot leak by omission (D15):
-// src/, package.json, node_modules/, data/, dotfiles, and .rowboat-*.json are
+// src/, package.json, node_modules/, data/, dotfiles, and .dhow-*.json are
 // simply never on the list. Symlinks are skipped with a warning, never followed.
 
 export class PackageError extends Error {
@@ -50,27 +50,27 @@ export interface PackageResult {
     bundlePath: string;
     /** Lowercase-hex SHA-256 of the finished ZIP bytes. */
     sha256: string;
-    manifest: RowboatAppManifest;
+    manifest: DhowAppManifest;
     /** Package-relative paths included, in the order written. */
     files: string[];
     warnings: string[];
 }
 
 /**
- * Build `<name>.rowboat-app` for the app at `folder`, writing the bundle to
+ * Build `<name>.dhow-app` for the app at `folder`, writing the bundle to
  * `outDir` (created if needed).
  */
 export async function packageApp(folder: string, outDir: string): Promise<PackageResult> {
     const dir = appDir(folder);
 
     // 1. Manifest must parse and dist/<entry> must exist.
-    let manifest: RowboatAppManifest;
+    let manifest: DhowAppManifest;
     try {
-        manifest = RowboatAppManifestSchema.parse(
-            JSON.parse(await fsp.readFile(path.join(dir, 'rowboat-app.json'), 'utf-8')),
+        manifest = DhowAppManifestSchema.parse(
+            JSON.parse(await fsp.readFile(path.join(dir, 'dhow-app.json'), 'utf-8')),
         );
     } catch (e) {
-        throw new PackageError('invalid_manifest', `rowboat-app.json is missing or invalid: ${e instanceof Error ? e.message : String(e)}`);
+        throw new PackageError('invalid_manifest', `dhow-app.json is missing or invalid: ${e instanceof Error ? e.message : String(e)}`);
     }
     const entryAbs = path.join(dir, 'dist', manifest.entry);
     if (!fs.existsSync(entryAbs) || !fs.statSync(entryAbs).isFile()) {
@@ -79,7 +79,7 @@ export async function packageApp(folder: string, outDir: string): Promise<Packag
 
     // 2. Assemble the allowlist, sorted for determinism.
     const warnings: string[] = [];
-    const files: string[] = ['rowboat-app.json'];
+    const files: string[] = ['dhow-app.json'];
     files.push(...(await collectFiles(path.join(dir, 'dist'), 'dist', warnings)).sort());
     // agents/: ONLY files listed in manifest.agents (and they must exist).
     for (const agentFile of [...manifest.agents].sort()) {
@@ -93,7 +93,7 @@ export async function packageApp(folder: string, outDir: string): Promise<Packag
 
     // 3. Write the ZIP.
     await fsp.mkdir(outDir, { recursive: true });
-    const bundlePath = path.join(outDir, `${manifest.name}.rowboat-app`);
+    const bundlePath = path.join(outDir, `${manifest.name}.dhow-app`);
     const zip = new yazl.ZipFile();
     for (const rel of files) {
         zip.addFile(path.join(dir, ...rel.split('/')), rel);

@@ -33,7 +33,7 @@ When the user says "draft an email to Monica" or mentions ANY person, organizati
 - If the user's intent is unclear, ASK them what the email should be about
 - If a person has multiple contexts (e.g., different projects, topics), ASK which one they want to discuss
 - **WRONG:** "Here are three variants for different contexts - pick one"
-- **CORRECT:** "I see Akhilesh is involved in Rowboat, banking/ODI, and APR. Which topic would you like to discuss in this email?"
+- **CORRECT:** "I see Akhilesh is involved in Dhow, banking/ODI, and APR. Which topic would you like to discuss in this email?"
 
 **Be decisive, not generic:**
 - Once you know the context, draft ONE email - no multiple versions or options

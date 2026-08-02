@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * The unified model catalog: every provider (rowboat gateway, codex, BYOK,
+ * The unified model catalog: every provider (codex, BYOK,
  * local) flows through one function with per-provider status and a
  * credential-fingerprinted list cache. These tests pin the policy: who gets
  * discovered, which lister serves which flavor, how failures surface, and
@@ -9,11 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const mocks = vi.hoisted(() => ({
-  isSignedIn: vi.fn(async () => false),
   getChatGPTStatus: vi.fn(async () => ({ signedIn: false })),
-  listGatewayModels: vi.fn(async () => ({
-    providers: [{ id: 'rowboat', name: 'Rowboat', models: [{ id: 'google/gemini-3.5-flash', reasoning: true }] }],
-  })),
   listCodexModels: vi.fn(async () => ({
     providers: [{ id: 'codex', name: 'OpenAI Codex', models: [{ id: 'gpt-5.6-sol', reasoning: true }] }],
   })),
@@ -25,9 +21,7 @@ const mocks = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock('../account/account.js', () => ({ isSignedIn: mocks.isSignedIn }));
 vi.mock('../auth/chatgpt-auth.js', () => ({ getChatGPTStatus: mocks.getChatGPTStatus }));
-vi.mock('./gateway.js', () => ({ listGatewayModels: mocks.listGatewayModels }));
 vi.mock('./codex.js', () => ({ listCodexModels: mocks.listCodexModels }));
 vi.mock('./models.js', () => ({ listModelsForProvider: mocks.listModelsForProvider }));
 vi.mock('./models-dev.js', () => ({ listOnboardingModels: mocks.listOnboardingModels }));
@@ -56,7 +50,6 @@ function serveConfig(
 beforeEach(() => {
   vi.clearAllMocks();
   __resetModelCatalogForTests();
-  mocks.isSignedIn.mockResolvedValue(false);
   mocks.getChatGPTStatus.mockResolvedValue({ signedIn: false });
   mocks.listOnboardingModels.mockResolvedValue({ providers: [] });
   mocks.getDefaultModelAndProvider.mockResolvedValue({ provider: 'openai', model: 'gpt-5.4' });
@@ -64,8 +57,7 @@ beforeEach(() => {
 });
 
 describe('getModelCatalog', () => {
-  it('treats rowboat, codex, and BYOK providers as one uniform provider list', async () => {
-    mocks.isSignedIn.mockResolvedValue(true);
+  it('treats codex and BYOK providers as one uniform provider list', async () => {
     mocks.getChatGPTStatus.mockResolvedValue({ signedIn: true });
     serveConfig({
       ollama: { baseURL: 'http://localhost:11434' },
@@ -74,10 +66,10 @@ describe('getModelCatalog', () => {
 
     const catalog = await getModelCatalog();
 
-    expect(catalog.providers.map((p) => p.id)).toEqual(['rowboat', 'codex', 'ollama']);
+    expect(catalog.providers.map((p) => p.id)).toEqual(['codex', 'ollama']);
     expect(catalog.providers.every((p) => p.status === 'ok')).toBe(true);
-    expect(catalog.providers[0].models).toEqual([{ id: 'google/gemini-3.5-flash', reasoning: true }]);
-    expect(catalog.providers[2]).toMatchObject({ flavor: 'ollama', models: [{ id: 'llama3' }, { id: 'qwen3' }] });
+    expect(catalog.providers[0].models).toEqual([{ id: 'gpt-5.6-sol', reasoning: true }]);
+    expect(catalog.providers[1]).toMatchObject({ flavor: 'ollama', models: [{ id: 'llama3' }, { id: 'qwen3' }] });
     expect(catalog.defaultModel).toEqual({ provider: 'openai', model: 'gpt-5.4' });
   });
 

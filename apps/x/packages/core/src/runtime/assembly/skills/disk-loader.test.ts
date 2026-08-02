@@ -4,22 +4,22 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // SKILL_ROOTS is computed when disk-loader.js loads, from WorkDir (resolved in
-// config.js from ROWBOAT_WORKDIR) and homedir(). Both overrides must be in
+// config.js from DHOW_WORKDIR) and homedir(). Both overrides must be in
 // place before the module is imported — hence resetModules + dynamic import
 // per test, mirroring filesystem/files.test.ts.
 let tmpDir: string;
 let workDir: string;
 let fakeHomeDir: string;
-let rowboatSkillsRoot: string;
+let dhowSkillsRoot: string;
 let agentsSkillsRoot: string;
 
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "disk-skills-test-"));
-  workDir = path.join(tmpDir, "rowboat");
+  workDir = path.join(tmpDir, "dhow");
   fakeHomeDir = path.join(tmpDir, "home");
-  rowboatSkillsRoot = path.join(workDir, "skills");
+  dhowSkillsRoot = path.join(workDir, "skills");
   agentsSkillsRoot = path.join(fakeHomeDir, ".agents", "skills");
-  process.env.ROWBOAT_WORKDIR = workDir;
+  process.env.DHOW_WORKDIR = workDir;
   vi.resetModules();
   // config.js kicks off these imports on load; stub them so tests stay
   // hermetic (no git init or Today.md migration against the temp workdir).
@@ -44,7 +44,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  delete process.env.ROWBOAT_WORKDIR;
+  delete process.env.DHOW_WORKDIR;
   vi.doUnmock("../../../knowledge/version_history.js");
   vi.doUnmock("../../../knowledge/deprecate_today_note.js");
   vi.doUnmock("node:os");
@@ -65,10 +65,10 @@ function writeSkill(root: string, folder: string, contents: string): string {
 }
 
 describe("SKILL_ROOTS", () => {
-  it("derives the rowboat root from ROWBOAT_WORKDIR and the agents root from homedir", async () => {
+  it("derives the dhow root from DHOW_WORKDIR and the agents root from homedir", async () => {
     const { SKILL_ROOTS } = await loadDiskLoader();
 
-    expect(SKILL_ROOTS).toEqual([rowboatSkillsRoot, agentsSkillsRoot]);
+    expect(SKILL_ROOTS).toEqual([dhowSkillsRoot, agentsSkillsRoot]);
   });
 });
 
@@ -85,7 +85,7 @@ describe("loadDiskSkills", () => {
       "Body of the skill.",
       "",
     ].join("\n");
-    const skillFile = writeSkill(rowboatSkillsRoot, "test-skill", raw);
+    const skillFile = writeSkill(dhowSkillsRoot, "test-skill", raw);
 
     const { loadDiskSkills } = await loadDiskLoader();
     const skills = loadDiskSkills();
@@ -96,7 +96,7 @@ describe("loadDiskSkills", () => {
     expect(skill.title).toBe("Test Skill");
     expect(skill.summary).toBe("Does test things.");
     expect(skill.content).toBe(raw);
-    expect(skill.dir).toBe(path.join(rowboatSkillsRoot, "test-skill"));
+    expect(skill.dir).toBe(path.join(dhowSkillsRoot, "test-skill"));
     expect(path.isAbsolute(skill.dir)).toBe(true);
     expect(skill.skillFile).toBe(skillFile);
     expect(path.isAbsolute(skill.skillFile)).toBe(true);
@@ -119,7 +119,7 @@ describe("loadDiskSkills", () => {
       "Instructions here.",
       "",
     ].join("\n");
-    writeSkill(rowboatSkillsRoot, "vercel-deploy", raw);
+    writeSkill(dhowSkillsRoot, "vercel-deploy", raw);
 
     const { loadDiskSkills } = await loadDiskLoader();
     const skills = loadDiskSkills();
@@ -131,19 +131,19 @@ describe("loadDiskSkills", () => {
   });
 
   it("skips skills missing name or description without throwing", async () => {
-    writeSkill(rowboatSkillsRoot, "no-description", [
+    writeSkill(dhowSkillsRoot, "no-description", [
       "---",
       "name: No Description",
       "---",
       "Body.",
     ].join("\n"));
-    writeSkill(rowboatSkillsRoot, "no-name", [
+    writeSkill(dhowSkillsRoot, "no-name", [
       "---",
       "description: Has no name.",
       "---",
       "Body.",
     ].join("\n"));
-    writeSkill(rowboatSkillsRoot, "valid", [
+    writeSkill(dhowSkillsRoot, "valid", [
       "---",
       "name: Valid",
       "description: The only loadable one.",
@@ -164,21 +164,21 @@ describe("loadDiskSkills", () => {
   });
 
   it("skips folders without a SKILL.md", async () => {
-    fs.mkdirSync(path.join(rowboatSkillsRoot, "empty-folder"), { recursive: true });
-    fs.writeFileSync(path.join(rowboatSkillsRoot, "stray-file.md"), "not a skill folder");
+    fs.mkdirSync(path.join(dhowSkillsRoot, "empty-folder"), { recursive: true });
+    fs.writeFileSync(path.join(dhowSkillsRoot, "stray-file.md"), "not a skill folder");
 
     const { loadDiskSkills } = await loadDiskLoader();
 
     expect(loadDiskSkills()).toEqual([]);
   });
 
-  it("prefers the rowboat root when the same skill id exists in both roots", async () => {
-    writeSkill(rowboatSkillsRoot, "dup", [
+  it("prefers the dhow root when the same skill id exists in both roots", async () => {
+    writeSkill(dhowSkillsRoot, "dup", [
       "---",
-      "name: Rowboat Dup",
-      "description: From the rowboat root.",
+      "name: Dhow Dup",
+      "description: From the dhow root.",
       "---",
-      "Rowboat body.",
+      "Dhow body.",
     ].join("\n"));
     writeSkill(agentsSkillsRoot, "dup", [
       "---",
@@ -192,21 +192,21 @@ describe("loadDiskSkills", () => {
     const skills = loadDiskSkills();
 
     expect(skills).toHaveLength(1);
-    expect(skills[0].title).toBe("Rowboat Dup");
-    expect(skills[0].dir).toBe(path.join(rowboatSkillsRoot, "dup"));
+    expect(skills[0].title).toBe("Dhow Dup");
+    expect(skills[0].dir).toBe(path.join(dhowSkillsRoot, "dup"));
   });
 
   it("returns [] when the roots do not exist", async () => {
-    // config.js creates the rowboat skills dir on load, so import first, then
+    // config.js creates the dhow skills dir on load, so import first, then
     // remove it. The agents root was never created.
     const { loadDiskSkills } = await loadDiskLoader();
-    fs.rmSync(rowboatSkillsRoot, { recursive: true, force: true });
+    fs.rmSync(dhowSkillsRoot, { recursive: true, force: true });
 
     expect(loadDiskSkills()).toEqual([]);
   });
 
   it("slugifies folder names into skill ids", async () => {
-    writeSkill(rowboatSkillsRoot, "My_Skill Name", [
+    writeSkill(dhowSkillsRoot, "My_Skill Name", [
       "---",
       "name: My Skill",
       "description: Slug test.",

@@ -3,7 +3,7 @@ import type { z } from "zod";
 import type { LlmProvider } from "@x/shared/dist/models.js";
 
 // Ollama's server-side default context window (~4k tokens) is far below what
-// Rowboat's agents need (the copilot's system prompt + tool schemas alone are
+// Dhow's agents need (the copilot's system prompt + tool schemas alone are
 // ~15-20k tokens) and Ollama silently truncates the prompt from the top when
 // it overflows — the model loses its own instructions. We therefore always
 // request an explicit window for Ollama models. Overridable per provider via

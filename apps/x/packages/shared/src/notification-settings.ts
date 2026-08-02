@@ -7,7 +7,7 @@ import { z } from 'zod';
  * - new_email:        a new email arrived during incremental Gmail sync
  * - agent_permission: an agent is requesting permission to run a tool
  * - background_task:  a background task agent pinged via the notify-user tool
- * - meeting_detection: popup when Rowboat detects you're in a call/meeting
+ * - meeting_detection: popup when Dhow detects you're in a call/meeting
  * - meeting_notes_ready: meeting notes finished generating after a call
  */
 export const NotificationCategorySchema = z.enum([

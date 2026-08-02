@@ -301,14 +301,14 @@ import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandItem, CommandList } from '@/components/ui/command'
 import { ensureMarkdownExtension, normalizeWikiPath, splitWikiFragment, wikiLabel } from '@/lib/wiki-links'
 import { extractAllFrontmatterValues, buildFrontmatter } from '@/lib/frontmatter'
-import { RowboatMentionPopover } from './rowboat-mention-popover'
+import { DhowMentionPopover } from './dhow-mention-popover'
 import '@/styles/editor.css'
 
-type RowboatMentionMatch = {
+type DhowMentionMatch = {
   range: { from: number; to: number }
 }
 
-type RowboatBlockEdit = {
+type DhowBlockEdit = {
   /** ProseMirror position of the taskBlock node */
   nodePos: number
   /** Existing instruction text */
@@ -665,10 +665,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   const onPrimaryHeadingCommitRef = useRef(onPrimaryHeadingCommit)
   const wikiKeyStateRef = useRef<{ open: boolean; options: string[]; value: string }>({ open: false, options: [], value: '' })
   const handleSelectWikiLinkRef = useRef<(path: string) => void>(() => {})
-  const [activeRowboatMention, setActiveRowboatMention] = useState<RowboatMentionMatch | null>(null)
-  const [rowboatBlockEdit, setRowboatBlockEdit] = useState<RowboatBlockEdit | null>(null)
-  const [rowboatAnchorTop, setRowboatAnchorTop] = useState<{ top: number; left: number; width: number } | null>(null)
-  const rowboatBlockEditRef = useRef<RowboatBlockEdit | null>(null)
+  const [activeDhowMention, setActiveDhowMention] = useState<DhowMentionMatch | null>(null)
+  const [dhowBlockEdit, setDhowBlockEdit] = useState<DhowBlockEdit | null>(null)
+  const [dhowAnchorTop, setDhowAnchorTop] = useState<{ top: number; left: number; width: number } | null>(null)
+  const dhowBlockEditRef = useRef<DhowBlockEdit | null>(null)
 
   // @ mention autocomplete state (analogous to wiki-link state)
   const [activeAtMention, setActiveAtMention] = useState<{ range: { from: number; to: number }; query: string } | null>(null)
@@ -1048,41 +1048,41 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     },
   }), [notePath, editor])
 
-  const updateRowboatMentionState = useCallback(() => {
+  const updateDhowMentionState = useCallback(() => {
     if (!editor) return
     const { selection } = editor.state
     if (!selection.empty) {
-      setActiveRowboatMention(null)
-      setRowboatAnchorTop(null)
+      setActiveDhowMention(null)
+      setDhowAnchorTop(null)
       return
     }
 
     const { $from } = selection
     if ($from.parent.type.spec.code) {
-      setActiveRowboatMention(null)
-      setRowboatAnchorTop(null)
+      setActiveDhowMention(null)
+      setDhowAnchorTop(null)
       return
     }
 
     const text = $from.parent.textBetween(0, $from.parent.content.size, '\n', '\n')
     const textBefore = text.slice(0, $from.parentOffset)
 
-    // Match @rowboat at a word boundary (preceded by nothing or whitespace)
-    const match = textBefore.match(/(^|\s)@rowboat$/)
+    // Match @dhow at a word boundary (preceded by nothing or whitespace)
+    const match = textBefore.match(/(^|\s)@dhow$/)
     if (!match) {
-      setActiveRowboatMention(null)
-      setRowboatAnchorTop(null)
+      setActiveDhowMention(null)
+      setDhowAnchorTop(null)
       return
     }
 
-    const triggerStart = textBefore.length - '@rowboat'.length
+    const triggerStart = textBefore.length - '@dhow'.length
     const from = selection.from - (textBefore.length - triggerStart)
     const to = selection.from
-    setActiveRowboatMention({ range: { from, to } })
+    setActiveDhowMention({ range: { from, to } })
 
     const wrapper = wrapperRef.current
     if (!wrapper) {
-      setRowboatAnchorTop(null)
+      setDhowAnchorTop(null)
       return
     }
 
@@ -1090,7 +1090,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     const wrapperRect = wrapper.getBoundingClientRect()
     const proseMirrorEl = wrapper.querySelector('.ProseMirror') as HTMLElement | null
     const pmRect = proseMirrorEl?.getBoundingClientRect()
-    setRowboatAnchorTop({
+    setDhowAnchorTop({
       top: coords.top - wrapperRect.top + wrapper.scrollTop,
       left: pmRect ? pmRect.left - wrapperRect.left : 0,
       width: pmRect ? pmRect.width : wrapperRect.width,
@@ -1134,8 +1134,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
 
     const query = atMatch[2] // text after @
 
-    // If the full "@rowboat" is already typed, let updateRowboatMentionState handle it
-    if (query === 'rowboat') {
+    // If the full "@dhow" is already typed, let updateDhowMentionState handle it
+    if (query === 'dhow') {
       setActiveAtMention(null)
       setAtAnchorPosition(null)
       return
@@ -1172,13 +1172,13 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
 
   useEffect(() => {
     if (!editor) return
-    editor.on('update', updateRowboatMentionState)
-    editor.on('selectionUpdate', updateRowboatMentionState)
+    editor.on('update', updateDhowMentionState)
+    editor.on('selectionUpdate', updateDhowMentionState)
     return () => {
-      editor.off('update', updateRowboatMentionState)
-      editor.off('selectionUpdate', updateRowboatMentionState)
+      editor.off('update', updateDhowMentionState)
+      editor.off('selectionUpdate', updateDhowMentionState)
     }
-  }, [editor, updateRowboatMentionState])
+  }, [editor, updateDhowMentionState])
 
   useEffect(() => {
     if (!editor) return
@@ -1190,21 +1190,21 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     }
   }, [editor, updateAtMentionState])
 
-  // When a tell-rowboat block is clicked, compute anchor and open popover
+  // When a tell-dhow block is clicked, compute anchor and open popover
   useEffect(() => {
-    if (!rowboatBlockEdit || !editor) return
+    if (!dhowBlockEdit || !editor) return
     const wrapper = wrapperRef.current
     if (!wrapper) return
-    const coords = editor.view.coordsAtPos(rowboatBlockEdit.nodePos)
+    const coords = editor.view.coordsAtPos(dhowBlockEdit.nodePos)
     const wrapperRect = wrapper.getBoundingClientRect()
     const proseMirrorEl = wrapper.querySelector('.ProseMirror') as HTMLElement | null
     const pmRect = proseMirrorEl?.getBoundingClientRect()
-    setRowboatAnchorTop({
+    setDhowAnchorTop({
       top: coords.top - wrapperRect.top + wrapper.scrollTop,
       left: pmRect ? pmRect.left - wrapperRect.left : 0,
       width: pmRect ? pmRect.width : wrapperRect.width,
     })
-  }, [editor, rowboatBlockEdit])
+  }, [editor, dhowBlockEdit])
 
   // Update editor content when prop changes (e.g., file selection changes)
   useEffect(() => {
@@ -1321,12 +1321,12 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     handleSelectWikiLinkRef.current = handleSelectWikiLink
   }, [handleSelectWikiLink])
 
-  const handleRowboatAdd = useCallback(async (instruction: string) => {
+  const handleDhowAdd = useCallback(async (instruction: string) => {
     if (!editor) return
 
-    if (rowboatBlockEdit) {
+    if (dhowBlockEdit) {
       // Editing existing taskBlock — update its data attribute
-      const { nodePos } = rowboatBlockEdit
+      const { nodePos } = dhowBlockEdit
       const node = editor.state.doc.nodeAt(nodePos)
       if (node && node.type.name === 'taskBlock') {
         // Preserve existing schedule data
@@ -1340,18 +1340,18 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         const tr = editor.state.tr.setNodeMarkup(nodePos, undefined, { data: JSON.stringify(updated) })
         editor.view.dispatch(tr)
       }
-      setRowboatBlockEdit(null)
-      rowboatBlockEditRef.current = null
-      setRowboatAnchorTop(null)
+      setDhowBlockEdit(null)
+      dhowBlockEditRef.current = null
+      setDhowAnchorTop(null)
       return
     }
 
-    if (activeRowboatMention) {
+    if (activeDhowMention) {
       // Insert a temporary processing block
       const blockData: Record<string, unknown> = { instruction, processing: true }
 
-      const insertFrom = activeRowboatMention.range.from
-      const insertTo = activeRowboatMention.range.to
+      const insertFrom = activeDhowMention.range.from
+      const insertTo = activeDhowMention.range.to
 
       editor
         .chain()
@@ -1365,8 +1365,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         )
         .run()
 
-      setActiveRowboatMention(null)
-      setRowboatAnchorTop(null)
+      setActiveDhowMention(null)
+      setDhowAnchorTop(null)
 
       // Get editor content for the agent
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1456,7 +1456,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
                   }
                 }
               } catch (err) {
-                console.error('[RowboatAdd] Failed to write target tags:', err)
+                console.error('[DhowAdd] Failed to write target tags:', err)
               }
             }, 500)
           }
@@ -1471,7 +1471,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
           }
         }
       } catch (error) {
-        console.error('[RowboatAdd] Processing failed:', error)
+        console.error('[DhowAdd] Processing failed:', error)
 
         // Remove the processing block on error
         const currentPos = findProcessingBlock()
@@ -1483,11 +1483,11 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         }
       }
     }
-  }, [editor, activeRowboatMention, rowboatBlockEdit, frontmatter, onFrontmatterChange, notePath])
+  }, [editor, activeDhowMention, dhowBlockEdit, frontmatter, onFrontmatterChange, notePath])
 
-  const handleRowboatRemove = useCallback(() => {
-    if (!editor || !rowboatBlockEdit) return
-    const { nodePos } = rowboatBlockEdit
+  const handleDhowRemove = useCallback(() => {
+    if (!editor || !dhowBlockEdit) return
+    const { nodePos } = dhowBlockEdit
     const node = editor.state.doc.nodeAt(nodePos)
     if (node) {
       editor
@@ -1496,10 +1496,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         .deleteRange({ from: nodePos, to: nodePos + node.nodeSize })
         .run()
     }
-    setRowboatBlockEdit(null)
-    rowboatBlockEditRef.current = null
-    setRowboatAnchorTop(null)
-  }, [editor, rowboatBlockEdit])
+    setDhowBlockEdit(null)
+    dhowBlockEditRef.current = null
+    setDhowAnchorTop(null)
+  }, [editor, dhowBlockEdit])
 
   const handleScroll = useCallback(() => {
     updateWikiLinkState()
@@ -1534,7 +1534,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
 
   // @ mention autocomplete options
   const atMentionOptions = useMemo(() => [
-    { value: 'rowboat', label: '@rowboat', description: 'Research, schedule, or run tasks with AI' },
+    { value: 'dhow', label: '@dhow', description: 'Research, schedule, or run tasks with AI' },
   ], [])
 
   const filteredAtOptions = useMemo(() => {
@@ -1568,14 +1568,14 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   const handleSelectAtMention = useCallback((value: string) => {
     if (!editor || !activeAtMention) return
 
-    if (value === 'rowboat') {
-      // Replace "@<partial>" with "@rowboat" — this triggers updateRowboatMentionState
+    if (value === 'dhow') {
+      // Replace "@<partial>" with "@dhow" — this triggers updateDhowMentionState
       editor
         .chain()
         .focus()
         .insertContentAt(
           { from: activeAtMention.range.from, to: activeAtMention.range.to },
-          '@rowboat'
+          '@dhow'
         )
         .run()
     }
@@ -1632,7 +1632,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
         onExport={onExport}
         googleDoc={googleDoc}
         onOpenLiveNote={notePath ? () => {
-          window.dispatchEvent(new CustomEvent('rowboat:open-live-note-panel', {
+          window.dispatchEvent(new CustomEvent('dhow:open-live-note-panel', {
             detail: { filePath: notePath },
           }))
         } : undefined}
@@ -1747,17 +1747,17 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
             </Command>
           </PopoverContent>
         </Popover>
-        <RowboatMentionPopover
-          open={Boolean((activeRowboatMention || rowboatBlockEdit) && rowboatAnchorTop)}
-          anchor={rowboatAnchorTop}
-          initialText={rowboatBlockEdit?.existingText ?? ''}
-          onAdd={handleRowboatAdd}
-          onRemove={rowboatBlockEdit ? handleRowboatRemove : undefined}
+        <DhowMentionPopover
+          open={Boolean((activeDhowMention || dhowBlockEdit) && dhowAnchorTop)}
+          anchor={dhowAnchorTop}
+          initialText={dhowBlockEdit?.existingText ?? ''}
+          onAdd={handleDhowAdd}
+          onRemove={dhowBlockEdit ? handleDhowRemove : undefined}
           onClose={() => {
-            setActiveRowboatMention(null)
-            setRowboatBlockEdit(null)
-            rowboatBlockEditRef.current = null
-            setRowboatAnchorTop(null)
+            setActiveDhowMention(null)
+            setDhowBlockEdit(null)
+            dhowBlockEditRef.current = null
+            setDhowAnchorTop(null)
           }}
         />
       </div>

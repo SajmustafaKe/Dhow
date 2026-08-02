@@ -1,6 +1,6 @@
-# Rowboat Design Language
+# Dhow Design Language
 
-Rowboat should feel like a command center for people who live in notes, agents, email, meetings, and files all day. The launch direction is quiet, fast, and prosumer: dense enough for repeated work, warm enough to feel personal, and explicit about what the AI is doing.
+Dhow should feel like a command center for people who live in notes, agents, email, meetings, and files all day. The launch direction is quiet, fast, and prosumer: dense enough for repeated work, warm enough to feel personal, and explicit about what the AI is doing.
 
 ## Principles
 
@@ -38,4 +38,4 @@ Rowboat should feel like a command center for people who live in notes, agents, 
 
 ## Launch Positioning
 
-The visual story is: **Rowboat is the personal AI workspace for people whose work already spans meetings, mail, notes, browser tasks, and agents.** It should feel closer to a focused desktop tool than a chat website.
+The visual story is: **Dhow is the personal AI workspace for people whose work already spans meetings, mail, notes, browser tasks, and agents.** It should feel closer to a focused desktop tool than a chat website.

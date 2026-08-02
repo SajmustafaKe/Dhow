@@ -246,7 +246,7 @@ export const fileTools: z.infer<typeof BuiltinToolsSchema> = {
 
     'file-remove': {
         permission: "file-boundary",
-        description: 'Remove a file or directory. Files are moved to the Rowboat trash by default for safety.',
+        description: 'Remove a file or directory. Files are moved to the Dhow trash by default for safety.',
         inputSchema: z.object({
             path: z.string().min(1).describe('Path to remove'),
             recursive: z.boolean().optional().describe('Required for directories (default: false)'),

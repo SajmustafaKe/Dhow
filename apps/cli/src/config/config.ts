@@ -3,7 +3,7 @@ import fs from "fs";
 import { homedir } from "os";
 
 // Resolve app root relative to compiled file location (dist/...)
-export const WorkDir = path.join(homedir(), ".rowboat");
+export const WorkDir = path.join(homedir(), ".dhow");
 
 function ensureDirs() {
     const ensure = (p: string) => { if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); };

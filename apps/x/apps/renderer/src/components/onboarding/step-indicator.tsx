@@ -3,7 +3,7 @@ import { CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Step } from "./use-onboarding-state"
 
-// Both paths share one sequence now: screen 1 handles Rowboat sign-in, and
+// Both paths share one sequence now: screen 1 handles Dhow sign-in, and
 // screen 2 ("Providers") serves everyone — first provider for key users,
 // optional extras for signed-in users.
 const STEPS = [

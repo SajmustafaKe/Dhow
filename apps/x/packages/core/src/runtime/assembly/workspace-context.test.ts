@@ -12,8 +12,8 @@ describe("loadWorkspaceContext", () => {
             agentNotesContext: "# Agent Memory\n\nnotes",
             userWorkDir: "/Users/me/work",
         });
-        // rowboatx is the copilot alias.
-        expect(loadWorkspaceContext("rowboatx", "chat-1", loaders).userWorkDir).toBe(
+        // dhowx is the copilot alias.
+        expect(loadWorkspaceContext("dhowx", "chat-1", loaders).userWorkDir).toBe(
             "/Users/me/work",
         );
     });

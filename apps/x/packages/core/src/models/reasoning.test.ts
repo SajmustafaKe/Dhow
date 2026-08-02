@@ -59,13 +59,13 @@ describe("mapReasoningEffort", () => {
     });
 
     it("maps OpenRouter-shaped flavors permissively (OpenRouter drops it for non-reasoning models)", () => {
-        expect(mapReasoningEffort("rowboat", "google/gemini-3.5-flash", "high", undefined)).toEqual({
+        expect(mapReasoningEffort("dhow", "google/gemini-3.5-flash", "high", undefined)).toEqual({
             providerOptions: { openrouter: { reasoning: { effort: "high" } } },
         });
         expect(mapReasoningEffort("openrouter", "openai/o4-mini", "low", true)).toEqual({
             providerOptions: { openrouter: { reasoning: { effort: "low" } } },
         });
-        expect(mapReasoningEffort("rowboat", "x/y", "high", false)).toBeUndefined();
+        expect(mapReasoningEffort("dhow", "x/y", "high", false)).toBeUndefined();
     });
 
     it("maps codex like openai but forgiving on unknown support (models.dev has no codex flavor)", () => {

@@ -30,7 +30,7 @@ function PromptBlockView({ node, extension }: {
   const handleRun = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!prompt) return
-    window.dispatchEvent(new CustomEvent('rowboat:open-copilot-prompt', {
+    window.dispatchEvent(new CustomEvent('dhow:open-copilot-prompt', {
       detail: {
         instruction: prompt.instruction,
         label: prompt.label,

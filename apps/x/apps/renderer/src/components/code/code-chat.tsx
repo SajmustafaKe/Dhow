@@ -64,7 +64,7 @@ function VoiceWaveform({ audioLevelsRef }: { audioLevelsRef: MutableRefObject<nu
   )
 }
 
-function RowboatToolCall({ item, onOpenDiff }: { item: ToolCall; onOpenDiff: (path: string) => void }) {
+function DhowToolCall({ item, onOpenDiff }: { item: ToolCall; onOpenDiff: (path: string) => void }) {
   const [open, setOpen] = useState(false)
   const webSearch = getWebSearchCardData(item)
   if (webSearch) {
@@ -116,7 +116,7 @@ function ChatItem({ item, onOpenDiff }: { item: CodeChatItem; onOpenDiff: (path:
     )
   }
   if (isChatToolCall(item)) {
-    return <RowboatToolCall item={item} onOpenDiff={onOpenDiff} />
+    return <DhowToolCall item={item} onOpenDiff={onOpenDiff} />
   }
   if (item.role === 'user') {
     return (
@@ -136,7 +136,7 @@ function ChatItem({ item, onOpenDiff }: { item: CodeChatItem; onOpenDiff: (path:
 
 // Direct-drive chat for one coding session, rendered in the right-side pane in
 // place of the assistant chat. Messages go straight to the ACP agent — when the
-// session is in Rowboat mode this component isn't used (the real assistant
+// session is in Dhow mode this component isn't used (the real assistant
 // chat pane is, bound to the session's run).
 export function CodeChat({
   session,
@@ -344,7 +344,7 @@ export function CodeChat({
       {/* Composer — mirrors the assistant chat input's look (rounded card,
           borderless textarea, round primary send / destructive stop). */}
       <div className="bg-background p-3 dark:bg-black">
-        <div className="rowboat-chat-input rowboat-code-chat-input mx-auto w-full max-w-3xl rounded-lg border border-border bg-background shadow-none">
+        <div className="dhow-chat-input dhow-code-chat-input mx-auto w-full max-w-3xl rounded-lg border border-border bg-background shadow-none">
           {attachments.length > 0 && (
             <div className="flex flex-wrap gap-2 px-4 pb-1 pt-3">
               {attachments.map((p) => (

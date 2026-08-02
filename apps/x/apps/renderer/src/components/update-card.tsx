@@ -1,14 +1,13 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { X } from "lucide-react"
 import { Streamdown } from "streamdown"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { updatePrompted } from "@/lib/analytics"
 import type { ipc as ipcShared } from "@x/shared"
 
 type UpdaterStatus = ipcShared.IPCChannels["updater:status"]["req"]
 
-const RELEASES_URL = "https://github.com/rowboatlabs/rowboat/releases"
+const RELEASES_URL = "https://github.com/SajmustafaKe/Dhow/releases"
 
 /**
  * Bottom-left "Update available" card, shown once an update is staged. By
@@ -22,7 +21,6 @@ export function UpdateCard() {
   // The version the user dismissed — if a newer update stages afterwards,
   // the card re-offers itself for that one.
   const [dismissedFor, setDismissedFor] = useState<string | null>(null)
-  const promptedForRef = useRef<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -44,13 +42,6 @@ export function UpdateCard() {
   const version = ready ? status.newVersion?.replace(/^v/, "") : undefined
   const versionKey = version ?? "unknown"
   const visible = ready && dismissedFor !== versionKey
-
-  useEffect(() => {
-    if (visible && promptedForRef.current !== versionKey) {
-      updatePrompted()
-      promptedForRef.current = versionKey
-    }
-  }, [visible, versionKey])
 
   if (!visible || status?.state !== "ready") return null
 

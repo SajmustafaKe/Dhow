@@ -28,7 +28,7 @@ const CACHE_CONTROL: Record<string, JsonValue> = {
 
 // Anthropic models arrive three ways: the direct provider (flavor
 // "anthropic", any model id), and aggregators (openrouter, aigateway, the
-// rowboat gateway) that address them as "anthropic/<model>" or "claude-*".
+// dhow gateway) that address them as "anthropic/<model>" or "claude-*".
 export function isAnthropicModel(flavor: string, modelId: string): boolean {
     if (flavor === "anthropic") {
         return true;

@@ -42,7 +42,7 @@ type PendingFlow = {
     identityAttempts?: number;
 };
 
-const GH_HEADERS = { 'Accept': 'application/json', 'User-Agent': 'rowboat-apps' };
+const GH_HEADERS = { 'Accept': 'application/json', 'User-Agent': 'dhow-apps' };
 let pending: PendingFlow | null = null;
 
 async function readAuth(): Promise<StoredAuth | null> {
@@ -151,7 +151,7 @@ export async function pollDeviceFlow(): Promise<PollResult> {
     // Identity: cache login alongside the token. Bounded retries — a
     // persistent failure must surface, never spin as "pending" forever.
     const userRes = await fetch('https://api.github.com/user', {
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.github+json', 'User-Agent': 'rowboat-apps' },
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Accept': 'application/vnd.github+json', 'User-Agent': 'dhow-apps' },
     });
     console.log(`[GitHubAuth] identity: http=${userRes.status}`);
     if (!userRes.ok) {

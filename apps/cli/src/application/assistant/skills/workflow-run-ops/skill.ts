@@ -1,7 +1,7 @@
 export const skill = String.raw`
 # Agent Run Operations
 
-Package of repeatable commands for running agents, inspecting agent run history under ~/.rowboat/runs, and managing cron schedules. Load this skill whenever a user asks about running agents, execution history, paused runs, or scheduling.
+Package of repeatable commands for running agents, inspecting agent run history under ~/.dhow/runs, and managing cron schedules. Load this skill whenever a user asks about running agents, execution history, paused runs, or scheduling.
 
 ## When to use
 - User wants to run an agent (including multi-agent workflows)
@@ -13,23 +13,23 @@ Package of repeatable commands for running agents, inspecting agent run history 
 
 **To run any agent**:
 \`\`\`bash
-rowboatx --agent <agent-name>
+dhowx --agent <agent-name>
 \`\`\`
 
 **With input**:
 \`\`\`bash
-rowboatx --agent <agent-name> --input "your input here"
+dhowx --agent <agent-name> --input "your input here"
 \`\`\`
 
 **Non-interactive** (for automation/cron):
 \`\`\`bash
-rowboatx --agent <agent-name> --input "input" --no-interactive
+dhowx --agent <agent-name> --input "input" --no-interactive
 \`\`\`
 
 **Note**: Multi-agent workflows are just agents that have other agents in their tools. Run the orchestrator agent to trigger the whole workflow.
 
 ## Run monitoring examples
-Operate from ~/.rowboat (Rowboat tools already set this as the working directory). Use executeCommand with the sample Bash snippets below, modifying placeholders as needed.
+Operate from ~/.dhow (Dhow tools already set this as the working directory). Use executeCommand with the sample Bash snippets below, modifying placeholders as needed.
 
 Each run file name starts with a timestamp like '2025-11-12T08-02-41Z'. You can use this to filter for date/time ranges.
 
@@ -39,12 +39,12 @@ If a run is waiting for human input the last line will contain 'paused_for_human
 
 1. **List all runs**
    
-   ls ~/.rowboat/runs
+   ls ~/.dhow/runs
    
 
 2. **Filter by agent**
    
-   grep -rl '"agent":"<agent-name>"' ~/.rowboat/runs | xargs -n1 basename | sed 's/\.jsonl$//' | sort -r
+   grep -rl '"agent":"<agent-name>"' ~/.dhow/runs | xargs -n1 basename | sed 's/\.jsonl$//' | sort -r
    
    Replace <agent-name> with the desired agent name.
 
@@ -57,7 +57,7 @@ If a run is waiting for human input the last line will contain 'paused_for_human
 
 4. **Show runs waiting for human input**
    
-   awk 'FNR==1{if (NR>1) print fn, last; fn=FILENAME} {last=$0} END{print fn, last}' ~/.rowboat/runs/*.jsonl | grep 'pause-for-human-input' | awk '{print $1}'
+   awk 'FNR==1{if (NR>1) print fn, last; fn=FILENAME} {last=$0} END{print fn, last}' ~/.dhow/runs/*.jsonl | grep 'pause-for-human-input' | awk '{print $1}'
    
    Prints the files whose last line equals 'pause-for-human-input'.
 
@@ -72,12 +72,12 @@ For scheduling agents to run automatically at specific times.
 
 2. **Schedule an agent to run periodically**
    \`\`\`bash
-   (crontab -l 2>/dev/null; echo '0 10 * * * cd /path/to/cli && rowboatx --agent <agent-name> --input "input" --no-interactive >> ~/.rowboat/logs/<agent-name>.log 2>&1') | crontab -
+   (crontab -l 2>/dev/null; echo '0 10 * * * cd /path/to/cli && dhowx --agent <agent-name> --input "input" --no-interactive >> ~/.dhow/logs/<agent-name>.log 2>&1') | crontab -
    \`\`\`
    
    Example (runs daily at 10 AM):
    \`\`\`bash
-   (crontab -l 2>/dev/null; echo '0 10 * * * cd ~/rowboat-V2/apps/cli && rowboatx --agent podcast_workflow --no-interactive >> ~/.rowboat/logs/podcast.log 2>&1') | crontab -
+   (crontab -l 2>/dev/null; echo '0 10 * * * cd ~/dhow-V2/apps/cli && dhowx --agent podcast_workflow --no-interactive >> ~/.dhow/logs/podcast.log 2>&1') | crontab -
    \`\`\`
 
 3. **Unschedule/remove an agent**

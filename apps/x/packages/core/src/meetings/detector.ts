@@ -17,7 +17,7 @@ import { isNotificationCategoryEnabled } from "../config/notification_config.js"
  * (child-process spawns from Electron's main fail with EBADF during capture).
  *
  * When the mic has been in use continuously for a few seconds — and it isn't
- * Rowboat's own capture — we label the popup ("Huddle detected" for Slack,
+ * Dhow's own capture — we label the popup ("Huddle detected" for Slack,
  * "Call detected" for FaceTime/WhatsApp, "Meeting detected" otherwise),
  * merge with a calendar event whose window covers now (start − 15 min
  * through end), and emit a DetectedMeeting. Never auto-records: the consumer
@@ -26,7 +26,7 @@ import { isNotificationCategoryEnabled } from "../config/notification_config.js"
  * Fires at most once per continuous mic-in-use session; the session resets
  * after the mic has been idle for MIC_SESSION_RESET_MS.
  *
- * While Rowboat records, the same owner list powers call-end detection: once
+ * While Dhow records, the same owner list powers call-end detection: once
  * a meeting app has been seen on the mic, its absence for CALL_END_GRACE_MS
  * means the call ended.
  */
@@ -89,8 +89,8 @@ const BUNDLE_MATCHERS: Array<{ prefix: string; app: string; kind: DetectedMeetin
     { prefix: "company.thebrowser", app: "Arc", kind: "meeting" },
 ];
 
-// Rowboat's own capture (and the dev Electron shell) — never a "meeting".
-const SELF_BUNDLE_PREFIXES = ["com.rowboat", "com.github.electron"];
+// Dhow's own capture (and the dev Electron shell) — never a "meeting".
+const SELF_BUNDLE_PREFIXES = ["com.dhow", "com.github.electron"];
 
 const BROWSER_APPS = new Set([
     "Google Chrome",
@@ -144,7 +144,7 @@ interface DetectorOptions {
     onDetected: (meeting: DetectedMeeting) => void;
     /**
      * Fired once per recording session when the meeting app that was on the
-     * mic has released it for CALL_END_GRACE_MS while Rowboat is still
+     * mic has released it for CALL_END_GRACE_MS while Dhow is still
      * capturing — i.e. the call ended. Needs per-process attribution
      * (macOS 14.4+); silently unavailable otherwise.
      */
@@ -166,7 +166,7 @@ let externalAbsentSince: number | null = null;
 let callEndFired = false;
 
 /**
- * Rowboat's own capture (meeting recording, assistant voice/video call) also
+ * Dhow's own capture (meeting recording, assistant voice/video call) also
  * flips the mic-in-use signal — the consumer reports it here so we never
  * prompt about our own audio.
  */
@@ -292,7 +292,7 @@ function tick(onDetected: DetectorOptions["onDetected"]): void {
 }
 
 /**
- * While Rowboat is recording, watch whether any known meeting app/browser
+ * While Dhow is recording, watch whether any known meeting app/browser
  * still owns the mic. Once one has been seen, its absence for
  * CALL_END_GRACE_MS means the call ended — fire once per session. Fully
  * synchronous: reads the helper-provided owner list, spawns nothing.
@@ -376,7 +376,7 @@ function defaultNoteTitle(source: PlatformMatch): string {
         : `${source.app} meeting`;
 }
 
-/** Match a mic owner to a platform (or to Rowboat itself). */
+/** Match a mic owner to a platform (or to Dhow itself). */
 function matchOwner(owner: MicOwner): PlatformMatch | "self" | null {
     const bundle = owner.bundleId.toLowerCase();
     if (bundle) {

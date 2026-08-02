@@ -1,9 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { buildDeepgramListenUrl } from '@/lib/deepgram-listen-url';
 import { finalizeDeepgramStream } from '@/lib/deepgram-finalize';
-import { useRowboatAccount } from '@/hooks/useRowboatAccount';
-import { fetchRowboatConfig } from '@/hooks/use-rowboat-config';
 
 export type MeetingTranscriptionState = 'idle' | 'connecting' | 'recording' | 'stopping';
 
@@ -103,7 +100,7 @@ function formatTranscript(entries: TranscriptEntry[], date: string, calendarEven
     const lines = [
         '---',
         'type: meeting',
-        'source: rowboat',
+        'source: dhow',
         `title: ${noteTitle}`,
         `date: "${date}"`,
     ];
@@ -147,7 +144,6 @@ function formatTranscript(entries: TranscriptEntry[], date: string, calendarEven
 // Hook
 // ---------------------------------------------------------------------------
 export function useMeetingTranscription(onAutoStop?: () => void) {
-    const { refresh: refreshRowboatAccount } = useRowboatAccount();
     const [state, setState] = useState<MeetingTranscriptionState>('idle');
     const wsRef = useRef<WebSocket | null>(null);
     const micStreamRef = useRef<MediaStream | null>(null);
@@ -257,31 +253,13 @@ export function useMeetingTranscription(onAutoStop?: () => void) {
         const [headphoneResult, wsResult, micResult, systemResult] = await Promise.allSettled([
             // 1. Detect headphones vs speakers
             detectHeadphones(),
-            // 2. Set up Deepgram WebSocket (account refresh + connect + wait for open)
+            // 2. Set up Deepgram WebSocket (connect + wait for open)
             (async () => {
-                // Token from account refresh; websocket URL from the
-                // sign-in-independent bootstrap config store.
-                const [account, rowboatConfig] = await Promise.all([
-                    refreshRowboatAccount(),
-                    fetchRowboatConfig(),
-                ]);
-                let ws: WebSocket;
-                if (
-                    account?.signedIn &&
-                    account.accessToken &&
-                    rowboatConfig?.websocketApiUrl
-                ) {
-                    const listenUrl = buildDeepgramListenUrl(rowboatConfig.websocketApiUrl, DEEPGRAM_PARAMS);
-                    console.log('[meeting] Using Rowboat WebSocket');
-                    ws = new WebSocket(listenUrl, ['bearer', account.accessToken]);
-                } else {
-                    const config = await window.ipc.invoke('voice:getConfig', null);
-                    if (!config?.deepgram) {
-                        throw new Error('No Deepgram config available');
-                    }
-                    console.log('[meeting] Using Deepgram API key');
-                    ws = new WebSocket(DEEPGRAM_LISTEN_URL, ['token', config.deepgram.apiKey]);
+                const config = await window.ipc.invoke('voice:getConfig', null);
+                if (!config?.deepgram) {
+                    throw new Error('No Deepgram config available');
                 }
+                const ws = new WebSocket(DEEPGRAM_LISTEN_URL, ['token', config.deepgram.apiKey]);
                 const ok = await new Promise<boolean>((resolve) => {
                     ws.onopen = () => resolve(true);
                     ws.onerror = () => resolve(false);
@@ -521,14 +499,14 @@ export function useMeetingTranscription(onAutoStop?: () => void) {
         const filename = calendarEvent?.summary
             ? calendarEvent.summary.replace(/[\\/*?:"<>|]/g, '').replace(/\s+/g, '_').substring(0, 100).trim()
             : `meeting-${timestamp}`;
-        let notePath = `knowledge/Meetings/rowboat/${dateFolder}/${filename}.md`;
+        let notePath = `knowledge/Meetings/dhow/${dateFolder}/${filename}.md`;
         // Title-derived names collide within a day — every ad-hoc detection is
         // titled "Meeting", and recurring calendar events repeat their summary.
         // Never overwrite an earlier meeting's note: suffix with the timestamp.
         if (calendarEvent?.summary) {
             try {
                 const { exists } = await window.ipc.invoke('workspace:exists', { path: notePath });
-                if (exists) notePath = `knowledge/Meetings/rowboat/${dateFolder}/${filename}-${timestamp}.md`;
+                if (exists) notePath = `knowledge/Meetings/dhow/${dateFolder}/${filename}-${timestamp}.md`;
             } catch { /* fall through with the unsuffixed path */ }
         }
         notePathRef.current = notePath;
@@ -587,7 +565,7 @@ export function useMeetingTranscription(onAutoStop?: () => void) {
 
         setState('recording');
         return notePath;
-    }, [state, cleanup, scheduleDebouncedWrite, refreshRowboatAccount]);
+    }, [state, cleanup, scheduleDebouncedWrite]);
 
     const stop = useCallback(async () => {
         if (state !== 'recording') return;

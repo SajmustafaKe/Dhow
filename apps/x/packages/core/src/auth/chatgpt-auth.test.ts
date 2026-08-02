@@ -7,7 +7,7 @@ import path from 'node:path';
 // WorkDir is resolved at config.ts import time (same pattern as
 // classification_stamp.test.ts).
 const tmpWorkDir = fs.mkdtempSync(path.join(os.tmpdir(), 'x-chatgpt-auth-test-'));
-process.env.ROWBOAT_WORKDIR = tmpWorkDir;
+process.env.DHOW_WORKDIR = tmpWorkDir;
 
 const chatgptAuth = await import('./chatgpt-auth.js');
 const {

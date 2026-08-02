@@ -124,7 +124,7 @@ Backend (main process)
 
 **Single-writer invariant** — the renderer is never a file writer for the `live:` key. All on-disk changes go through backend helpers in `packages/core/src/knowledge/live-note/fileops.ts` (`setLiveNote`, `patchLiveNote`, `setLiveNoteActive`, `deleteLiveNote`). `extractAllFrontmatterValues` in the renderer's frontmatter helper explicitly skips the `live:` key (and `buildFrontmatter` splices it back from the original raw on save), so the FrontmatterProperties UI can't accidentally mangle it.
 
-**Event contract** — `window.dispatchEvent(CustomEvent('rowboat:open-live-note-panel', { detail: { filePath } }))` is the sole entry point from editor toolbar → panel. `rowboat:open-copilot-edit-live-note` opens the Copilot sidebar with the note attached.
+**Event contract** — `window.dispatchEvent(CustomEvent('dhow:open-live-note-panel', { detail: { filePath } }))` is the sole entry point from editor toolbar → panel. `dhow:open-copilot-edit-live-note` opens the Copilot sidebar with the note attached.
 
 ---
 
@@ -149,7 +149,7 @@ Backend (main process)
 - **Gmail** (`packages/core/src/knowledge/sync_gmail.ts`) — call sites after a successful thread sync invoke `createEvent({ source: 'gmail', type: 'email.synced', payload: <thread markdown> })`.
 - **Calendar** (`packages/core/src/knowledge/sync_calendar.ts`) — one bundled event per sync, with a markdown digest payload built by `summarizeCalendarSync()`.
 
-**Storage** — `packages/core/src/knowledge/live-note/events.ts` writes each event as a JSON file under `~/.rowboat/events/pending/<id>.json`. IDs come from the DI-resolved `IdGen` (ISO-based, lexicographically sortable) — so `readdirSync(...).sort()` is strict FIFO.
+**Storage** — `packages/core/src/knowledge/live-note/events.ts` writes each event as a JSON file under `~/.dhow/events/pending/<id>.json`. IDs come from the DI-resolved `IdGen` (ISO-based, lexicographically sortable) — so `readdirSync(...).sort()` is strict FIFO.
 
 **Consumer loop** — same file, `init()` polls every **5 seconds**, then `processPendingEvents()` walks sorted filenames. For each event:
 1. Parse via `KnowledgeEventSchema`; malformed files go to `done/` with `error` set (the loop stays alive).
@@ -256,7 +256,7 @@ The contract (defined in the run-agent system prompt — `packages/core/src/know
 
 ## Default Note Policy
 
-Rowboat no longer creates a default `Today.md` live dashboard for new users. Live notes are user-created notes with an explicit `live:` frontmatter block.
+Dhow no longer creates a default `Today.md` live dashboard for new users. Live notes are user-created notes with an explicit `live:` frontmatter block.
 
 **Deprecated Today.md migration** — `packages/core/src/knowledge/deprecate_today_note.ts` runs once per workspace on app start:
 
@@ -273,14 +273,14 @@ Rowboat no longer creates a default `Today.md` live dashboard for new users. Liv
   - `idle` → "Live · 5 m" using `formatRelativeTime(lastRunAt)`.
   - `running` → "Updating…" with `animate-pulse` and a soft `bg-primary/10` highlight.
   - `error` → "Live · failed 5 m" in amber, off `lastAttemptAt`.
-  Click dispatches `rowboat:open-live-note-panel` with `{ filePath }`. The hook ticks once a minute so the relative-time label stays fresh while the user has the editor open.
-- **Panel** — `apps/renderer/src/components/live-note-sidebar.tsx`. Right-anchored, mounted once in `App.tsx`. Self-listens for `rowboat:open-live-note-panel`; on open, calls `live-note:get` and renders. All mutations go through IPC.
+  Click dispatches `dhow:open-live-note-panel` with `{ filePath }`. The hook ticks once a minute so the relative-time label stays fresh while the user has the editor open.
+- **Panel** — `apps/renderer/src/components/live-note-sidebar.tsx`. Right-anchored, mounted once in `App.tsx`. Self-listens for `dhow:open-live-note-panel`; on open, calls `live-note:get` and renders. All mutations go through IPC.
   - Constant top header: Radio icon, "Live note" title, note name subtitle, X close.
-  - Empty state (passive): "Make this note live" CTA — hands off to Copilot via `rowboat:open-copilot-edit-live-note`.
+  - Empty state (passive): "Make this note live" CTA — hands off to Copilot via `dhow:open-copilot-edit-live-note`.
   - Editor (live): status row (schedule summary + active toggle — pulses with `animate-pulse` and `bg-primary/10` while running, label flips to "Updating…"), persistent error banner showing `lastRunError` until the next successful run, objective textarea, triggers editor (cron field + windows list + eventMatchCriteria textarea, each independently add/remove), last-run details, Advanced (collapsed; model + provider), footer (Edit with Copilot · Save · Run now / Stop), danger-zone "Make passive". The footer's primary action toggles between Run-now (idle) and Stop (running, destructive variant) — Stop calls `live-note:stop`.
 - **Status hook** — `apps/renderer/src/hooks/use-live-note-agent-status.ts`. Subscribes to `live-note-agent:events` IPC and maintains a `Map<filePath, LiveNoteAgentState>`.
 - **Live-state hook** — `apps/renderer/src/hooks/use-live-note-for-path.ts`. Fetches `live-note:get` on mount, refetches when the agent run completes (so `lastRunAt` / `lastRunSummary` / `lastRunError` are fresh), refetches when the file changes externally, and ticks once a minute for relative-time labels. Used by the markdown editor (toolbar pill) and could be reused by anyone needing reactive live-note state for a single path.
-- **Edit-with-Copilot flow** — panel dispatches `rowboat:open-copilot-edit-live-note` (App.tsx listener handles it via `submitFromPalette`).
+- **Edit-with-Copilot flow** — panel dispatches `dhow:open-copilot-edit-live-note` (App.tsx listener handles it via `submitFromPalette`).
 - **FrontmatterProperties safety** — `apps/renderer/src/lib/frontmatter.ts` has `STRUCTURED_KEYS = new Set(['live'])`. `extractAllFrontmatterValues` filters those keys out (so they never appear in the editable property list), and `buildFrontmatter(fields, preserveRaw)` splices the original `live:` block back from `preserveRaw` on save.
 
 ---

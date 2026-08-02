@@ -7,9 +7,9 @@ let tmpDir: string;
 let workspaceDir: string;
 
 beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "rowboat-files-test-"));
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "dhow-files-test-"));
   workspaceDir = path.join(tmpDir, "workspace");
-  process.env.ROWBOAT_WORKDIR = workspaceDir;
+  process.env.DHOW_WORKDIR = workspaceDir;
   vi.resetModules();
   vi.doMock("../knowledge/version_history.js", () => ({
     commitAll: vi.fn(async () => undefined),
@@ -21,7 +21,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  delete process.env.ROWBOAT_WORKDIR;
+  delete process.env.DHOW_WORKDIR;
   vi.doUnmock("../knowledge/version_history.js");
   vi.doUnmock("../knowledge/deprecate_today_note.js");
   vi.resetModules();
@@ -33,7 +33,7 @@ async function loadFiles() {
 }
 
 describe("filesystem files", () => {
-  it("resolves relative paths inside ROWBOAT_WORKDIR", async () => {
+  it("resolves relative paths inside DHOW_WORKDIR", async () => {
     const files = await loadFiles();
 
     const resolved = files.resolveFilePath("notes/example.md");
@@ -58,9 +58,9 @@ describe("filesystem files", () => {
   it("expands home-relative paths", async () => {
     const files = await loadFiles();
 
-    const resolved = files.resolveFilePath("~/rowboat-test.txt");
+    const resolved = files.resolveFilePath("~/dhow-test.txt");
 
-    expect(resolved.resolvedPath).toBe(path.join(os.homedir(), "rowboat-test.txt"));
+    expect(resolved.resolvedPath).toBe(path.join(os.homedir(), "dhow-test.txt"));
     expect(resolved.isInsideWorkspace).toBe(false);
   });
 

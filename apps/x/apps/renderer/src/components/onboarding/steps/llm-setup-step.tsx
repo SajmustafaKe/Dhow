@@ -16,18 +16,18 @@ interface LlmSetupStepProps {
 // the one thing chat can't run without.
 export function LlmSetupStep({ state }: LlmSetupStepProps) {
   const { handleNext, handleBack } = state
-  const { defaultModel, isRowboatConnected } = useModels()
+  const { defaultModel, isDhowConnected } = useModels()
   const hasAssistant = defaultModel !== null
 
   return (
     <div className="flex flex-col flex-1">
       {/* Title */}
       <h2 className="text-3xl font-bold tracking-tight text-center mb-2">
-        {isRowboatConnected ? "Add more providers" : "Connect a model provider"}
+        {isDhowConnected ? "Add more providers" : "Connect a model provider"}
       </h2>
       <p className="text-base text-muted-foreground text-center mb-6">
-        {isRowboatConnected
-          ? "Rowboat is ready to use. Optionally connect your own API keys or local models — their models appear alongside your Rowboat models."
+        {isDhowConnected
+          ? "Dhow is ready to use. Optionally connect your own API keys or local models — their models appear alongside your Dhow models."
           : "Connect an API key or a local model to power the Assistant."}
       </p>
 

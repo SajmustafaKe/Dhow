@@ -421,8 +421,8 @@ describe("RealModelRegistry", () => {
             expect(options.maxOutputTokens).toBeUndefined();
         });
 
-        it("maps gateway (rowboat) effort through the OpenRouter shape without known support", async () => {
-            const options = await invokeWith("rowboat", "google/gemini-3.5-flash", undefined, {
+        it("maps gateway (dhow) effort through the OpenRouter shape without known support", async () => {
+            const options = await invokeWith("dhow", "google/gemini-3.5-flash", undefined, {
                 reasoningEffort: "high",
             });
             expect(options.providerOptions).toEqual({

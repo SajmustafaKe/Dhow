@@ -3,12 +3,12 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rowboat"
+name = "dhow"
 version = "5.0.1"
 authors = [
-    { name = "Ramnique Singh", email = "ramnique@rowboatlabs.com" },
+    { name = "SajmustafaKe" },
 ]
-description = "Python sdk for the Rowboat API"
+description = "Python sdk for the Dhow API"
 readme = "README.md"
 requires-python = ">=3.7"
 classifiers = [
@@ -22,5 +22,5 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/rowboatlabs/rowboat/tree/main/apps/python-sdk"
-"Bug Tracker" = "https://github.com/rowboatlabs/rowboat/issues" 
+"Homepage" = "https://github.com/SajmustafaKe/Dhow/tree/main/apps/python-sdk"
+"Bug Tracker" = "https://github.com/SajmustafaKe/Dhow/issues" 

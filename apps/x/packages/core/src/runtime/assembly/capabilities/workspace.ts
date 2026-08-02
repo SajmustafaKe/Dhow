@@ -36,6 +36,6 @@ Use absolute paths rooted at this directory with the \`file-*\` tools. For examp
 **Exceptions — these ALWAYS take precedence over the work directory default:**
 1. **Knowledge base questions.** If the user asks about anything in the knowledge graph (notes, people, organizations, projects, topics) or paths starting with \`knowledge/\`, use file tools against \`knowledge/\` as documented above. Do NOT redirect those into the work directory.
 2. **Explicit paths.** If the user names a different directory or gives an absolute/relative path (e.g. "in ~/Downloads", "from /tmp/foo", "the Desktop"), honor that path exactly and ignore the work-directory default for that request.
-3. **Workspace-specific operations.** Anything that obviously belongs in the Rowboat workspace (config files, MCP servers, agent schedules, etc.) stays in the workspace, not the work directory.
+3. **Workspace-specific operations.** Anything that obviously belongs in the Dhow workspace (config files, MCP servers, agent schedules, etc.) stays in the workspace, not the work directory.
 
 Do not announce the work directory unless it's relevant. Just use it.`;

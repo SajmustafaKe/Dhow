@@ -1,12 +1,12 @@
 #!/bin/bash
 set -e
 
-# build rowboatx next.js app
-(cd apps/rowboatx && \
+# build dhowx next.js app
+(cd apps/dhowx && \
     npm install && \
     npm run build)
 
-# build rowboat server
+# build dhow server
 (cd apps/cli && \
     npm install && \
     npm run build)

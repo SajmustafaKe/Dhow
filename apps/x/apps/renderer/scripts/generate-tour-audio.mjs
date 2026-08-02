@@ -3,8 +3,8 @@
  *
  * Parses the TOUR_STEPS texts straight out of product-tour.tsx (so the code
  * stays the single source of truth), synthesizes each one via @x/core's
- * synthesizeSpeech (Rowboat proxy when signed in, direct ElevenLabs otherwise,
- * using the voice id configured there / in ~/.rowboat/config/elevenlabs.json),
+ * synthesizeSpeech (Dhow proxy when signed in, direct ElevenLabs otherwise,
+ * using the voice id configured there / in ~/.dhow/config/elevenlabs.json),
  * and writes MP3s to src/assets/tour/<step-id>.mp3.
  *
  * Run whenever a step's narration text or the tour voice changes:

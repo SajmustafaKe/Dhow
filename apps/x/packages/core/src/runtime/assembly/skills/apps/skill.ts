@@ -1,9 +1,9 @@
 export const skill = String.raw`
-# Rowboat Apps
+# Dhow Apps
 
-A *Rowboat app* is a static web application the user opens inside Rowboat — its
+A *Dhow app* is a static web application the user opens inside Dhow — its
 own UI on its own origin, powered by their integrations and (optionally) a
-background agent. Apps live at \`~/.rowboat/apps/<folder-slug>/\` and are served
+background agent. Apps live at \`~/.dhow/apps/<folder-slug>/\` and are served
 at \`http://<folder-slug>.apps.localhost:3210/\`.
 
 ## 0. Should this even be an app? (intent gate)
@@ -20,8 +20,8 @@ at \`http://<folder-slug>.apps.localhost:3210/\`.
 ## 1. The contract (files on disk)
 
 \`\`\`
-~/.rowboat/apps/<folder-slug>/
-├── rowboat-app.json   # manifest (required)
+~/.dhow/apps/<folder-slug>/
+├── dhow-app.json   # manifest (required)
 ├── dist/              # browser-ready files; served at / (index.html = entry)
 ├── agents/            # optional bundled agent definitions (*.yaml)
 └── data/              # runtime data; read/written via the data API
@@ -55,56 +55,56 @@ Write plain, browser-ready HTML/JS/CSS **directly into \`dist/\`** with your fil
 tools. CDN \`<script>\` tags are fine; use relative asset URLs. Never require a
 bundler or build step. \`dist/index.html\` is the app root.
 
-## 3. Host API (same-origin, under \`/_rowboat/\`)
+## 3. Host API (same-origin, under \`/_dhow/\`)
 
 Errors are \`{ "error": { "code", "message" } }\`. **Every non-GET request MUST
-include the header \`X-Rowboat-App: 1\`** — requests without it are rejected
+include the header \`X-Dhow-App: 1\`** — requests without it are rejected
 (anti-CSRF).
 
 **App info + theme**
 \`\`\`js
-const info = await (await fetch('/_rowboat/app')).json();
+const info = await (await fetch('/_dhow/app')).json();
 // { name, version, folder, description, theme: 'light'|'dark' }
 \`\`\`
 
 **Data** (backing store: the app's \`data/\` folder)
 \`\`\`js
 // read
-const data = await (await fetch('/_rowboat/data/data.json')).json();
+const data = await (await fetch('/_dhow/data/data.json')).json();
 // write (atomic; contract-checked when dataContracts matches the file)
-await fetch('/_rowboat/data/data.json', {
+await fetch('/_dhow/data/data.json', {
   method: 'PUT',
-  headers: { 'X-Rowboat-App': '1', 'Content-Type': 'application/json' },
+  headers: { 'X-Dhow-App': '1', 'Content-Type': 'application/json' },
   body: JSON.stringify(payload),
 });
 // list
-const { entries } = await (await fetch('/_rowboat/data?list=.')).json();
+const { entries } = await (await fetch('/_dhow/data?list=.')).json();
 \`\`\`
 
 **Composio tools** (capability = the toolkit slug)
 \`\`\`js
-const { items } = await (await fetch('/_rowboat/tools/search', {
-  method: 'POST', headers: { 'X-Rowboat-App': '1', 'Content-Type': 'application/json' },
+const { items } = await (await fetch('/_dhow/tools/search', {
+  method: 'POST', headers: { 'X-Dhow-App': '1', 'Content-Type': 'application/json' },
   body: JSON.stringify({ toolkit: 'github', query: 'list pull requests' }),
 })).json();
-const result = await (await fetch('/_rowboat/tools/execute', {
-  method: 'POST', headers: { 'X-Rowboat-App': '1', 'Content-Type': 'application/json' },
+const result = await (await fetch('/_dhow/tools/execute', {
+  method: 'POST', headers: { 'X-Dhow-App': '1', 'Content-Type': 'application/json' },
   body: JSON.stringify({ toolkit: 'github', slug: items[0].slug, arguments: { owner, repo, state: 'open' } }),
 })).json();
 \`\`\`
 
 **Third-party HTTP** — see CORS below: always the proxy, never browser fetch.
 \`\`\`js
-const r = await (await fetch('/_rowboat/fetch', {
-  method: 'POST', headers: { 'X-Rowboat-App': '1', 'Content-Type': 'application/json' },
+const r = await (await fetch('/_dhow/fetch', {
+  method: 'POST', headers: { 'X-Dhow-App': '1', 'Content-Type': 'application/json' },
   body: JSON.stringify({ url: 'https://api.example.com/rates.json' }),
 })).json(); // { ok, status, text, truncated } — parse r.text yourself
 \`\`\`
 
 **LLM generation** (capability \`llm\` — spends the user's tokens; use sparingly)
 \`\`\`js
-const { text } = await (await fetch('/_rowboat/llm/generate', {
-  method: 'POST', headers: { 'X-Rowboat-App': '1', 'Content-Type': 'application/json' },
+const { text } = await (await fetch('/_dhow/llm/generate', {
+  method: 'POST', headers: { 'X-Dhow-App': '1', 'Content-Type': 'application/json' },
   body: JSON.stringify({ prompt: 'Summarize: …', maxOutputTokens: 512 }),
 })).json();
 \`\`\`
@@ -113,8 +113,8 @@ const { text } = await (await fetch('/_rowboat/llm/generate', {
 costlier than \`llm/generate\`, takes seconds-to-minutes (show a pending state).
 Use only when tools or the user's knowledge are actually needed.
 \`\`\`js
-const { text, turnId } = await (await fetch('/_rowboat/copilot/run', {
-  method: 'POST', headers: { 'X-Rowboat-App': '1', 'Content-Type': 'application/json' },
+const { text, turnId } = await (await fetch('/_dhow/copilot/run', {
+  method: 'POST', headers: { 'X-Dhow-App': '1', 'Content-Type': 'application/json' },
   body: JSON.stringify({ prompt: '…' }),
 })).json();
 \`\`\`
@@ -128,9 +128,9 @@ const { text, turnId } = await (await fetch('/_rowboat/copilot/run', {
   under \`data/\` changes, a **cancelable DOM event** fires first — subscribe and
   re-fetch in place so agent refreshes don't yank the page mid-scroll:
 \`\`\`js
-window.addEventListener('rowboat:data-change', (e) => {
+window.addEventListener('dhow:data-change', (e) => {
   e.preventDefault();          // suppress the full reload
-  refreshFromData();           // re-fetch /_rowboat/data/... and re-render
+  refreshFromData();           // re-fetch /_dhow/data/... and re-render
 });
 \`\`\`
 
@@ -158,8 +158,8 @@ the \`create-background-task\` task you made stays the author's live agent.
 
 - Never write credentials or personal data anywhere in the app folder except
   \`data/\`.
-- Never edit \`.rowboat-install.json\` or \`.rowboat-publish.json\`.
-- Never put files under a \`/_rowboat/\` path inside \`dist/\`.
+- Never edit \`.dhow-install.json\` or \`.dhow-publish.json\`.
+- Never put files under a \`/_dhow/\` path inside \`dist/\`.
 
 ## 7. Verify wiring BEFORE building (required — do not speculate)
 
@@ -171,17 +171,17 @@ responses** — never guess field names. That derived shape becomes the
 
 ## 8. CORS
 
-From app code, call third-party APIs via \`/_rowboat/fetch\` — never the
+From app code, call third-party APIs via \`/_dhow/fetch\` — never the
 browser's \`fetch\`. Most public APIs send no CORS headers, so a direct fetch
 fails with "Failed to fetch" even though the endpoint works from curl.
 
 ## 9. Both themes (required)
 
-Read \`theme\` from \`/_rowboat/app\` and subscribe to theme changes; style light
+Read \`theme\` from \`/_dhow/app\` and subscribe to theme changes; style light
 AND dark — never a hard-coded dark-only palette (\`prefers-color-scheme\` tracks
-the OS, not Rowboat):
+the OS, not Dhow):
 \`\`\`js
-const events = new EventSource('/_rowboat/events');
+const events = new EventSource('/_dhow/events');
 events.addEventListener('message', (e) => {
   const msg = JSON.parse(e.data);
   if (msg.type === 'theme') applyTheme(msg.theme);   // 'light' | 'dark'

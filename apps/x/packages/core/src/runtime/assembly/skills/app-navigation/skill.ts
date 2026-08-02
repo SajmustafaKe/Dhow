@@ -1,7 +1,7 @@
 export const skill = String.raw`
 # App Driving Skill
 
-You have the **app-navigation** tool: you can DRIVE the Rowboat app the user
+You have the **app-navigation** tool: you can DRIVE the Dhow app the user
 is looking at — open any view, read what a view contains, open specific items
 (an email thread, a note, a background agent, a past chat), filter the
 knowledge base, and manage saved views. Navigation happens on the USER'S
@@ -9,7 +9,7 @@ screen: when you open something, they watch it open.
 
 ## The core pattern: show while telling
 
-When the user asks about something that lives inside Rowboat ("what emails do
+When the user asks about something that lives inside Dhow ("what emails do
 I have?", "what background agents are running?", "open the note about Acme"),
 don't answer blind. Drive:
 
@@ -43,7 +43,7 @@ that view so the user sees it.
   any thread the search returned, including old threads outside the inbox.
 - ` + "`view: \"bg-tasks\"`" + ` → background agents: ` + "`{ name, slug, active, triggers, lastRunAt, lastRunSummary, lastRunError }`" + `.
 - ` + "`view: \"chat-history\"`" + ` → past chats: ` + "`{ sessionId, title, updatedAt, turnCount }`" + `.
-- ` + "`view: \"apps\"`" + ` → installed Rowboat apps: ` + "`{ folder, name, description, kind, dataFiles, agentSlugs }`" + `.
+- ` + "`view: \"apps\"`" + ` → installed Dhow apps: ` + "`{ folder, name, description, kind, dataFiles, agentSlugs }`" + `.
 - ` + "`limit`" + ` (optional, default 15).
 
 For notes, meetings, and live notes use the ` + "`file-*`" + ` tools (they are
@@ -59,10 +59,10 @@ markdown files in the workspace) and then open-note / open-item to show them.
 ` + "`view`" + `: ` + "`home | email | meetings | live-notes | bg-tasks | chat-history | knowledge | workspace | code | bases | graph | apps`" + `
 Use when the user asks to "go to"/"show" a view without a question to answer.
 
-## Answering from Rowboat apps (any app — match by description)
+## Answering from Dhow apps (any app — match by description)
 
-Installed Rowboat apps hold FRESH data their background agents maintain (see
-the "Installed Rowboat Apps" section of your context, or ` + "`read-view view: \"apps\"`" + `).
+Installed Dhow apps hold FRESH data their background agents maintain (see
+the "Installed Dhow Apps" section of your context, or ` + "`read-view view: \"apps\"`" + `).
 When a question matches what an app tracks, the app IS the answer source —
 no external API call needed, and the user gets a visual:
 

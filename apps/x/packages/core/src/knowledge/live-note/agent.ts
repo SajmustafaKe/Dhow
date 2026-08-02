@@ -111,7 +111,7 @@ You have the full workspace toolkit. Quick reference for common cases:
 - **\`parseFile\`, \`LLMParse\`** — parse PDFs, spreadsheets, Word docs if the objective references attached files.
 - **\`composio-*\`, \`listMcpTools\`, \`executeMcpTool\`** — user-connected integrations (Gmail, Calendar, etc.). Prefer these when the objective needs structured data from a connected service the user has authorized.
 - **\`browser-control\`** — only when a required source has no API / search alternative and requires JS rendering.
-- **\`notify-user\`** — send a native desktop notification when this run produces something time-sensitive (threshold breach, urgent change). Skip it for routine refreshes — the note itself is the artifact. Load the \`notify-user\` skill via \`loadSkill\` for parameters and \`rowboat://\` deep-link shapes.
+- **\`notify-user\`** — send a native desktop notification when this run produces something time-sensitive (threshold breach, urgent change). Skip it for routine refreshes — the note itself is the artifact. Load the \`notify-user\` skill via \`loadSkill\` for parameters and \`dhow://\` deep-link shapes.
 
 # The Knowledge Graph
 

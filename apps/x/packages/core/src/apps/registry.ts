@@ -3,10 +3,10 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import {
     RegistryRecordSchema,
-    RowboatAppManifestSchema,
+    DhowAppManifestSchema,
     type RegistryRecord,
-    type RowboatAppManifest,
-} from '@x/shared/dist/rowboat-app.js';
+    type DhowAppManifest,
+} from '@x/shared/dist/dhow-app.js';
 import { REGISTRY_REPO, REGISTRY_BRANCH, CATALOG_CACHE_PATH, CATALOG_TTL_MS } from './constants.js';
 
 // Registry client (spec §9.2). All registry access goes through RegistryClient —
@@ -24,7 +24,7 @@ export interface RegistryClient {
     refreshIndex(force?: boolean): Promise<{ records: RegistryRecord[]; stale: boolean; fetchedAt: string }>;
     resolve(name: string): Promise<RegistryRecord | null>;
     search(query: string): Promise<RegistryRecord[]>;
-    latestManifest(record: RegistryRecord): Promise<RowboatAppManifest>;
+    latestManifest(record: RegistryRecord): Promise<DhowAppManifest>;
 }
 
 type CatalogCache = { fetchedAt: string; records: RegistryRecord[] };
@@ -130,12 +130,12 @@ export class GitHubRegistryClient implements RegistryClient {
      * Latest version's manifest via the release-asset URL — a plain HTTPS
      * redirect, NOT the REST API, so it costs no unauthenticated API quota.
      */
-    async latestManifest(record: RegistryRecord): Promise<RowboatAppManifest> {
-        const res = await fetch(`https://github.com/${record.repo}/releases/latest/download/rowboat-app.json`, {
+    async latestManifest(record: RegistryRecord): Promise<DhowAppManifest> {
+        const res = await fetch(`https://github.com/${record.repo}/releases/latest/download/dhow-app.json`, {
             redirect: 'follow',
         });
         if (!res.ok) throw new Error(`latest_manifest_unavailable: HTTP ${res.status}`);
-        const manifest = RowboatAppManifestSchema.parse(await res.json());
+        const manifest = DhowAppManifestSchema.parse(await res.json());
         if (manifest.name !== record.name) {
             throw new Error(`name_mismatch: release manifest says "${manifest.name}" but the registry record is "${record.name}"`);
         }

@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { X, RotateCcw, Play, UploadCloud, ArrowUpCircle, Trash2 } from 'lucide-react'
-import type { rowboatApp } from '@x/shared'
+import type { dhowApp } from '@x/shared'
 import { PublishDialog } from '@/components/apps/publish-dialog'
 import { unpinApp } from '@/lib/pinned-apps'
-import * as analytics from '@/lib/analytics'
 
 // App detail panel (spec §14): manifest info, provenance/publish state,
 // bundled agents with enable toggles, rollback when available. Update/publish
@@ -18,7 +17,7 @@ type AgentRow = {
 }
 
 export function AppDetail({ folder, onClose }: { folder: string; onClose: () => void }) {
-  const [app, setApp] = useState<rowboatApp.AppSummary | null>(null)
+  const [app, setApp] = useState<dhowApp.AppSummary | null>(null)
   const [readme, setReadme] = useState<string | undefined>(undefined)
   const [rollback, setRollback] = useState(false)
   const [agents, setAgents] = useState<AgentRow[]>([])
@@ -130,14 +129,12 @@ export function AppDetail({ folder, onClose }: { folder: string; onClose: () => 
     setAgents((prev) => prev.map((a) => (a.slug === slug ? { ...a, active } : a)))
     try {
       await window.ipc.invoke('bg-task:patch', { slug, partial: { active } })
-      analytics.bgAgentToggled(active)
     } catch {
       setReloadNonce((n) => n + 1) // revert to truth on failure
     }
   }
 
   const runAgent = async (slug: string) => {
-    analytics.bgAgentRunClicked()
     try {
       await window.ipc.invoke('bg-task:run', { slug })
     } catch { /* surfaced via bg-task UI */ }
@@ -197,7 +194,7 @@ export function AppDetail({ folder, onClose }: { folder: string; onClose: () => 
                 </>
               ) : app.publish ? (
                 <>
-                  <p className="text-muted-foreground">Local app — published to the Rowboat catalog.</p>
+                  <p className="text-muted-foreground">Local app — published to the Dhow catalog.</p>
                   <InfoRow k="Repository" v={app.publish.repo} mono link={`https://github.com/${app.publish.repo}`} />
                   {app.publish.lastPublishedVersion && (
                     <InfoRow

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PanelLeft, PanelLeftClose, Plus, RefreshCw } from 'lucide-react'
-import type { rowboatApp } from '@x/shared'
+import type { dhowApp } from '@x/shared'
 import { AppFrame } from '@/components/apps/app-frame'
 import { CatalogTab } from '@/components/apps/catalog'
 import { themeForIndex, patternFor } from '@/components/apps/card-theme'
@@ -131,7 +131,7 @@ const CARD_CSS = `
 `
 
 function Card({ app, index, onOpen, isPinned, onTogglePin }: {
-  app: rowboatApp.AppSummary
+  app: dhowApp.AppSummary
   index: number
   onOpen: () => void
   isPinned: boolean
@@ -183,7 +183,7 @@ export function AppsView({ initialAppFolder, initialVersion, onNewApp }: {
   // until the user has an app of their own. An explicit tab click wins.
   const [tab, setTab] = useState<'mine' | 'catalog' | null>(null)
   const [selectedFolder, setSelectedFolder] = useState<string | null>(initialAppFolder ?? null)
-  const [apps, setApps] = useState<rowboatApp.AppSummary[]>([])
+  const [apps, setApps] = useState<dhowApp.AppSummary[]>([])
   const [appsLoaded, setAppsLoaded] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
   const [pinnedFolders, setPinnedFolders] = useState<string[]>(() => getPinnedApps())
@@ -240,7 +240,7 @@ export function AppsView({ initialAppFolder, initialVersion, onNewApp }: {
       <style>{CARD_CSS}</style>
       <div className="ma-inner">
         <h1 className="ma-h1">Apps</h1>
-        <p className="ma-sub">Apps that live inside Rowboat, powered by your agents and integrations.</p>
+        <p className="ma-sub">Apps that live inside Dhow, powered by your agents and integrations.</p>
 
         <div className="ma-tabs">
           <button type="button" className={`ma-tab${activeTab === 'mine' ? ' on' : ''}`} onClick={() => setTab('mine')}>My apps</button>

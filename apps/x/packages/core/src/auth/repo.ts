@@ -11,10 +11,10 @@ const ProviderConnectionSchema = z.object({
   /**
    * `byok` (default for absent) — user provides their own client_id+secret;
    * tokens stored locally; refresh handled locally via openid-client.
-   * `rowboat` — signed-in user; client_id+secret never on the desktop;
+   * `dhow` — signed-in user; client_id+secret never on the desktop;
    * tokens stored locally but refresh goes through the api.
    */
-  mode: z.enum(['byok', 'rowboat']).optional(),
+  mode: z.enum(['byok', 'dhow']).optional(),
   error: z.string().nullable().optional(),
 });
 

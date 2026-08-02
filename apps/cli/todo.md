@@ -10,6 +10,6 @@ o file logging
 - cli wrapper (node commander)
 
 
-rowboat agent
+dhow agent
 ---
 - create agent

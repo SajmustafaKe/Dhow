@@ -86,11 +86,11 @@ export const LiveNoteSchema = z.object({
 // ---------------------------------------------------------------------------
 
 // Legacy aliases — `KnowledgeEventSchema` / `Pass1OutputSchema` now live in
-// `./events.ts` as `RowboatEventSchema` / `Pass1OutputSchema`. These re-exports
+// `./events.ts` as `DhowEventSchema` / `Pass1OutputSchema`. These re-exports
 // keep older import paths working for one release; remove after nothing imports
 // them from here.
-export { RowboatEventSchema as KnowledgeEventSchema, Pass1OutputSchema } from './events.js';
-export type { RowboatEvent as KnowledgeEvent, Pass1Output } from './events.js';
+export { DhowEventSchema as KnowledgeEventSchema, Pass1OutputSchema } from './events.js';
+export type { DhowEvent as KnowledgeEvent, Pass1Output } from './events.js';
 
 // ---------------------------------------------------------------------------
 // Bus events

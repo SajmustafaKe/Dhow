@@ -10,7 +10,7 @@ import { browserViewManager } from './view.js';
  * electron-chrome-extensions (GPL-3.0 / Patron dual-licensed — see the
  * library's LICENSE.md before shipping this in a release build).
  *
- * Extensions are loaded unpacked from ~/.rowboat/extensions/<name>/ — either
+ * Extensions are loaded unpacked from ~/.dhow/extensions/<name>/ — either
  * a directory containing manifest.json directly, or (Chrome Web Store
  * unpacked layout) a directory whose single versioned subdirectory contains
  * it. There is no install UI; drop a folder there and restart the app.

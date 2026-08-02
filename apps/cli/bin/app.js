@@ -8,7 +8,7 @@ yargs(hideBin(process.argv))
 
     .command(
         "$0",
-        "Run rowboatx",
+        "Run dhowx",
         (y) => y
             .option("agent", {
                 type: "string",
@@ -39,11 +39,11 @@ yargs(hideBin(process.argv))
     )
     .command(
         "ui",
-        "Launch the interactive Rowboat dashboard",
+        "Launch the interactive Dhow dashboard",
         (y) => y
             .option("server-url", {
                 type: "string",
-                description: "Rowboat server base URL",
+                description: "Dhow server base URL",
             }),
         (argv) => {
             runTui({

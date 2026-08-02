@@ -5,7 +5,7 @@
 
 ## 1. What we're building (agreed design)
 
-A **Mini App** is a user-created, personal app that lives inside Rowboat under a
+A **Mini App** is a user-created, personal app that lives inside Dhow under a
 **"Mini Apps"** sidebar tab, shown as cards; click a card to open and use it like
 a standalone app.
 
@@ -49,17 +49,17 @@ Single self-contained `index.html` rendered in a sandboxed iframe.
 > Phase 1 therefore ships **vanilla HTML + CSS + JS** (no build, no transpile).
 > The React+Tailwind LLM-friendly target still stands for generation — but via a
 > **locally-bundled** runtime (esbuild-at-save, libs injected into the HTML),
-> never remote CDNs. The `window.rowboat` bridge is unchanged either way.
+> never remote CDNs. The `window.dhow` bridge is unchanged either way.
 
-The UI talks to the host through a `window.rowboat` **bridge** (the product
+The UI talks to the host through a `window.dhow` **bridge** (the product
 surface *and* the security boundary):
 
 ```
-rowboat.getData(): Promise<Data>             // latest agent output
-rowboat.onData(cb): void                      // re-render on refresh
-rowboat.getState() / setState(patch)          // per-app persistent store
-rowboat.callAction(scope, action, args)       // scoped Composio call
-rowboat.ready()                               // handshake: "send me data"
+dhow.getData(): Promise<Data>             // latest agent output
+dhow.onData(cb): void                      // re-render on refresh
+dhow.getState() / setState(patch)          // per-app persistent store
+dhow.callAction(scope, action, args)       // scoped Composio call
+dhow.ready()                               // handshake: "send me data"
 ```
 
 ## 2. Phased roadmap
@@ -80,13 +80,13 @@ rowboat.ready()                               // handshake: "send me data"
 
 ## 2b. Phase 2.5 — On-disk apps + `app://miniapp` serving (CURRENT)
 
-Move built-in apps out of source into `~/.rowboat/apps/<id>/`, served as static
+Move built-in apps out of source into `~/.dhow/apps/<id>/`, served as static
 assets, with an optional background agent producing `data.json`. Sets up the
 copilot builder path (it will write the same folder layout). Team-agreed.
 
 ### On-disk layout (one folder per app)
 ```
-~/.rowboat/apps/<id>/
+~/.dhow/apps/<id>/
   manifest.json     # id, title, description, source, scope[], active, lastRun,
                     #   entry (default "dist/index.html"), agent (optional bg-task slug)
   dist/             # static assets served via app://miniapp/<id>/...
@@ -96,7 +96,7 @@ copilot builder path (it will write the same folder layout). Team-agreed.
 
 ### Serving — `app://miniapp/<id>/<path>` (option A)
 - Extend `registerAppProtocol` (`apps/main/src/main.ts`) with a new host
-  `miniapp`: map `app://miniapp/<id>/<path>` → `~/.rowboat/apps/<id>/dist/<path>`
+  `miniapp`: map `app://miniapp/<id>/<path>` → `~/.dhow/apps/<id>/dist/<path>`
   (path-traversal guarded; default `index.html`). `app://` is already registered
   privileged (standard/secure/fetch/cors) so apps get a **real origin** —
   remote CDNs/images and `fetch` work, unlike the opaque `srcdoc` origin.
@@ -108,8 +108,8 @@ copilot builder path (it will write the same folder layout). Team-agreed.
 ### Data path
 - Built-in/static `data` is seeded to `data.json`. A future background agent
   (reuse bg-tasks engine, linked via manifest `agent`) overwrites it on schedule.
-- App keeps using `rowboat.onData`; the **host** now sources that data by reading
-  `~/.rowboat/apps/<id>/data.json` (via IPC) and posting it on `ready`. Composio
+- App keeps using `dhow.onData`; the **host** now sources that data by reading
+  `~/.dhow/apps/<id>/data.json` (via IPC) and posting it on `ready`. Composio
   still flows through the bridge RPC. (GitHub app needs no `data.json` — it pulls
   live via Composio.)
 
@@ -120,7 +120,7 @@ copilot builder path (it will write the same folder layout). Team-agreed.
    - `mini-apps:list` (res: `{manifests: MiniAppManifest[]}`).
    - `mini-apps:get-data` (req `{id}`, res `{data: unknown|null}`).
 2. **Main** — `apps/main/src/mini-apps-handler.ts`: `seedApps` (write
-   manifest/dist/data to `~/.rowboat/apps/<id>/` only if absent), `listApps`
+   manifest/dist/data to `~/.dhow/apps/<id>/` only if absent), `listApps`
    (read manifests), `getAppData` (read data.json). Register handlers in
    `ipc.ts`. Extend `registerAppProtocol` for the `miniapp` host.
 3. **Renderer** — keep `MiniApp` defs + `buildMiniAppHtml`; `registry.ts` adds
@@ -128,7 +128,7 @@ copilot builder path (it will write the same folder layout). Team-agreed.
    → `list` → render cards from manifests. `MiniAppFrame`: take the manifest,
    load `src=app://miniapp/<id>/<entry>`, on `ready` fetch `mini-apps:get-data`
    and post it; RPC scope from `manifest.scope`.
-4. **Verify**: GitHub app end-to-end from disk (`~/.rowboat/apps/github-radar/`),
+4. **Verify**: GitHub app end-to-end from disk (`~/.dhow/apps/github-radar/`),
    then the others; confirm connect + live PRs still work.
 
 ### Out of scope here (next: copilot builder, tomorrow)
@@ -142,7 +142,7 @@ Done so far: surface + runtime (Phase 1), real scoped Composio bridge (Phase 2),
 apps on disk served via `app://miniapp` (Phase 2.5).
 
 **Next — Copilot builder (demo target).**
-- Copilot creates an app folder in `~/.rowboat/apps/<id>/` via the `mini-apps:seed`
+- Copilot creates an app folder in `~/.dhow/apps/<id>/` via the `mini-apps:seed`
   install primitive (writes `manifest.json` + `dist/index.html`).
 - Copilot must **verify wiring by actually calling Composio tools** and inspecting
   the returned data before finalizing — never speculate the shape.
@@ -167,7 +167,7 @@ apps on disk served via `app://miniapp` (Phase 2.5).
 ## 2d. Mini App builder skill — spec
 
 A Copilot skill (`build-mini-app`, in `packages/core/src/application/assistant/
-skills/`) that turns a chat request into an installed app under `~/.rowboat/
+skills/`) that turns a chat request into an installed app under `~/.dhow/
 apps/<id>/`. Copilot orchestrates; the actual code-writing is delegated by the
 chat's active engine (the chip), but the on-disk artifact is identical either way.
 
@@ -192,13 +192,13 @@ chat's active engine (the chip), but the on-disk artifact is identical either wa
    guess the shape.
 3. **Pick the writer (branch):**
    - **Code Mode active** → create the folder + a manifest skeleton, then
-     `code_agent_run` with `cwd = ~/.rowboat/apps/<id>/` to author
+     `code_agent_run` with `cwd = ~/.dhow/apps/<id>/` to author
      `dist/index.html` against the verified schema + bridge contract; it can
      iterate/test on-device.
    - **No Code Mode** → Copilot writes `dist/index.html` itself (from the app
      template + bridge shim) and installs via `mini-apps:seed`.
 4. **Bridge contract** — generated app references the canonical shim
-   (`app://miniapp/__bridge__.js`) and uses `window.rowboat`
+   (`app://miniapp/__bridge__.js`) and uses `window.dhow`
    (`getData/onData`, `isConnected/connect`, `searchTools/callAction`).
 5. **Data pipeline (if agent-backed)** — create a background task (existing
    bg-tasks engine), set `manifest.agent` to its slug. The agent **returns
@@ -218,7 +218,7 @@ chat's active engine (the chip), but the on-disk artifact is identical either wa
 
 ## 3. Phase 1 — detailed implementation
 
-UI-first. Everything hand-coded; no `~/.rowboat` storage, no IPC, no agent yet.
+UI-first. Everything hand-coded; no `~/.dhow` storage, no IPC, no agent yet.
 We *do* mirror the eventual shapes so later phases slot in.
 
 ### 3.1 New files (renderer)
@@ -229,21 +229,21 @@ We *do* mirror the eventual shapes so later phases slot in.
 | `apps/renderer/src/mini-apps/registry.ts` | Hardcoded list of `MiniApp`s for Phase 1. |
 | `apps/renderer/src/mini-apps/apps/twitter-client.ts` | The sample app: self-contained HTML (React+Tailwind+Babel CDN) + static `data`. |
 | `apps/renderer/src/components/mini-apps-view.tsx` | Card grid; internal `selectedAppId` state; renders grid or open app. |
-| `apps/renderer/src/components/mini-app-frame.tsx` | Sandboxed iframe (`srcdoc`) + `window.rowboat` postMessage bridge (data wired; actions stubbed → toast/log). |
+| `apps/renderer/src/components/mini-app-frame.tsx` | Sandboxed iframe (`srcdoc`) + `window.dhow` postMessage bridge (data wired; actions stubbed → toast/log). |
 
 The bridge message protocol (host ↔ iframe), defined once and shared:
-- iframe → host: `{ type: 'rowboat:mini-app:ready' }`,
-  `{ type: 'rowboat:mini-app:action', id, scope, action, args }`,
-  `{ type: 'rowboat:mini-app:setState', patch }`
-- host → iframe: `{ type: 'rowboat:mini-app:data', data }`,
-  `{ type: 'rowboat:mini-app:state', state }`,
-  `{ type: 'rowboat:mini-app:action-result', id, ok, result?, error? }`
+- iframe → host: `{ type: 'dhow:mini-app:ready' }`,
+  `{ type: 'dhow:mini-app:action', id, scope, action, args }`,
+  `{ type: 'dhow:mini-app:setState', patch }`
+- host → iframe: `{ type: 'dhow:mini-app:data', data }`,
+  `{ type: 'dhow:mini-app:state', state }`,
+  `{ type: 'dhow:mini-app:action-result', id, ok, result?, error? }`
 
 ### 3.2 Wiring into `App.tsx` (mirror the `bg-tasks` view exactly)
 
 Add a first-class `apps` view. Edit sites (all mirror an existing view):
 
-1. **Tab path const** (~L198): add `const APPS_TAB_PATH = '__rowboat_mini_apps__'`.
+1. **Tab path const** (~L198): add `const APPS_TAB_PATH = '__dhow_mini_apps__'`.
 2. **Tab predicate** (~L374): `const isAppsTabPath = (path) => path === APPS_TAB_PATH`.
 3. **ViewState union** (~L636): add `| { type: 'apps' }`.
 4. **`parseDeepLink`** (~L713): add `case 'apps': return { type: 'apps' }`.
@@ -281,8 +281,8 @@ Add a first-class `apps` view. Edit sites (all mirror an existing view):
 
 Self-contained HTML string. React + ReactDOM + Babel-standalone + Tailwind, all
 via CDN. Renders three sections — **To read / To repost / To respond** (reply
-pre-drafted) — from data delivered via `rowboat.onData`. Buttons call
-`rowboat.callAction('twitter', ...)`; in Phase 1 the host just toasts/logs and
+pre-drafted) — from data delivered via `dhow.onData`. Buttons call
+`dhow.callAction('twitter', ...)`; in Phase 1 the host just toasts/logs and
 returns a fake ok. Static `data` lives next to the HTML.
 
 > Note: CDN scripts require network + `allow-scripts` in the sandbox. The frame
@@ -301,7 +301,7 @@ returns a fake ok. Static `data` lives next to the HTML.
 
 ## 4. Out of scope for Phase 1 (later phases)
 
-`~/.rowboat/apps/<slug>/` storage + IPC; the agent backend (reuse bg-tasks
+`~/.dhow/apps/<slug>/` storage + IPC; the agent backend (reuse bg-tasks
 engine); real Composio execution through the bridge; per-app scope enforcement &
 auth prompting; generation via Copilot/Code-Mode; persistent state store;
 conversational editing & error recovery; the V2 workspace drag.

@@ -11,7 +11,7 @@ import container from "../di/container.js";
 import z from "zod";
 
 export const Flavor = z.enum([
-    "rowboat [free]",
+    "dhow [free]",
     "aigateway",
     "anthropic",
     "google",
@@ -57,9 +57,9 @@ export async function getProvider(name: string = ""): Promise<ProviderV2> {
     }
     const { apiKey, baseURL, headers } = providerConfig;
     switch (providerConfig.flavor) {
-        case "rowboat [free]":
+        case "dhow [free]":
             providerMap[name] = createGateway({
-                apiKey: "rowboatx",
+                apiKey: "dhowx",
                 baseURL: "https://ai-gateway.rowboatlabs.com/v1/ai",
             });
             break;

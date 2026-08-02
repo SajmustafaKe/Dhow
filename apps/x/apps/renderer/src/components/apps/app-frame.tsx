@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, BadgeCheck, ExternalLink, Info, RotateCw, UploadCloud } from 'lucide-react'
-import type { rowboatApp } from '@x/shared'
-import { appOpened } from '@/lib/analytics'
+import type { dhowApp } from '@x/shared'
 import { AppDetail } from '@/components/apps/app-detail'
 import { PublishDialog } from '@/components/apps/publish-dialog'
 
@@ -9,7 +8,7 @@ import { PublishDialog } from '@/components/apps/publish-dialog'
 // per-app browser origins are the isolation boundary. Toolbar: back, reload,
 // open-in-browser, detail panel.
 
-export function AppFrame({ app, onBack }: { app: rowboatApp.AppSummary; onBack: () => void }) {
+export function AppFrame({ app, onBack }: { app: dhowApp.AppSummary; onBack: () => void }) {
   const [reloadNonce, setReloadNonce] = useState(0)
   const [showDetail, setShowDetail] = useState(false)
   const [showPublish, setShowPublish] = useState(false)
@@ -17,10 +16,6 @@ export function AppFrame({ app, onBack }: { app: rowboatApp.AppSummary; onBack: 
   // surface a visible retry state instead of a silent blank pane.
   const [loadState, setLoadState] = useState<'loading' | 'ok' | 'stuck'>('loading')
   const title = app.manifest?.name ?? app.folder
-
-  useEffect(() => {
-    appOpened(app.folder)
-  }, [app.folder])
 
   // Reset the watchdog when the target changes (adjust-during-render pattern).
   const [watchKey, setWatchKey] = useState(`${app.folder}:${reloadNonce}`)
@@ -120,7 +115,7 @@ export function AppFrame({ app, onBack }: { app: rowboatApp.AppSummary; onBack: 
           {loadState === 'stuck' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/95 text-sm">
               <div className="text-muted-foreground">
-                {serverDown ? 'The Rowboat apps server is still starting up.' : 'This app is taking too long to load.'}
+                {serverDown ? 'The Dhow apps server is still starting up.' : 'This app is taking too long to load.'}
               </div>
               <button
                 type="button"

@@ -64,7 +64,7 @@ export function isAutomatedAddress(email: string): boolean {
     // Plus-aliased reply bots: `reply+abc123@...`
     if (/^reply\+/i.test(local)) return true;
 
-    // Encoded VERP/list aliases, e.g. long-token-arjun=rowboat...@domain.
+    // Encoded VERP/list aliases, e.g. long-token-arjun=dhow...@domain.
     if (local.includes('=') && /^[a-z0-9]{16,}[-+].*=/.test(local)) return true;
 
     const segs = localSegments(local);

@@ -8,7 +8,6 @@ import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { LlmModelConfig, LlmProvider } from "@x/shared/dist/models.js";
 import z from "zod";
-import { getGatewayProvider } from "./gateway.js";
 import { getCodexProvider } from "./codex.js";
 import { getDefaultModelAndProvider, resolveProviderConfig } from "./defaults.js";
 import { getChatModelIds } from "./models-dev.js";
@@ -80,8 +79,6 @@ export function createProvider(config: z.infer<typeof Provider>): ProviderV4 {
                 baseURL,
                 headers,
             }) as unknown as ProviderV4;
-        case "rowboat":
-            return getGatewayProvider();
         case "codex":
             return getCodexProvider();
         default:
@@ -187,7 +184,7 @@ function capabilityWarnings(
     const warnings: string[] = [];
     if (capabilities.supportsTools === false) {
         warnings.push(
-            `${model} does not support tool calling. Rowboat's assistant and background agents rely on tools; pick a tool-capable model (e.g. qwen3, gpt-oss, llama3.3).`,
+            `${model} does not support tool calling. Dhow's assistant and background agents rely on tools; pick a tool-capable model (e.g. qwen3, gpt-oss, llama3.3).`,
         );
     }
     const configured = providerConfig.contextLength
@@ -195,7 +192,7 @@ function capabilityWarnings(
     if (capabilities.maxContextLength !== undefined) {
         if (capabilities.maxContextLength < 16384) {
             warnings.push(
-                `${model} has a ${capabilities.maxContextLength}-token context window. Rowboat's assistant needs ~16k+ tokens; expect truncated or confused responses.`,
+                `${model} has a ${capabilities.maxContextLength}-token context window. Dhow's assistant needs ~16k+ tokens; expect truncated or confused responses.`,
             );
         } else if (configured !== undefined && capabilities.maxContextLength < configured) {
             warnings.push(
@@ -328,7 +325,7 @@ export interface GenerateTextOptions {
     system?: string;
     /** Model id. Falls back to the active default when omitted. */
     model?: string;
-    /** Provider name (e.g. "rowboat", "openai"). Falls back to the active default. */
+    /** Provider name (e.g. "dhow", "openai"). Falls back to the active default. */
     provider?: string;
 }
 

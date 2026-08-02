@@ -1,22 +1,29 @@
+> **REMOVED IN DHOW.** This document describes the PostHog analytics subsystem that
+> shipped with upstream Rowboat. Dhow sends no telemetry: `packages/core/src/analytics/`
+> (apart from `use_case.ts`, which is plain async context, not analytics),
+> `apps/renderer/src/lib/analytics.ts`, and the `posthog-js` / `posthog-node`
+> dependencies have all been removed. This file is retained only as a reference when
+> merging changes from upstream.
+
 # Analytics
 
 > PostHog instrumentation for `apps/x`. We capture LLM token usage (broken down by feature) and identity/auth events. Renderer (`posthog-js`) and main (`posthog-node`) share one stable distinct_id and one identified user, so events from either process resolve to the same person.
 
 ## Identity model
 
-- **Anonymous distinct_id** = `installationId` from `~/.rowboat/config/installation.json` (auto-generated on first run; see `packages/core/src/analytics/installation.ts`).
+- **Anonymous distinct_id** = `installationId` from `~/.dhow/config/installation.json` (auto-generated on first run; see `packages/core/src/analytics/installation.ts`).
 - Renderer fetches it from main on startup via the `analytics:bootstrap` IPC channel and passes it as PostHog's `bootstrap.distinctID`. Main uses it directly in `posthog-node`.
-- **On rowboat sign-in**: `posthog.identify(rowboatUserId)` runs in **both** processes.
+- **On dhow sign-in**: `posthog.identify(dhowUserId)` runs in **both** processes.
   - Main does it from `apps/main/src/oauth-handler.ts:285` (after `getBillingInfo()` resolves) — this is the load-bearing call, since main always runs.
   - Renderer mirrors via `apps/renderer/src/hooks/useAnalyticsIdentity.ts` listening on the `oauth:didConnect` IPC event.
   - Main also calls `alias()` so events emitted under the anonymous installation_id are linked to the identified user retroactively.
-- **On every app startup**: main re-identifies if rowboat tokens exist (`packages/core/src/analytics/identify.ts`, called from `apps/main/src/main.ts` whenReady). Idempotent — PostHog merges person properties on duplicate identifies. This catches users who installed before analytics existed, and refreshes person properties (plan/status) on every launch.
-- **On rowboat sign-out**: `posthog.reset()` in both processes; future events resolve to the installation_id again.
+- **On every app startup**: main re-identifies if dhow tokens exist (`packages/core/src/analytics/identify.ts`, called from `apps/main/src/main.ts` whenReady). Idempotent — PostHog merges person properties on duplicate identifies. This catches users who installed before analytics existed, and refreshes person properties (plan/status) on every launch.
+- **On dhow sign-out**: `posthog.reset()` in both processes; future events resolve to the installation_id again.
 - **`email`** is set on `identify` from main only (sourced from `/v1/me`). Person properties are server-side, so the renderer's events resolve to the same record without redundantly setting it.
 
 ## Event catalog
 
-All PostHog events include `app_version` and `platform: 'desktop'` automatically. Main-process events add them in `packages/core/src/analytics/posthog.ts`; renderer events get them from the `analytics:bootstrap` IPC payload via `posthog.register` (plus an initialization-time `before_send` hook for `app_version`). `platform` guards against the legacy web dashboard's autocapture (`apps/rowboat`, unidentified by design) muddying desktop dashboards if it ever shares the project.
+All PostHog events include `app_version` and `platform: 'desktop'` automatically. Main-process events add them in `packages/core/src/analytics/posthog.ts`; renderer events get them from the `analytics:bootstrap` IPC payload via `posthog.register` (plus an initialization-time `before_send` hook for `app_version`). `platform` guards against the legacy web dashboard's autocapture (`apps/dhow`, unidentified by design) muddying desktop dashboards if it ever shares the project.
 
 ### `llm_usage`
 
@@ -28,7 +35,7 @@ Emitted whenever ai-sdk returns token usage (one event per LLM call, not per run
 | `sub_use_case` | string? | Refines `use_case` — see taxonomy table below |
 | `agent_name` | string? | Present when the call goes through an agent run (`createRun`); omitted for direct `generateText`/`generateObject` |
 | `model` | string | e.g. `claude-sonnet-4-6` |
-| `provider` | string | The provider FLAVOR: `rowboat` = cloud LLM gateway, `codex` = ChatGPT subscription, else the BYOK flavor (`openai`, `anthropic`, `ollama`, …). Call sites pass instance ids; `captureLlmUsage` maps id → flavor so charts never fracture if user-named provider instances ship (ids never leave the app) |
+| `provider` | string | The provider FLAVOR: `dhow` = cloud LLM gateway, `codex` = ChatGPT subscription, else the BYOK flavor (`openai`, `anthropic`, `ollama`, …). Call sites pass instance ids; `captureLlmUsage` maps id → flavor so charts never fracture if user-named provider instances ship (ids never leave the app) |
 | `input_tokens` | number | |
 | `output_tokens` | number | |
 | `total_tokens` | number | |
@@ -54,10 +61,10 @@ Every `llm_usage` emit point in the codebase:
 | `knowledge_sync` | `agent_notes` | yes | Agent notes learning service | `packages/core/src/knowledge/agent_notes.ts:309` (createRun) |
 | `knowledge_sync` | `tag_notes` | yes | Note tagging | `packages/core/src/knowledge/tag_notes.ts:86` (createRun) |
 | `knowledge_sync` | `build_graph` | yes | Knowledge graph note creation | `packages/core/src/knowledge/build_graph.ts:253` (createRun) |
-| `knowledge_sync` | `inline_task_run` | yes | Inline `@rowboat` task execution (two call sites) | `packages/core/src/knowledge/inline_tasks.ts:471, 552` (createRun) |
+| `knowledge_sync` | `inline_task_run` | yes | Inline `@dhow` task execution (two call sites) | `packages/core/src/knowledge/inline_tasks.ts:471, 552` (createRun) |
 | `knowledge_sync` | `inline_task_classify` | no | Inline task scheduling classifier (`generateText`) | `packages/core/src/knowledge/inline_tasks.ts:673` |
 | `knowledge_sync` | `pre_built` | yes | Pre-built scheduled agents | `packages/core/src/pre_built/runner.ts:43` (createRun) |
-| `code_session` | (none) | yes | Code-section coding session in Rowboat mode (direct mode talks to the on-device coding agent and emits no `llm_usage`) | `packages/core/src/code-mode/sessions/service.ts` (createRun) |
+| `code_session` | (none) | yes | Code-section coding session in Dhow mode (direct mode talks to the on-device coding agent and emits no `llm_usage`) | `packages/core/src/code-mode/sessions/service.ts` (createRun) |
 
 ##### `live_note_agent` sub-use-case shape
 
@@ -72,7 +79,7 @@ This means a single end-to-end event flow emits both `routing` (Pass 1) and `eve
 
 ### `user_signed_in`
 
-Emitted when rowboat OAuth completes. Properties: `plan`, `status` (subscription state from `/v1/me`).
+Emitted when dhow OAuth completes. Properties: `plan`, `status` (subscription state from `/v1/me`).
 
 Emitted from **both** processes:
 - Main (`apps/main/src/oauth-handler.ts:290`) — always fires; load-bearing.
@@ -80,7 +87,7 @@ Emitted from **both** processes:
 
 ### `user_signed_out`
 
-Emitted on rowboat disconnect. No properties. Followed immediately by `posthog.reset()`.
+Emitted on dhow disconnect. No properties. Followed immediately by `posthog.reset()`.
 
 Emit points: `apps/main/src/oauth-handler.ts:369` and `apps/renderer/src/hooks/useAnalyticsIdentity.ts:82`.
 
@@ -88,8 +95,8 @@ Emit points: `apps/main/src/oauth-handler.ts:369` and `apps/renderer/src/hooks/u
 
 Privacy rules (enforced in `packages/core/src/analytics/model-providers.ts`): only provider **flavors** are captured — never instance ids (future-proofing for user-named instances), never `apiKey`/`headers`, and never `baseURL` (local endpoints can carry internal hostnames). Model ids are allowed.
 
-- `llm_provider_connected` / `llm_provider_disconnected` — `{ flavor }` — one event family across every surface. BYOK fires from `FSModelConfigRepo.setProvider` (new entries only — key rotation is not a connect) / `removeProvider`; `rowboat` from sign-in/out (`apps/main/src/oauth-handler.ts`); `codex` from ChatGPT sign-in/out (`apps/main/src/ipc.ts`).
-- `llm_initial_model_selected` — `{ flavor, model, recommended, task_overrides_seeded, source: 'connect' | 'onboarding' | 'sign_in' }` — a connect seeded the assistant model (only when none was configured). `recommended: false` = first-listed fallback; the hit rate measures backend recommendation quality. `task_overrides_seeded` counts the per-task recommendations written alongside (the server-controlled lite-tier task models — 0 when the provider has none). Emit points: `apps/renderer/src/components/settings/providers-section.tsx` (connect/onboarding) and `packages/core/src/models/rowboat-selection.ts` / `chatgpt-selection.ts` (sign-in).
+- `llm_provider_connected` / `llm_provider_disconnected` — `{ flavor }` — one event family across every surface. BYOK fires from `FSModelConfigRepo.setProvider` (new entries only — key rotation is not a connect) / `removeProvider`; `dhow` from sign-in/out (`apps/main/src/oauth-handler.ts`); `codex` from ChatGPT sign-in/out (`apps/main/src/ipc.ts`).
+- `llm_initial_model_selected` — `{ flavor, model, recommended, task_overrides_seeded, source: 'connect' | 'onboarding' | 'sign_in' }` — a connect seeded the assistant model (only when none was configured). `recommended: false` = first-listed fallback; the hit rate measures backend recommendation quality. `task_overrides_seeded` counts the per-task recommendations written alongside (the server-controlled lite-tier task models — 0 when the provider has none). Emit points: `apps/renderer/src/components/settings/providers-section.tsx` (connect/onboarding) and `packages/core/src/models/dhow-selection.ts` / `chatgpt-selection.ts` (sign-in).
 - `models_config_migrated` — `{ had_assistant, materialized_overrides, provider_count }` — one-shot per install at the models.json v1 → v2 boot migration (`FSModelConfigRepo.ensureConfig`); rollout health for the schema change.
 
 ### Other events (pre-existing, not added by the LLM-usage work)
@@ -178,8 +185,8 @@ All renderer events live in `apps/renderer/src/lib/analytics.ts` (typed wrappers
 
 **Code mode** — both **(main/core)**:
 
-- `code_session_created` — `{ mode: 'direct' | 'rowboat', agent }` — captured in the `codeSession:create` IPC handler. This is the direct-vs-rowboat session split.
-- `code_session_message_sent` — `{ mode, agent }` — one per direct-drive message (`packages/core/src/code-mode/sessions/service.ts`). Direct turns bypass the agent runtime and emit no `llm_usage`, so this is the only usage-depth signal for direct mode; Rowboat-mode depth comes from `llm_usage where use_case = code_session`.
+- `code_session_created` — `{ mode: 'direct' | 'dhow', agent }` — captured in the `codeSession:create` IPC handler. This is the direct-vs-dhow session split.
+- `code_session_message_sent` — `{ mode, agent }` — one per direct-drive message (`packages/core/src/code-mode/sessions/service.ts`). Direct turns bypass the agent runtime and emit no `llm_usage`, so this is the only usage-depth signal for direct mode; Dhow-mode depth comes from `llm_usage where use_case = code_session`.
 
 **Billing** (`components/billing-error-dialog.tsx`):
 
@@ -209,16 +216,16 @@ Persistent across sessions for the same user. Set via `posthog.people.set` or as
 |---|---|---|
 | `email` | main on identify | From `/v1/me`; powers PostHog cohort match + integrations |
 | `plan`, `status` | main on identify | Subscription state |
-| `api_url` | both processes (init + identify) | Distinguishes prod / staging / custom — assign meaning in PostHog dashboard. `https://api.x.rowboatlabs.com` = production |
+| `api_url` | both processes (init + identify) | Distinguishes prod / staging / custom — assign meaning in PostHog dashboard. `https://api.x.dhow.com` = production |
 | `platform` | both processes (init + identify) | Always `desktop` from this app; segments desktop users from any other surface |
 | `app_version` | both processes (init + identify) | Electron app version; also included automatically on every event |
-| `signed_in` | renderer | `true` while rowboat OAuth is connected |
-| `{provider}_connected` | renderer | One of `gmail`, `calendar`, `slack`, `rowboat` |
+| `signed_in` | renderer | `true` while dhow OAuth is connected |
+| `{provider}_connected` | renderer | One of `gmail`, `calendar`, `slack`, `dhow` |
 | `total_notes` | renderer (init) | Workspace size signal |
 | `has_used_search`, `has_used_voice` | renderer | One-shot first-use flags |
 | `has_used_email`, `has_used_meetings`, `has_used_live_notes`, `has_used_bg_agents`, `has_used_apps`, `has_used_code` | renderer (`view_opened`) | One-shot first-use flags per feature view |
 | `has_created_bg_agent` | renderer | One-shot: user set up a background agent |
-| `llm_provider_flavors` | main | Sorted array of connected provider flavors incl. `rowboat`/`codex` from auth state (e.g. `["openai","openrouter","rowboat"]`). Synced on every launch and after any provider/assistant change (`packages/core/src/analytics/model-providers.ts`) |
+| `llm_provider_flavors` | main | Sorted array of connected provider flavors incl. `dhow`/`codex` from auth state (e.g. `["openai","openrouter","dhow"]`). Synced on every launch and after any provider/assistant change (`packages/core/src/analytics/model-providers.ts`) |
 | `llm_provider_count` | main | Size of `llm_provider_flavors` |
 | `assistant_model`, `assistant_model_flavor` | main | The configured primary model (complements `llm_usage`, which reports actual usage). Absent until an assistant is configured |
 
@@ -255,7 +262,7 @@ For GitHub Actions / packaged builds: set both as workflow env vars (from secret
 
 If unset, analytics no-op silently — you'll see `[Analytics] POSTHOG_KEY not set; analytics disabled` in main-process logs.
 
-`installationId`: stored in `~/.rowboat/config/installation.json`, generated on first run.
+`installationId`: stored in `~/.dhow/config/installation.json`, generated on first run.
 
 ## File map
 

@@ -35,8 +35,8 @@ import { WorkspaceView } from '@/components/workspace-view';
 import { CodingRunBlock } from '@/components/coding-run';
 import { SubAgentBlock } from '@/components/sub-agent-block';
 import { KnowledgeView, type KnowledgeViewMode } from '@/components/knowledge-view';
-import { GoogleDocPickerDialog } from '@/components/google-doc-picker-dialog';
 import { ChatHistoryView } from '@/components/chat-history-view';
+import { GoogleDocPickerDialog } from '@/components/google-doc-picker-dialog';
 import { HomeView } from '@/components/home-view';
 import { MeetingsView } from '@/components/meetings-view';
 import { CodeView, type ActiveCodeSession } from '@/components/code/code-view';
@@ -80,16 +80,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Toaster } from "@/components/ui/sonner"
 import { UpdateCard } from "@/components/update-card"
-import { BillingErrorDialog } from "@/components/billing-error-dialog"
 import { BillingErrorNotice } from "@/components/billing-error-notice"
-import { CreditCelebration } from "@/components/credit-celebration"
-import { matchBillingError, type BillingErrorMatch } from "@/lib/billing-error"
-import { dispatchCreditExhausted, dispatchCreditReplenished } from "@/lib/credit-status"
+import { matchBillingError } from "@/lib/billing-error"
 import { ensureMarkdownExtension, normalizeWikiPath, splitWikiFragment, stripKnowledgePrefix, toKnowledgePath, wikiLabel } from '@/lib/wiki-links'
 import { splitFrontmatter, joinFrontmatter } from '@/lib/frontmatter'
 import { extractConferenceLink } from '@/lib/calendar-event'
 import { OnboardingModal } from '@/components/onboarding'
-import { ComposioGoogleMigrationModal } from '@/components/composio-google-migration-modal'
 import { CommandPalette, type CommandPaletteMention, type SearchType } from '@/components/search-dialog'
 import { LiveNoteSidebar } from '@/components/live-note-sidebar'
 import { BackgroundTaskDetail } from '@/components/background-task-detail'
@@ -136,8 +132,6 @@ import { VideoCallView } from '@/components/video-call-view'
 import { PermissionDialog, type PermissionKind } from '@/components/permission-dialog'
 import { ProductTour, type TourNavTarget } from '@/components/product-tour'
 import { useMeetingTranscription, type CalendarEventMeta } from '@/hooks/useMeetingTranscription'
-import { useAnalyticsIdentity } from '@/hooks/useAnalyticsIdentity'
-import * as analytics from '@/lib/analytics'
 import { playAckCue, playAlertCue, playPopCue } from '@/lib/call-sounds'
 import { useTheme } from '@/contexts/theme-context'
 import { TokenUsageMenu } from '@/components/token-usage-menu'
@@ -235,20 +229,20 @@ const TITLEBAR_HEADER_GAP_PX = 8
 const TITLEBAR_TOGGLE_MARGIN_LEFT_PX = 12
 const TITLEBAR_BUTTONS_COLLAPSED = 1
 const TITLEBAR_BUTTON_GAPS_COLLAPSED = 0
-const GRAPH_TAB_PATH = '__rowboat_graph_view__'
-const SUGGESTED_TOPICS_TAB_PATH = '__rowboat_suggested_topics__'
-const MEETINGS_TAB_PATH = '__rowboat_meetings__'
-const LIVE_NOTES_TAB_PATH = '__rowboat_live_notes__'
-const BG_TASKS_TAB_PATH = '__rowboat_bg_tasks__'
-const APPS_TAB_PATH = '__rowboat_mini_apps__'
-const EMAIL_TAB_PATH = '__rowboat_email__'
-const WORKSPACE_TAB_PATH = '__rowboat_workspace__'
+const GRAPH_TAB_PATH = '__dhow_graph_view__'
+const SUGGESTED_TOPICS_TAB_PATH = '__dhow_suggested_topics__'
+const MEETINGS_TAB_PATH = '__dhow_meetings__'
+const LIVE_NOTES_TAB_PATH = '__dhow_live_notes__'
+const BG_TASKS_TAB_PATH = '__dhow_bg_tasks__'
+const APPS_TAB_PATH = '__dhow_mini_apps__'
+const EMAIL_TAB_PATH = '__dhow_email__'
+const WORKSPACE_TAB_PATH = '__dhow_workspace__'
 const WORKSPACE_ROOT = 'knowledge/Workspace'
-const KNOWLEDGE_VIEW_TAB_PATH = '__rowboat_knowledge_view__'
-const CHAT_HISTORY_TAB_PATH = '__rowboat_chat_history__'
-const HOME_TAB_PATH = '__rowboat_home__'
-const BASES_DEFAULT_TAB_PATH = '__rowboat_bases_default__'
-const CODE_TAB_PATH = '__rowboat_code__'
+const KNOWLEDGE_VIEW_TAB_PATH = '__dhow_knowledge_view__'
+const CHAT_HISTORY_TAB_PATH = '__dhow_chat_history__'
+const HOME_TAB_PATH = '__dhow_home__'
+const BASES_DEFAULT_TAB_PATH = '__dhow_bases_default__'
+const CODE_TAB_PATH = '__dhow_code__'
 
 const clampNumber = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value))
@@ -571,7 +565,7 @@ function sortNodes(nodes: TreeNode[]): TreeNode[] {
 /**
  * Organize Meetings/ source folders into date-grouped subfolders.
  *
- * - rowboat:  rowboat/2026-03-20/meeting-xxx.md  → keeps date folders as-is
+ * - dhow:  dhow/2026-03-20/meeting-xxx.md  → keeps date folders as-is
  * - granola:  granola/2026/03/18/Title.md         → collapses into "2026-03-18" folders
  * - Files directly under a source folder (no date subfolder) are grouped
  *   by the date prefix in their filename (e.g. meeting-2026-03-17T...).
@@ -704,10 +698,10 @@ function viewStatesEqual(a: ViewState, b: ViewState): boolean {
 }
 
 /**
- * Parse a rowboat:// deep link into a ViewState. Returns null if the URL is
+ * Parse a dhow:// deep link into a ViewState. Returns null if the URL is
  * malformed or names an unknown target.
  *
- * Shape: rowboat://open?type=<file|chat|graph|task|suggested-topics|meetings|live-notes|email>&...
+ * Shape: dhow://open?type=<file|chat|graph|task|suggested-topics|meetings|live-notes|email>&...
  *   file:             ?type=file&path=knowledge/foo.md
  *   chat:             ?type=chat&runId=abc123        (runId optional)
  *   graph:            ?type=graph
@@ -718,7 +712,7 @@ function viewStatesEqual(a: ViewState, b: ViewState): boolean {
  *   email:            ?type=email
  */
 function parseDeepLink(input: string): ViewState | null {
-  const SCHEME = 'rowboat://'
+  const SCHEME = 'dhow://'
   if (!input.startsWith(SCHEME)) return null
   const rest = input.slice(SCHEME.length)
   const queryIdx = rest.indexOf('?')
@@ -820,7 +814,7 @@ function ContentHeader({
   const isCollapsed = state === "collapsed"
   return (
     <header
-      className="rowboat-titlebar titlebar-drag-region flex h-10 shrink-0 items-stretch border-b border-border bg-sidebar overflow-hidden"
+      className="dhow-titlebar titlebar-drag-region flex h-10 shrink-0 items-stretch border-b border-border bg-sidebar overflow-hidden"
       style={{
         paddingLeft: isCollapsed ? (collapsedLeftPaddingPx ?? 196) : 12,
         paddingRight: 12,
@@ -864,7 +858,6 @@ function App() {
   type ShortcutPane = 'left' | 'right'
   type MarkdownHistoryHandlers = { undo: () => boolean; redo: () => boolean }
 
-  useAnalyticsIdentity()
 
   // File browser state (for Knowledge section)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
@@ -891,9 +884,9 @@ function App() {
   // Folder being browsed inside the knowledge view (null = root overview).
   // Lives in ViewState so folder drill-down participates in back/forward history.
   const [knowledgeViewFolderPath, setKnowledgeViewFolderPath] = useState<string | null>(null)
+  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false)
   const [googleDocPickerOpen, setGoogleDocPickerOpen] = useState(false)
   const [googleDocPickerTargetFolder, setGoogleDocPickerTargetFolder] = useState('knowledge')
-  const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false)
   // Default landing view: Home with the chat docked according to appearance settings.
   const [isHomeOpen, setIsHomeOpen] = useState(true)
   const [emailInitialThreadId, setEmailInitialThreadId] = useState<string | null>(null)
@@ -981,9 +974,6 @@ function App() {
   // Chat state
   const [, setMessage] = useState<string>('')
   const [conversation, setConversation] = useState<ConversationItem[]>([])
-  const [billingErrorMatch, setBillingErrorMatch] = useState<BillingErrorMatch | null>(null)
-  const [billingErrorOpen, setBillingErrorOpen] = useState(false)
-  const handledBillingErrorIdsRef = useRef<Set<string>>(new Set())
   const [currentAssistantMessage, setCurrentAssistantMessage] = useState<string>('')
   const [, setModelUsage] = useState<UsageSummary | null>(null)
   const [runId, setRunId] = useState<string | null>(null)
@@ -992,25 +982,6 @@ function App() {
   // runId IS the session id in the sessions runtime.
   const sessionChat = useSessionChat(runId)
 
-  // Watch the conversation that is actually rendered — the sessions-runtime
-  // one when loaded, the legacy state otherwise — so billing failures
-  // (out of credits, subscription lapsed) always pop the upgrade dialog.
-  const billingWatchedConversation = sessionChat.chatState?.conversation ?? conversation
-  useEffect(() => {
-    for (let i = billingWatchedConversation.length - 1; i >= 0; i--) {
-      const item = billingWatchedConversation[i]
-      if (!isErrorMessage(item)) continue
-      if (handledBillingErrorIdsRef.current.has(item.id)) return
-      const match = matchBillingError(item.message)
-      if (match) {
-        handledBillingErrorIdsRef.current.add(item.id)
-        setBillingErrorMatch(match)
-        setBillingErrorOpen(true)
-        if (match.kind === 'out_of_credits') dispatchCreditExhausted()
-      }
-      return
-    }
-  }, [billingWatchedConversation])
   const runIdRef = useRef<string | null>(null)
   const loadRunRequestIdRef = useRef(0)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -1188,13 +1159,6 @@ function App() {
     const marks = callTurnMarksRef.current
     if (!marks || marks.submit === undefined || marks.speak === undefined) return
     callTurnMarksRef.current = null
-    const now = performance.now()
-    analytics.callTurnLatency({
-      endpointToSubmitMs: marks.submit - marks.t0,
-      submitToSpeakMs: marks.speak - marks.submit,
-      speakToAudioMs: now - marks.speak,
-      totalMs: now - marks.t0,
-    })
   }, [tts.state])
 
   const voice = useVoiceMode()
@@ -1258,10 +1222,10 @@ function App() {
       window.ipc.invoke('voice:getConfig', null),
       window.ipc.invoke('oauth:getState', null),
     ]).then(([config, oauthState]) => {
-      const rowboatConnected = oauthState.config?.rowboat?.connected ?? false
-      const hasVoice = !!config.deepgram || rowboatConnected
+      const dhowConnected = oauthState.config?.dhow?.connected ?? false
+      const hasVoice = !!config.deepgram || dhowConnected
       setVoiceAvailable(hasVoice)
-      setTtsAvailable(!!config.elevenlabs || rowboatConnected)
+      setTtsAvailable(!!config.elevenlabs || dhowConnected)
       // Pre-cache auth details so mic click skips IPC round-trips
       if (hasVoice) {
         voice.warmup()
@@ -1280,29 +1244,6 @@ function App() {
     return cleanup
   }, [refreshVoiceAvailability])
 
-  // One-time Composio→native Google migration check. Runs on mount and again
-  // after the user signs in to Rowboat (so we catch users who weren't signed
-  // in at startup). The IPC is idempotent — once `dismissed_at` is set on the
-  // main side, every subsequent call returns `{shouldShow: false}`.
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const result = await window.ipc.invoke('migration:check-composio-google', null)
-        if (result.shouldShow) {
-          setShowComposioGoogleMigration(true)
-        }
-      } catch (error) {
-        console.error('[migration] check-composio-google failed:', error)
-      }
-    }
-    void run()
-    const cleanup = window.ipc.on('oauth:didConnect', (event) => {
-      if (event.provider === 'rowboat' && event.success) {
-        void run()
-      }
-    })
-    return cleanup
-  }, [])
 
   // Which macOS permission explainer is up, if any (replaces the old silent
   // failures: mic/camera denials did nothing visible).
@@ -1433,14 +1374,11 @@ function App() {
     setInCall(true)
     callStartedAtMsRef.current = performance.now()
     callStartedEpochRef.current = Date.now()
-    analytics.callStarted(preset)
   }, [video, setPttState])
 
   const endCall = useCallback(() => {
     if (!inCallRef.current) return
-    const startedAt = callStartedAtMsRef.current
     callStartedAtMsRef.current = null
-    analytics.callEnded(startedAt != null ? (performance.now() - startedAt) / 1000 : 0)
     voiceRef.current.cancel()
     ttsEnabledRef.current = false
     ttsModeRef.current = 'summary'
@@ -1802,7 +1740,7 @@ function App() {
     const timer = setTimeout(() => {
       localStorage.setItem('quick-ask-tip-shown', '1')
       playPopCue()
-      toast('Ask Rowboat from anywhere', {
+      toast('Ask Dhow from anywhere', {
         description: `Press ${isMac ? '⌥⇧Space' : 'Alt+Shift+Space'} in any app for a quick question — the answer shows up right there and in your chat.`,
         duration: 12000,
         closeButton: true,
@@ -1819,7 +1757,7 @@ function App() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Quick-ask "Open in Rowboat": land on the conversation full-view — chat
+  // Quick-ask "Open in Dhow": land on the conversation full-view — chat
   // pane open and maximized, no middle pane.
   useEffect(() => {
     return window.ipc.on('quick-ask:open-chat', () => {
@@ -2102,7 +2040,7 @@ function App() {
     const activeTab = fileTabs.find((tab) => tab.id === activeFileTabId)
     return activeTab ? isCodeTabPath(activeTab.path) : false
   }, [fileTabs, activeFileTabId])
-  // The code session that owns the right-hand chat pane: rowboat-mode sessions
+  // The code session that owns the right-hand chat pane: dhow-mode sessions
   // bind the assistant chat to their run; direct-mode sessions swap the pane
   // for the direct-drive chat.
   const [activeCodeSession, setActiveCodeSession] = useState<ActiveCodeSession | null>(null)
@@ -2216,8 +2154,6 @@ function App() {
   // Onboarding state
   const [showOnboarding, setShowOnboarding] = useState(false)
 
-  // One-time Composio→native Google migration modal
-  const [showComposioGoogleMigration, setShowComposioGoogleMigration] = useState(false)
 
   // Search state
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -2786,7 +2722,6 @@ function App() {
           opts: { encoding: 'utf8' }
         })
         markRecentLocalMarkdownWrite(pathToSave)
-        analytics.noteEdited(pathToSave)
         // Store body-only baseline (matches what debouncedContent compares against)
         initialContentByPathRef.current.set(pathToSave, splitFrontmatter(contentToSave).body)
 
@@ -3120,7 +3055,6 @@ function App() {
             const nextUsage = normalizeUsage(llmEvent.usage)
             if (nextUsage) {
               setModelUsage(nextUsage)
-              dispatchCreditReplenished()
             }
           }
         }
@@ -3543,7 +3477,6 @@ function App() {
         currentRunId = createdSession.sessionId
         newRunCreatedAt = new Date().toISOString()
         setRunId(currentRunId)
-        analytics.chatSessionCreated(currentRunId)
         // Update active chat tab's runId to the new run
         setChatTabs((prev) => prev.map((tab) => (
           tab.id === submitTabId
@@ -3701,11 +3634,6 @@ function App() {
           },
           config: sendConfig,
         })
-        analytics.chatMessageSent({
-          voiceInput: pendingVoiceInputRef.current || undefined,
-          voiceOutput: ttsEnabledRef.current ? ttsModeRef.current : undefined,
-          searchEnabled: searchEnabled || undefined,
-        })
       } else {
         const middlePaneContext = await buildMiddlePaneContext()
         await sendSessionMessage({
@@ -3716,11 +3644,6 @@ function App() {
             userMessageContext: userMessageContextFor(middlePaneContext),
           },
           config: sendConfig,
-        })
-        analytics.chatMessageSent({
-          voiceInput: pendingVoiceInputRef.current || undefined,
-          voiceOutput: ttsEnabledRef.current ? ttsModeRef.current : undefined,
-          searchEnabled: searchEnabled || undefined,
         })
       }
 
@@ -3925,7 +3848,7 @@ function App() {
   }, [chatTabs, activeChatTabId, applyChatTab, loadRun, restoreChatTabState, saveChatScrollForTab])
 
   // A code session was selected (or changed mode/status) in the Code view.
-  // Rowboat-mode sessions take over the assistant chat pane by binding their
+  // Dhow-mode sessions take over the assistant chat pane by binding their
   // run to a chat tab — the conversation IS the assistant chat, no copy.
   // Direct-mode sessions render their own pane instead (see right-pane JSX).
   const handleCodeSessionSelected = useCallback((active: ActiveCodeSession | null) => {
@@ -3938,22 +3861,22 @@ function App() {
           : { ...prev, [id]: { cwd, agent } }
       ))
     }
-    const rowboatSessionId = active && active.session.mode === 'rowboat' ? active.session.id : null
-    if (!rowboatSessionId) {
+    const dhowSessionId = active && active.session.mode === 'dhow' ? active.session.id : null
+    if (!dhowSessionId) {
       boundCodeSessionRef.current = null
       return
     }
-    if (boundCodeSessionRef.current === rowboatSessionId) return
-    boundCodeSessionRef.current = rowboatSessionId
-    const existingTab = chatTabsRef.current.find((t) => t.runId === rowboatSessionId)
+    if (boundCodeSessionRef.current === dhowSessionId) return
+    boundCodeSessionRef.current = dhowSessionId
+    const existingTab = chatTabsRef.current.find((t) => t.runId === dhowSessionId)
     if (existingTab) {
       switchChatTab(existingTab.id)
       return
     }
     setChatTabs((prev) => prev.map((t) => (
-      t.id === activeChatTabIdRef.current ? { ...t, runId: rowboatSessionId } : t
+      t.id === activeChatTabIdRef.current ? { ...t, runId: dhowSessionId } : t
     )))
-    loadRun(rowboatSessionId)
+    loadRun(dhowSessionId)
   }, [switchChatTab, loadRun])
 
   const closeChatTab = useCallback((tabId: string) => {
@@ -4507,8 +4430,8 @@ function App() {
         { path: filePath, displayName },
       )
     }
-    window.addEventListener('rowboat:open-copilot-edit-live-note', handler as EventListener)
-    return () => window.removeEventListener('rowboat:open-copilot-edit-live-note', handler as EventListener)
+    window.addEventListener('dhow:open-copilot-edit-live-note', handler as EventListener)
+    return () => window.removeEventListener('dhow:open-copilot-edit-live-note', handler as EventListener)
   }, [submitFromPalette])
 
   // Listener for the toolbar "Live note" button — opens the panel for a path.
@@ -4519,8 +4442,8 @@ function App() {
       if (!filePath) return
       setLiveNotePanelPath(filePath)
     }
-    window.addEventListener('rowboat:open-live-note-panel', handler as EventListener)
-    return () => window.removeEventListener('rowboat:open-live-note-panel', handler as EventListener)
+    window.addEventListener('dhow:open-live-note-panel', handler as EventListener)
+    return () => window.removeEventListener('dhow:open-live-note-panel', handler as EventListener)
   }, [])
 
   // Auto-close the live-note panel when the active note changes — the panel is
@@ -4548,8 +4471,8 @@ function App() {
         : null
       submitFromPalette(instruction, mention)
     }
-    window.addEventListener('rowboat:open-copilot-prompt', handler as EventListener)
-    return () => window.removeEventListener('rowboat:open-copilot-prompt', handler as EventListener)
+    window.addEventListener('dhow:open-copilot-prompt', handler as EventListener)
+    return () => window.removeEventListener('dhow:open-copilot-prompt', handler as EventListener)
   }, [submitFromPalette])
 
   // Reveal the chat in the right side pane (from the middle-panel chat icon).
@@ -4688,7 +4611,6 @@ function App() {
   // Feature-importance funnel: one event per view the user lands on. Keyed on
   // the view *type* so switching files/threads inside a view doesn't re-fire.
   useEffect(() => {
-    analytics.viewOpened(currentViewState.type)
   }, [currentViewState.type])
 
   const appendUnique = useCallback((stack: ViewState[], entry: ViewState) => {
@@ -5313,10 +5235,10 @@ function App() {
     void window.ipc.invoke('app:consumeUpdateInfo', null).then(({ version, updatedFrom }) => {
       if (!updatedFrom) return
       toast(`Updated to v${version}`, {
-        description: `Rowboat was updated from v${updatedFrom}.`,
+        description: `Dhow was updated from v${updatedFrom}.`,
         action: {
           label: "What's new",
-          onClick: () => window.open(`https://github.com/rowboatlabs/rowboat/releases/tag/v${version}`, '_blank'),
+          onClick: () => window.open(`https://github.com/SajmustafaKe/Dhow/releases/tag/v${version}`, '_blank'),
         },
         duration: 10000,
       })
@@ -5324,7 +5246,7 @@ function App() {
   }, [])
 
   // Report the UI theme to the apps server (spec §7.1): apps read it from
-  // GET /_rowboat/app and get live changes via the SSE theme event.
+  // GET /_dhow/app and get live changes via the SSE theme event.
   useEffect(() => {
     const report = () => {
       const theme = document.documentElement.classList.contains('dark') ? 'dark' as const : 'light' as const
@@ -5429,7 +5351,7 @@ function App() {
   const applyAppNavigation = useCallback((result: Record<string, unknown>) => {
     // During a call, navigation must be VISIBLE: the full-screen call view
     // would cover the very thing being shown — collapse it to the pill —
-    // and if the user is in another app, bring Rowboat forward.
+    // and if the user is in another app, bring Dhow forward.
     const visibleActions = ['open-note', 'open-view', 'read-view', 'open-item', 'update-base-view', 'create-base']
     if (inCallRef.current && visibleActions.includes(result.action as string)) {
       setCallMinimized(true)
@@ -5954,7 +5876,6 @@ function App() {
     } catch (err) {
       console.error('Failed to mark onboarding complete:', err)
     }
-    analytics.onboardingCompleted()
     setShowOnboarding(false)
     if (opts?.startTour) {
       window.setTimeout(() => setTourActive(true), 400)
@@ -5979,7 +5900,6 @@ function App() {
           data: `# ${name}\n\n`,
           opts: { encoding: 'utf8' }
         })
-        analytics.noteCreated()
         setExpandedPaths(prev => new Set([...prev, parentPath]))
         navigateToFile(fullPath)
       } catch (err) {
@@ -6250,7 +6170,6 @@ function App() {
     const notePath = await meetingTranscription.start(calEvent)
     if (notePath) {
       meetingRecordingStartedAtMsRef.current = performance.now()
-      analytics.meetingRecordingStarted(Boolean(calEvent))
       meetingNotePathRef.current = notePath
       await handleVoiceNoteCreated(notePath)
     }
@@ -6276,9 +6195,7 @@ function App() {
   const handleToggleMeeting = useCallback(async () => {
     if (meetingTranscription.state === 'recording') {
       await meetingTranscription.stop()
-      const recordingStartedAt = meetingRecordingStartedAtMsRef.current
       meetingRecordingStartedAtMsRef.current = null
-      analytics.meetingRecordingStopped(recordingStartedAt != null ? (performance.now() - recordingStartedAt) / 1000 : 0)
       setRecordingMeetingSource(null)
 
       // Read the final transcript and generate meeting notes via LLM
@@ -6315,7 +6232,7 @@ function App() {
               })
               // Refresh the file view
               await handleVoiceNoteCreated(notePath)
-              // Notes are done — bring Rowboat to the foreground on the
+              // Notes are done — bring Dhow to the foreground on the
               // finished note (the post-call "redirect"). The notification
               // below is background-only, so it only fires if the focus
               // grab didn't take.
@@ -6326,7 +6243,6 @@ function App() {
             }
           }
         } catch (err) {
-          analytics.meetingSummarizeFailed()
           console.error('[meeting] Failed to generate meeting notes:', err)
         }
         setMeetingSummarizing(false)
@@ -6859,7 +6775,7 @@ function App() {
           void navigateToView({ type: 'file', path: BASES_DEFAULT_TAB_PATH })
         }
       }}>
-        <div className="rowboat-shell flex h-svh w-full overflow-hidden">
+        <div className="dhow-shell flex h-svh w-full overflow-hidden">
           {/* Content sidebar with SidebarProvider for collapse functionality */}
           <SidebarProvider
             style={{
@@ -7156,8 +7072,8 @@ function App() {
                       copyPath: knowledgeActions.copyPath,
                       revealInFileManager: knowledgeActions.revealInFileManager,
                       createNote: knowledgeActions.createNote,
-                      addGoogleDoc: knowledgeActions.addGoogleDoc,
                       createFolder: knowledgeActions.createFolder,
+                      addGoogleDoc: knowledgeActions.addGoogleDoc,
                       onOpenInNewTab: knowledgeActions.onOpenInNewTab,
                     }}
                     onNavigate={(path) => { void navigateToView({ type: 'workspace', path: path === WORKSPACE_ROOT ? undefined : path }) }}
@@ -7172,8 +7088,8 @@ function App() {
                     tree={tree}
                     actions={{
                       createNote: knowledgeActions.createNote,
-                      addGoogleDoc: knowledgeActions.addGoogleDoc,
                       createFolder: knowledgeActions.createFolder,
+                      addGoogleDoc: knowledgeActions.addGoogleDoc,
                       rename: knowledgeActions.rename,
                       remove: knowledgeActions.remove,
                       copyPath: knowledgeActions.copyPath,
@@ -7365,7 +7281,6 @@ function App() {
                                 const title = getBaseName(tab.path)
                                 try {
                                   await window.ipc.invoke('export:note', { markdown, format, title })
-                                  analytics.noteExported(format)
                                 } catch (err) {
                                   console.error('Export failed:', err)
                                 }
@@ -7579,7 +7494,7 @@ function App() {
                   })}
                 </div>
 
-                <div className="rowboat-composer-dock sticky bottom-0 z-10 bg-background pb-12 pt-0 shadow-lg">
+                <div className="dhow-composer-dock sticky bottom-0 z-10 bg-background pb-12 pt-0 shadow-lg">
                   <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-linear-to-t from-background to-transparent" />
                   <div className="mx-auto w-full max-w-4xl px-4">
                     {chatTabs.map((tab) => {
@@ -7647,7 +7562,7 @@ function App() {
             </SidebarInset>
 
             {/* Chat pane - shown when viewing files/graph. For a direct-mode
-                code session it swaps to the direct-drive chat; rowboat-mode
+                code session it swaps to the direct-drive chat; dhow-mode
                 sessions use the regular assistant chat bound to their run. */}
             {isRightPaneContext && isCodeOpen && activeCodeSession?.session.mode === 'direct' ? (
               <ResizableRightPane
@@ -7722,7 +7637,7 @@ function App() {
                 codeSessionLocks={codeSessionLocks}
                 pinnedToCodeSession={
                   isCodeOpen
-                    && activeCodeSession?.session.mode === 'rowboat'
+                    && activeCodeSession?.session.mode === 'dhow'
                     // Only while the pane is actually bound to the session — a
                     // palette-initiated fresh chat, for example, unbinds it.
                     && chatTabs.find((t) => t.id === activeChatTabId)?.runId === activeCodeSession.session.id
@@ -7820,26 +7735,9 @@ function App() {
       </SidebarSectionProvider>
       <Toaster />
       <UpdateCard />
-      <CreditCelebration />
-      <BillingErrorDialog
-        open={billingErrorOpen}
-        match={billingErrorMatch}
-        onOpenChange={setBillingErrorOpen}
-      />
       <OnboardingModal
         open={showOnboarding}
         onComplete={handleOnboardingComplete}
-      />
-      <ComposioGoogleMigrationModal
-        open={showComposioGoogleMigration}
-        onOpenChange={setShowComposioGoogleMigration}
-        onReconnect={() => {
-          // Trigger the rowboat-mode Google connect flow. With no credentials
-          // and the user signed in to Rowboat, the main process opens the
-          // webapp `/oauth/google/start` URL. The deep link returns and
-          // completeRowboatGoogleConnect persists the tokens.
-          void window.ipc.invoke('oauth:connect', { provider: 'google' })
-        }}
       />
       <GoogleDocPickerDialog
         open={googleDocPickerOpen}
@@ -7857,14 +7755,14 @@ function App() {
           <DialogHeader>
             <DialogTitle>Screen recording permission required</DialogTitle>
             <DialogDescription>
-              Rowboat needs <strong>Screen Recording</strong> permission to capture meeting audio from other apps (Zoom, Meet, etc.). This feature won't work without it.
+              Dhow needs <strong>Screen Recording</strong> permission to capture meeting audio from other apps (Zoom, Meet, etc.). This feature won't work without it.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-muted-foreground">
             <p>To enable this:</p>
             <ol className="list-decimal list-inside space-y-1.5">
               <li>Open <strong>System Settings</strong> → <strong>Privacy & Security</strong> → <strong>Screen Recording</strong></li>
-              <li>Toggle on <strong>Rowboat</strong></li>
+              <li>Toggle on <strong>Dhow</strong></li>
               <li>You may need to restart the app after granting permission</li>
             </ol>
           </div>

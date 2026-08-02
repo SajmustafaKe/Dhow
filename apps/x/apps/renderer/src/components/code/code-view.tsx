@@ -69,7 +69,7 @@ export interface ActiveCodeSession {
 
 // The Code section's middle pane: session rail + workspace (diffs/files).
 // The conversation lives in the RIGHT pane — the assistant chat bound to the
-// session's run when Rowboat drives, or the direct-drive chat otherwise.
+// session's run when Dhow drives, or the direct-drive chat otherwise.
 // App.tsx learns which via onSessionSelected and renders the right pane.
 export function CodeView({
   onSessionSelected,
@@ -180,7 +180,7 @@ export function CodeView({
     }
   }, [refresh, selectedSessionId])
 
-  const handleUpdateSession = useCallback(async (patch: { mode?: 'direct' | 'rowboat'; policy?: ApprovalPolicy; agent?: 'claude' | 'codex'; agentModel?: string; agentEffort?: string }) => {
+  const handleUpdateSession = useCallback(async (patch: { mode?: 'direct' | 'dhow'; policy?: ApprovalPolicy; agent?: 'claude' | 'codex'; agentModel?: string; agentEffort?: string }) => {
     if (!selectedSessionId) return
     try {
       await window.ipc.invoke('codeSession:update', { sessionId: selectedSessionId, patch })
@@ -284,11 +284,11 @@ export function CodeView({
                 </DropdownMenu>
                 <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
                   <Bot className="size-3.5" />
-                  <span className="whitespace-nowrap">Rowboat drives</span>
+                  <span className="whitespace-nowrap">Dhow drives</span>
                   <Switch
-                    checked={selectedSession.mode === 'rowboat'}
+                    checked={selectedSession.mode === 'dhow'}
                     disabled={busy}
-                    onCheckedChange={(checked) => void handleUpdateSession({ mode: checked ? 'rowboat' : 'direct' })}
+                    onCheckedChange={(checked) => void handleUpdateSession({ mode: checked ? 'dhow' : 'direct' })}
                   />
                 </label>
               </div>
@@ -344,7 +344,7 @@ export function CodeView({
             <Code2 className="size-10 text-muted-foreground/40" />
             <div className="text-sm font-medium">Code with agents</div>
             <p className="max-w-sm px-6 text-xs text-muted-foreground">
-              Run Claude Code or Codex on your projects — let Rowboat drive them, or talk to them
+              Run Claude Code or Codex on your projects — let Dhow drive them, or talk to them
               directly. The conversation happens in the chat pane on the right; changes and files
               show here.
             </p>

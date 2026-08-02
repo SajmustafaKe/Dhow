@@ -4,9 +4,9 @@ import { homedir } from "os";
 import { fileURLToPath } from "url";
 
 function resolveWorkDir(): string {
-    const configured = process.env.ROWBOAT_WORKDIR;
+    const configured = process.env.DHOW_WORKDIR;
     if (!configured) {
-        return path.join(homedir(), ".rowboat");
+        return path.join(homedir(), ".dhow");
     }
 
     const expanded = configured === "~"
@@ -19,7 +19,7 @@ function resolveWorkDir(): string {
 }
 
 // Resolve app root relative to compiled file location (dist/...)
-// Allow override via ROWBOAT_WORKDIR env var for standalone pipeline usage.
+// Allow override via DHOW_WORKDIR env var for standalone pipeline usage.
 // Normalize to an absolute path so workspace boundary checks behave consistently.
 export const WorkDir = resolveWorkDir();
 

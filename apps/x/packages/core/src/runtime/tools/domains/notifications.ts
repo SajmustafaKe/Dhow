@@ -15,18 +15,18 @@ import { BuiltinToolsSchema } from "../types.js";
 export const notificationTools: z.infer<typeof BuiltinToolsSchema> = {
     'notify-user': {
         permission: "none",
-        description: "Show a native OS notification to the user. Clicking the notification opens the provided link in the default browser, or focuses the Rowboat app if no link is given.",
+        description: "Show a native OS notification to the user. Clicking the notification opens the provided link in the default browser, or focuses the Dhow app if no link is given.",
         inputSchema: z.object({
-            title: z.string().min(1).max(120).optional().describe("Bold headline shown at the top of the notification. Defaults to 'Rowboat'."),
+            title: z.string().min(1).max(120).optional().describe("Bold headline shown at the top of the notification. Defaults to 'Dhow'."),
             message: z.string().min(1).describe("Body text of the notification."),
-            link: z.string().url().refine((v) => /^(https?|rowboat):\/\//i.test(v), {
-                message: "link must be an http(s):// or rowboat:// URL",
-            }).optional().describe("Optional URL opened when the user clicks the notification. Accepts http(s):// (opens in browser) or rowboat:// (opens a view inside Rowboat — see the notify-user skill for deep-link shapes)."),
+            link: z.string().url().refine((v) => /^(https?|dhow):\/\//i.test(v), {
+                message: "link must be an http(s):// or dhow:// URL",
+            }).optional().describe("Optional URL opened when the user clicks the notification. Accepts http(s):// (opens in browser) or dhow:// (opens a view inside Dhow — see the notify-user skill for deep-link shapes)."),
             actionLabel: z.string().min(1).max(20).optional().describe("Optional label for an inline action button on the notification (e.g. 'Open', 'View', 'Take Notes'). Only shown when `link` is set. Click on the button triggers the same action as clicking the notification body."),
             secondaryActions: z.array(z.object({
                 label: z.string().min(1).max(30),
-                link: z.string().url().refine((v) => /^(https?|rowboat):\/\//i.test(v), {
-                    message: "secondary action link must be an http(s):// or rowboat:// URL",
+                link: z.string().url().refine((v) => /^(https?|dhow):\/\//i.test(v), {
+                    message: "secondary action link must be an http(s):// or dhow:// URL",
                 }),
             })).max(4).optional().describe("Additional action buttons. macOS shows them in the chevron menu next to the primary button (or all inline in Alert style). Each has its own label and link — clicking the button triggers that link, independent of the primary `link`."),
         }),
@@ -69,7 +69,7 @@ export const notificationTools: z.infer<typeof BuiltinToolsSchema> = {
                     await notifyIfEnabled('background_task', {
                         title,
                         message,
-                        link: link ?? 'rowboat://open?type=bg-tasks',
+                        link: link ?? 'dhow://open?type=bg-tasks',
                         actionLabel,
                         secondaryActions,
                         suppressDuringStartupGrace: true,

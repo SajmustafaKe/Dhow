@@ -1689,7 +1689,7 @@
 /* ---- Emails inbox block (language-emails) ---- */
 
 /* No font-family override — inherit the editor's app font (ui-sans-serif /
-   system-ui) so the inbox block matches the rest of the Rowboat UI. */
+   system-ui) so the inbox block matches the rest of the Dhow UI. */
 
 .tiptap-editor .ProseMirror .email-inbox-title {
   font-size: 14px;

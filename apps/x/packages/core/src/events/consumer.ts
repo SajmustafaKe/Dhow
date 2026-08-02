@@ -1,4 +1,4 @@
-import type { RowboatEvent } from '@x/shared/dist/events.js';
+import type { DhowEvent } from '@x/shared/dist/events.js';
 
 /**
  * A target (live note, bg-task, …) that a consumer might fire on an event.
@@ -34,8 +34,8 @@ export interface EventConsumer {
      * `event.target?.consumer === this.name`, otherwise delegates to
      * `routeBatch` from `./routing.js`.
      */
-    findCandidates(event: RowboatEvent, targets: EventConsumerTarget[]): Promise<string[]>;
+    findCandidates(event: DhowEvent, targets: EventConsumerTarget[]): Promise<string[]>;
 
     /** Fire the consumer's agent on a single candidate id. */
-    fireCandidate(event: RowboatEvent, id: string): Promise<EventConsumerFireResult>;
+    fireCandidate(event: DhowEvent, id: string): Promise<EventConsumerFireResult>;
 }

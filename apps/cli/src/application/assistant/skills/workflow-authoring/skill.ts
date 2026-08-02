@@ -1,7 +1,7 @@
 export const skill = String.raw`
 # Agent and Workflow Authoring
 
-Load this skill whenever a user wants to inspect, create, or update agents inside the Rowboat workspace.
+Load this skill whenever a user wants to inspect, create, or update agents inside the Dhow workspace.
 
 ## Core Concepts
 
@@ -15,7 +15,7 @@ Load this skill whenever a user wants to inspect, create, or update agents insid
 ## How multi-agent workflows work
 
 1. **Create an orchestrator agent** that has other agents in its \`tools\`
-2. **Run the orchestrator**: \`rowboatx --agent orchestrator_name\`
+2. **Run the orchestrator**: \`dhowx --agent orchestrator_name\`
 3. The orchestrator calls other agents as tools when needed
 4. Data flows through tool call parameters and responses
 
@@ -86,7 +86,7 @@ Agent files MUST conform to this exact schema. Invalid agents will fail to load.
 Tools in agents must follow one of three types. Each has specific required fields.
 
 ### 1. Builtin Tools
-Internal Rowboat tools (executeCommand, file operations, MCP queries, etc.)
+Internal Dhow tools (executeCommand, file operations, MCP queries, etc.)
 
 **Schema:**
 \`\`\`json
@@ -252,7 +252,7 @@ Reference other agents as tools to build multi-agent workflows
 }
 \`\`\`
 
-**To run this workflow**: \`rowboatx --agent podcast_workflow\`
+**To run this workflow**: \`dhowx --agent podcast_workflow\`
 
 ## Naming and organization rules
 - **All agents live in \`agents/*.json\`** - no other location

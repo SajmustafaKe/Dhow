@@ -54,7 +54,7 @@ async function getClient(serverName: string): Promise<Client> {
 
         // create client
         const client = new Client({
-            name: 'rowboatx',
+            name: 'dhowx',
             version: '1.0.0',
         });
         await client.connect(transport);

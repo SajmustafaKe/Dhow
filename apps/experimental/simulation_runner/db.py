@@ -11,7 +11,7 @@ from scenario_types import (
     AggregateResults
 )
 
-MONGO_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/rowboat").strip()
+MONGO_URI = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/dhow").strip()
 
 TEST_SCENARIOS_COLLECTION = "test_scenarios"
 TEST_SIMULATIONS_COLLECTION = "test_simulations"
@@ -21,7 +21,7 @@ API_KEYS_COLLECTION = "api_keys"
 
 def get_db():
     client = MongoClient(MONGO_URI)
-    return client["rowboat"]
+    return client["dhow"]
 
 def get_collection(collection_name: str):
     db = get_db()

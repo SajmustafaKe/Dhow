@@ -8,7 +8,6 @@ import * as files from "../../../filesystem/files.js";
 import { generateText } from "ai";
 import { createLanguageModel } from "../../../models/models.js";
 import { getDefaultModelAndProvider, resolveProviderConfig } from "../../../models/defaults.js";
-import { captureLlmUsage } from "../../../analytics/usage.js";
 import { getCurrentUseCase, withUseCase } from "../../../analytics/use_case.js";
 import { BuiltinToolsSchema } from "../types.js";
 
@@ -193,15 +192,6 @@ export const parsingTools: z.infer<typeof BuiltinToolsSchema> = {
                         },
                     ],
                 }));
-
-                captureLlmUsage({
-                    useCase: ctx?.useCase ?? 'copilot_chat',
-                    subUseCase: 'file_parse',
-                    ...(ctx?.agentName ? { agentName: ctx.agentName } : {}),
-                    model: modelId,
-                    provider: providerName,
-                    usage: response.usage,
-                });
 
                 return {
                     success: true,

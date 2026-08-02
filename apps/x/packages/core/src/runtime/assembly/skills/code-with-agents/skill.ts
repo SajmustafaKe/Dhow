@@ -3,7 +3,7 @@ export const skill = String.raw`
 
 Use this skill whenever the user asks you to write code, build a project, create scripts, fix bugs, read/explain code, or do any software development task — even simple file creations like "make a .c file".
 
-Coding agents operate on **arbitrary file paths** (including paths outside the Rowboat workspace root, like \`G:/4th sem/CN\` or \`~/projects/foo\`). Do NOT raise "outside workspace" concerns, and do NOT fall back to your own \`executeCommand\` (PowerShell / bash) or workspace file tools to do code work yourself.
+Coding agents operate on **arbitrary file paths** (including paths outside the Dhow workspace root, like \`G:/4th sem/CN\` or \`~/projects/foo\`). Do NOT raise "outside workspace" concerns, and do NOT fall back to your own \`executeCommand\` (PowerShell / bash) or workspace file tools to do code work yourself.
 
 All coding work runs through the **\`code_agent_run\`** tool. It launches the selected on-device coding agent (Claude Code / Codex), streams its tool calls, file diffs, and plan into the chat, and surfaces any action needing approval as an inline permission card. One persistent session is kept per chat, so follow-up requests resume with full context automatically.
 
@@ -27,7 +27,7 @@ ask-human({
   options: [
     "Use code mode (Claude Code)",
     "Use code mode (Codex)",
-    "Continue with default Rowboat"
+    "Continue with default Dhow"
   ]
 })
 \`\`\`
@@ -37,7 +37,7 @@ This is non-negotiable. The user gets clickable buttons. Free-text "which agent?
 **Branch on the response:**
 - "Use code mode (Claude Code)" → proceed to Step 2 with agent = \`claude\`.
 - "Use code mode (Codex)" → proceed to Step 2 with agent = \`codex\`.
-- "Continue with default Rowboat" → ABANDON this skill. Handle the request yourself using your own tools (workspace file tools, \`executeCommand\` shell, etc.). The rest of this skill does not apply for this turn.
+- "Continue with default Dhow" → ABANDON this skill. Handle the request yourself using your own tools (workspace file tools, \`executeCommand\` shell, etc.). The rest of this skill does not apply for this turn.
 
 ---
 

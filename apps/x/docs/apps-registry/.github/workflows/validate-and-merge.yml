@@ -1,4 +1,4 @@
-# Validates publish PRs against the Rowboat Apps registry and auto-merges on
+# Validates publish PRs against the Dhow Apps registry and auto-merges on
 # success (spec §9.3). On any failure the PR is closed with a comment whose
 # first line is machine-readable: `rejected: <code>`.
 name: validate-and-merge
@@ -74,8 +74,8 @@ jobs:
           case "$perm" in admin|write) ;; *) reject not_repo_collaborator "PR author has \"$perm\" on ${repo}; needs push or admin";; esac
 
           # 7. Latest release carries the bundle asset (existence probe only — D14).
-          http=$(curl -s -o /dev/null -w "%{http_code}" -I -L "https://github.com/${repo}/releases/latest/download/${name}.rowboat-app")
-          case "$http" in 200|302) ;; *) reject missing_release_asset "releases/latest has no ${name}.rowboat-app (HTTP $http)";; esac
+          http=$(curl -s -o /dev/null -w "%{http_code}" -I -L "https://github.com/${repo}/releases/latest/download/${name}.dhow-app")
+          case "$http" in 200|302) ;; *) reject missing_release_asset "releases/latest has no ${name}.dhow-app (HTTP $http)";; esac
 
           echo "name=$name" >> "$GITHUB_OUTPUT"
 

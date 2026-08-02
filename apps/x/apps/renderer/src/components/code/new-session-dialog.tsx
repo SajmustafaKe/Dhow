@@ -47,7 +47,7 @@ export function NewSessionDialog({
 }) {
   const [agentStatus, setAgentStatus] = useState<{ claude: AgentStatus; codex: AgentStatus } | null>(null)
   const [agent, setAgent] = useState<CodingAgent>('claude')
-  // Direct drive by default; Rowboat orchestration remains an opt-in per session.
+  // Direct drive by default; Dhow orchestration remains an opt-in per session.
   const [mode, setMode] = useState<CodeSessionMode>('direct')
   const [policy, setPolicy] = useState<ApprovalPolicy>('auto-approve-reads')
   const [isolation, setIsolation] = useState<'in-repo' | 'worktree'>('in-repo')
@@ -55,7 +55,7 @@ export function NewSessionDialog({
   const [creating, setCreating] = useState(false)
   // null = let the backend use the configured default model.
   const [sessionModel, setSessionModel] = useState<ModelRef | null>(null)
-  // Gates the Rowboat-mode picker the way the old options list did: no
+  // Gates the Dhow-mode picker the way the old options list did: no
   // configured providers → no picker.
   const { groups: modelGroups } = useModels()
   // The coding agent's own model + reasoning effort. 'default' leaves the
@@ -180,18 +180,18 @@ export function NewSessionDialog({
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setMode('rowboat')}
+                onClick={() => setMode('dhow')}
                 className={cn(
                   'rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                  mode === 'rowboat' ? 'border-foreground bg-muted' : 'hover:bg-muted/60',
+                  mode === 'dhow' ? 'border-foreground bg-muted' : 'hover:bg-muted/60',
                 )}
               >
                 <div className="flex items-center gap-1.5 font-medium">
                   <Bot className="size-3.5" />
-                  Rowboat
+                  Dhow
                 </div>
                 <div className="text-[11px] text-muted-foreground">
-                  Full assistant chat — Rowboat plans, runs the agent, and can use your knowledge.
+                  Full assistant chat — Dhow plans, runs the agent, and can use your knowledge.
                 </div>
               </button>
               <button
@@ -301,9 +301,9 @@ export function NewSessionDialog({
             )}
           </div>
 
-          {/* The model only powers Rowboat's own turns; the coding agent uses its
+          {/* The model only powers Dhow's own turns; the coding agent uses its
               own configured model, so hide this entirely for direct sessions. */}
-          {mode === 'rowboat' && modelGroups.length > 0 && (
+          {mode === 'dhow' && modelGroups.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium">Model</label>
               <ModelSelector
@@ -313,7 +313,7 @@ export function NewSessionDialog({
                 onChange={setSessionModel}
               />
               <p className="text-[11px] text-muted-foreground">
-                Used when Rowboat drives. Fixed once the session is created, like any chat.
+                Used when Dhow drives. Fixed once the session is created, like any chat.
               </p>
             </div>
           )}

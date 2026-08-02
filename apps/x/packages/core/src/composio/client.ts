@@ -18,25 +18,16 @@ import {
     ZToolkit,
     type NormalizedToolResult,
 } from "./types.js";
-import { isSignedIn } from "../account/account.js";
-import { getAccessToken } from "../auth/tokens.js";
-import { API_URL } from "../config/env.js";
 
 const COMPOSIO_BASE_URL = 'https://backend.composio.dev/api/v3';
 const CONFIG_FILE = path.join(WorkDir, 'config', 'composio.json');
 
+// Composio is always reached directly with the user's own API key.
 async function getBaseUrl(): Promise<string> {
-    if (await isSignedIn()) {
-        return `${API_URL}/v1/composio`;
-    }
     return COMPOSIO_BASE_URL;
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-    if (await isSignedIn()) {
-        const token = await getAccessToken();
-        return { 'Authorization': `Bearer ${token}` };
-    }
     const apiKey = getApiKey();
     if (!apiKey) {
         throw new Error('Composio API key not configured');
@@ -100,7 +91,6 @@ export function setApiKey(apiKey: string): void {
  * Check if Composio is configured
  */
 export async function isConfigured(): Promise<boolean> {
-    if (await isSignedIn()) return true;
     return !!getApiKey();
 }
 

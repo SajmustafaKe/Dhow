@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { dispatchCreditReplenished } from '@/lib/credit-status';
 
 export type TTSState = 'idle' | 'synthesizing' | 'speaking';
 
@@ -10,9 +9,8 @@ interface SynthesizedAudio {
 function synthesize(text: string): Promise<SynthesizedAudio> {
     return window.ipc.invoke('voice:synthesize', { text }).then(
         (result: { audioBase64: string; mimeType: string }) => {
-            // A successful Rowboat voice synth is a cost-incurring call that
+            // A successful Dhow voice synth is a cost-incurring call that
             // returned OK, so it proves credits are available again.
-            dispatchCreditReplenished();
             return { dataUrl: `data:${result.mimeType};base64,${result.audioBase64}` };
         }
     );

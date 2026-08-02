@@ -1,8 +1,7 @@
 import type { LanguageModel } from 'ai';
 import { events, PrefixLogger } from '@x/shared';
 import { generateObjectSafe } from '../models/structured.js';
-import type { RowboatEvent } from '@x/shared/dist/events.js';
-import { captureLlmUsage } from '../analytics/usage.js';
+import type { DhowEvent } from '@x/shared/dist/events.js';
 import { withUseCase, type UseCase } from '../analytics/use_case.js';
 import type { EventConsumerTarget } from './consumer.js';
 
@@ -48,7 +47,7 @@ Rules:
 - Return each candidate's id exactly as given.`;
 }
 
-function buildPrompt(event: RowboatEvent, batch: EventConsumerTarget[], entityPlural: string): string {
+function buildPrompt(event: DhowEvent, batch: EventConsumerTarget[], entityPlural: string): string {
     const list = batch
         .map((t, i) => `${i + 1}. id: ${t.id}\n   intent: ${t.instructions}\n   matchCriteria: ${t.eventMatchCriteria}`)
         .join('\n\n');
@@ -71,7 +70,7 @@ ${list}`;
  * ids the classifier flagged as relevant. Batched in groups of 20.
  */
 export async function routeBatch(
-    event: RowboatEvent,
+    event: DhowEvent,
     targets: EventConsumerTarget[],
     opts: RouteBatchOptions,
 ): Promise<string[]> {
@@ -96,13 +95,6 @@ export async function routeBatch(
                 schema: events.Pass1OutputSchema,
                 retry: true,
             }));
-            captureLlmUsage({
-                useCase: opts.useCase,
-                subUseCase: 'routing',
-                model: modelId,
-                provider: providerName,
-                usage: result.usage,
-            });
             for (const id of result.object.ids) {
                 matched.add(id);
             }

@@ -19,14 +19,14 @@ describe("isAnthropicModel", () => {
     });
 
     it("matches aggregator ids by prefix or claude name", () => {
-        expect(isAnthropicModel("rowboat", "anthropic/claude-opus-4.8")).toBe(true);
+        expect(isAnthropicModel("dhow", "anthropic/claude-opus-4.8")).toBe(true);
         expect(isAnthropicModel("openrouter", "anthropic/claude-3.5-sonnet")).toBe(true);
         expect(isAnthropicModel("aigateway", "claude-sonnet-5")).toBe(true);
     });
 
     it("rejects everything else", () => {
         expect(isAnthropicModel("openai", "gpt-test")).toBe(false);
-        expect(isAnthropicModel("rowboat", "google/gemini-3.5-flash")).toBe(false);
+        expect(isAnthropicModel("dhow", "google/gemini-3.5-flash")).toBe(false);
         expect(isAnthropicModel("ollama", "llama3")).toBe(false);
         expect(isAnthropicModel("openai-compatible", "qwen3")).toBe(false);
     });

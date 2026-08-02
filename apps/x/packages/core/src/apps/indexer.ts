@@ -2,12 +2,12 @@ import fs from 'fs/promises';
 import type { Dirent } from 'fs';
 import path from 'path';
 import {
-    RowboatAppManifestSchema,
+    DhowAppManifestSchema,
     AppInstallRecordSchema,
     AppPublishRecordSchema,
-    type RowboatAppManifest,
+    type DhowAppManifest,
     type AppSummary,
-} from '@x/shared/dist/rowboat-app.js';
+} from '@x/shared/dist/dhow-app.js';
 import { APPS_DIR, FOLDER_SLUG_RE, appOrigin } from './constants.js';
 
 // Local app management (spec §5). Scan-on-demand; correctness never depends
@@ -33,7 +33,7 @@ export function agentTaskSlug(folder: string, agentFile: string): string {
 
 async function summarizeApp(folder: string): Promise<AppSummary | null> {
     const dir = appDir(folder);
-    const manifestPath = path.join(dir, 'rowboat-app.json');
+    const manifestPath = path.join(dir, 'dhow-app.json');
 
     let manifestRaw: string;
     try {
@@ -42,10 +42,10 @@ async function summarizeApp(folder: string): Promise<AppSummary | null> {
         return null; // no manifest → not an app folder (old prototype folders are ignored)
     }
 
-    let manifest: RowboatAppManifest | undefined;
+    let manifest: DhowAppManifest | undefined;
     let manifestError: string | undefined;
     try {
-        const parsed = RowboatAppManifestSchema.safeParse(JSON.parse(manifestRaw));
+        const parsed = DhowAppManifestSchema.safeParse(JSON.parse(manifestRaw));
         if (parsed.success) {
             manifest = parsed.data;
             // entry/icon traversal guard (§4.2): must resolve inside dist/.
@@ -65,9 +65,9 @@ async function summarizeApp(folder: string): Promise<AppSummary | null> {
         manifestError = `invalid JSON: ${e instanceof Error ? e.message : String(e)}`;
     }
 
-    const installRaw = await readJsonIfExists(path.join(dir, '.rowboat-install.json'));
+    const installRaw = await readJsonIfExists(path.join(dir, '.dhow-install.json'));
     const install = installRaw !== undefined ? AppInstallRecordSchema.safeParse(installRaw) : undefined;
-    const publishRaw = await readJsonIfExists(path.join(dir, '.rowboat-publish.json'));
+    const publishRaw = await readJsonIfExists(path.join(dir, '.dhow-publish.json'));
     const publish = publishRaw !== undefined ? AppPublishRecordSchema.safeParse(publishRaw) : undefined;
 
     let hasDist = false;
@@ -122,7 +122,7 @@ const SCAFFOLD_HTML = `<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>New Rowboat app</title>
+  <title>New Dhow app</title>
   <style>
     body { font-family: -apple-system, system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; }
     .card { text-align: center; color: #555; }
@@ -136,7 +136,7 @@ const SCAFFOLD_HTML = `<!doctype html>
     <p>Edit <code>dist/index.html</code> to build this app.</p>
   </div>
   <script>
-    fetch('/_rowboat/app').then(function (r) { return r.json(); }).then(function (a) {
+    fetch('/_dhow/app').then(function (r) { return r.json(); }).then(function (a) {
       document.getElementById('name').textContent = a.name;
       document.getElementById('meta').textContent = 'v' + a.version + ' · ' + a.folder;
       document.title = a.name;
@@ -158,7 +158,7 @@ export async function createApp(input: { folder: string; name: string; descripti
     } catch {
         throw new Error(`folder_exists: ${folder}`);
     }
-    const manifest = RowboatAppManifestSchema.parse({
+    const manifest = DhowAppManifestSchema.parse({
         schemaVersion: 1,
         name,
         version: '0.1.0',
@@ -167,7 +167,7 @@ export async function createApp(input: { folder: string; name: string; descripti
     await fs.mkdir(path.join(dir, 'dist'), { recursive: true });
     await fs.mkdir(path.join(dir, 'data'), { recursive: true });
     // Pretty-printed manifest (§4.2) — keeps diffs clean in the author's repo.
-    await fs.writeFile(path.join(dir, 'rowboat-app.json'), JSON.stringify(manifest, null, 2) + '\n');
+    await fs.writeFile(path.join(dir, 'dhow-app.json'), JSON.stringify(manifest, null, 2) + '\n');
     await fs.writeFile(path.join(dir, 'dist', 'index.html'), SCAFFOLD_HTML);
     const summary = await summarizeApp(folder);
     if (!summary) throw new Error('scaffold_failed');
@@ -198,7 +198,7 @@ export async function deleteApp(folder: string): Promise<void> {
     if (!FOLDER_SLUG_RE.test(folder)) throw new Error(`invalid_folder: ${folder}`);
     const dir = appDir(folder);
     try {
-        await fs.access(path.join(dir, '.rowboat-install.json'));
+        await fs.access(path.join(dir, '.dhow-install.json'));
         throw new Error('app_is_installed: use uninstall instead');
     } catch (e) {
         if (e instanceof Error && e.message.startsWith('app_is_installed')) throw e;

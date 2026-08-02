@@ -117,7 +117,7 @@ async function fetchModelsDev(): Promise<unknown> {
   const timeout = setTimeout(() => controller.abort(), 10_000);
   try {
     const response = await fetch("https://models.dev/api.json", {
-      headers: { "User-Agent": "Rowboat" },
+      headers: { "User-Agent": "Dhow" },
       signal: controller.signal,
     });
     if (!response.ok) {
@@ -282,7 +282,7 @@ export async function listOnboardingModels(): Promise<{ providers: ProviderSumma
 
 // Gateways spell model ids differently from models.dev: OpenRouter-style ids
 // use dots in versions ("claude-opus-4.8") where models.dev uses dashes
-// ("claude-opus-4-8"), and the rowboat gateway serves OpenAI models with no
+// ("claude-opus-4-8"), and the dhow gateway serves OpenAI models with no
 // vendor prefix at all ("gpt-5.4"). Ids are joined case-insensitively with
 // dots folded to dashes.
 function normalizeModelId(id: string): string {
@@ -339,7 +339,7 @@ export function lookupReasoningFlag(
   if ((REASONING_VENDORS as readonly string[]).includes(flavor)) {
     return index.get(`${flavor}/${normalizeModelId(modelId)}`);
   }
-  // Unprefixed id on a gateway-ish flavor (rowboat serves "gpt-5.4" bare):
+  // Unprefixed id on a gateway-ish flavor (dhow serves "gpt-5.4" bare):
   // match by bare id across vendors.
   return index.get(normalizeModelId(modelId));
 }
@@ -385,7 +385,7 @@ export async function annotateReasoningFlags<T extends { id: string }>(
   const index = await readReasoningIndex();
   if (!index) return models;
   return models.map((model) => {
-    const reasoning = lookupReasoningFlag(index, "rowboat", model.id);
+    const reasoning = lookupReasoningFlag(index, "dhow", model.id);
     return reasoning === undefined ? model : { ...model, reasoning };
   });
 }

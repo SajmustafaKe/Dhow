@@ -4,7 +4,7 @@ import { shouldSuppressDuringStartupGrace } from "@x/core/dist/application/notif
 import { dispatchUrl } from "../deeplink.js";
 
 const HTTP_URL = /^https?:\/\//i;
-const ROWBOAT_URL = /^rowboat:\/\//i;
+const DHOW_URL = /^dhow:\/\//i;
 
 export class ElectronNotificationService implements INotificationService {
     // Holds strong references to active Notification instances so the GC can't
@@ -25,7 +25,7 @@ export class ElectronNotificationService implements INotificationService {
         return Notification.isSupported();
     }
 
-    notify({ title = "Rowboat", message, link, actionLabel, secondaryActions, onlyWhenBackground, suppressDuringStartupGrace }: NotifyInput): void {
+    notify({ title = "Dhow", message, link, actionLabel, secondaryActions, onlyWhenBackground, suppressDuringStartupGrace }: NotifyInput): void {
         // Startup grace: a reopen replays every background task that completed
         // while the app was closed, so grace-eligible notifications fired in the
         // first moments after launch are dropped to avoid a notification flood.
@@ -69,7 +69,7 @@ export class ElectronNotificationService implements INotificationService {
         const release = () => { this.active.delete(notification); };
 
         const openLink = (target: string | undefined) => {
-            if (target && ROWBOAT_URL.test(target)) {
+            if (target && DHOW_URL.test(target)) {
                 dispatchUrl(target);
             } else if (target && HTTP_URL.test(target)) {
                 shell.openExternal(target).catch((err) => {

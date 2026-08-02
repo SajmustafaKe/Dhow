@@ -7,7 +7,7 @@ import { loadAppSettings, saveAppSettings } from "@x/core/dist/config/app_settin
  * OS login-item registration.
  *
  * On Squirrel.Windows, process.execPath is the VERSIONED exe
- * (...\Rowboat-win32-x64\app-x.y.z\rowboat.exe), and Electron defaults the
+ * (...\Dhow-win32-x64\app-x.y.z\dhow.exe), and Electron defaults the
  * login item's `path` to process.execPath. Registering without an explicit
  * path bakes the versioned folder into HKCU\...\CurrentVersion\Run, so after
  * the next update Windows keeps auto-starting the OLD version (Squirrel
@@ -17,7 +17,7 @@ import { loadAppSettings, saveAppSettings } from "@x/core/dist/config/app_settin
  * the app and wasLaunchedAtLogin() keeps working.
  */
 
-// The stub shares our basename (rowboat.exe) and lives one level above the
+// The stub shares our basename (dhow.exe) and lives one level above the
 // versioned app-* folder.
 function windowsStub(): { path: string; args: string[] } {
   const exeName = path.basename(process.execPath);
@@ -49,7 +49,7 @@ export function isLoginItemEnabled(): boolean {
 
 /**
  * Registry Run entries created by pre-V2 builds point at whatever versioned
- * app-x.y.z\rowboat.exe was current at registration time — unknowable now,
+ * app-x.y.z\dhow.exe was current at registration time — unknowable now,
  * and getLoginItemSettings only reports entries whose program matches
  * options.path exactly. So probe every app-* sibling still on disk; Squirrel
  * keeps old versions around, which is exactly what makes the stale entry

@@ -17,16 +17,7 @@ import { LlmModelConfig, LlmProvider, ModelRef } from "@x/shared/dist/models.js"
  * down explicitly, so the simplified v2 resolvers produce identical
  * effective models for every existing user. Task overrides are written ONLY
  * where the old effective model differs from plain inherit-from-assistant.
- *
- * The curated model ids below are FROZEN COPIES of the v1 constants that
- * lived in defaults.ts (deleted with this migration). They are historical
- * data, not live configuration — do not update them when recommendations
- * change.
  */
-
-const V1_SIGNED_IN_ASSISTANT: z.infer<typeof ModelRef> = { provider: "rowboat", model: "google/gemini-3.5-flash" };
-const V1_CURATED_LITE = "google/gemini-3.1-flash-lite";
-const V1_CURATED_CHAT_TITLE = "google/gemini-3.5-flash-lite";
 
 // v1 schema — kept here, and only here, for the migration reader.
 const ModelOverrideV1 = z.union([z.string(), ModelRef]);
@@ -71,24 +62,24 @@ function asRef(value: unknown): Ref | undefined {
 /**
  * Resolve a v1 category override the way defaults.ts used to: a bare string
  * pairs with the top-level provider flavor; a ref is used as-is except a
- * "rowboat" ref while signed out (needs auth → was skipped).
+ * "rowboat" ref, which pointed at the hosted account this build no longer
+ * has (it needed auth → skipped).
  */
-function v1Override(raw: Record<string, unknown>, key: string, signedIn: boolean): Ref | undefined {
+function v1Override(raw: Record<string, unknown>, key: string): Ref | undefined {
   const value = raw[key];
   if (typeof value === "string" && value) {
     const flavor = (raw.provider as Record<string, unknown> | undefined)?.flavor;
     return typeof flavor === "string" && flavor ? { provider: flavor, model: value } : undefined;
   }
   const ref = asRef(value);
-  if (ref && (ref.provider !== "rowboat" || signedIn)) return ref;
+  if (ref && ref.provider !== "rowboat") return ref;
   return undefined;
 }
 
 /** The old effective assistant model (defaults.ts resolution order). */
-function v1EffectiveAssistant(raw: Record<string, unknown>, signedIn: boolean): Ref | undefined {
+function v1EffectiveAssistant(raw: Record<string, unknown>): Ref | undefined {
   const selection = asRef(raw.defaultSelection);
-  if (selection && (selection.provider !== "rowboat" || signedIn)) return selection;
-  if (signedIn) return V1_SIGNED_IN_ASSISTANT;
+  if (selection && selection.provider !== "rowboat") return selection;
   const flavor = (raw.provider as Record<string, unknown> | undefined)?.flavor;
   const model = raw.model;
   if (typeof flavor === "string" && flavor && typeof model === "string" && model) {
@@ -101,9 +92,9 @@ function v1EffectiveAssistant(raw: Record<string, unknown>, signedIn: boolean): 
  * Migrate a raw parsed models.json (any shape) to v2. Returns null when the
  * input is already v2 — nothing to do.
  *
- * Pure: sign-in state is an input; no I/O.
+ * Pure: no I/O.
  */
-export function migrateModelsConfig(rawInput: unknown, signedIn: boolean): V2 | null {
+export function migrateModelsConfig(rawInput: unknown): V2 | null {
   const raw = (rawInput && typeof rawInput === "object" ? rawInput : {}) as Record<string, unknown>;
   if (raw.version === 2) return null;
 
@@ -128,28 +119,21 @@ export function migrateModelsConfig(rawInput: unknown, signedIn: boolean): V2 | 
     if (parsed.success) providers[id] = parsed.data;
   }
 
-  const assistantModel = v1EffectiveAssistant(raw, signedIn);
+  const assistantModel = v1EffectiveAssistant(raw);
 
-  // Old effective model per task, via the deleted v1 rules.
-  const liveNoteEffective = v1Override(raw, "liveNoteAgentModel", signedIn)
-    ?? (signedIn ? { provider: "rowboat", model: V1_CURATED_LITE } : assistantModel);
+  // Old effective model per task, via the deleted v1 rules. Every v1 branch
+  // that resolved to a hosted-account model is gone, so each category now
+  // falls back to the assistant.
+  const liveNoteEffective = v1Override(raw, "liveNoteAgentModel") ?? assistantModel;
   const oldTaskModels: Record<string, Ref | undefined> = {
-    knowledgeGraph: v1Override(raw, "knowledgeGraphModel", signedIn)
-      ?? (signedIn ? { provider: "rowboat", model: V1_CURATED_LITE } : assistantModel),
+    knowledgeGraph: v1Override(raw, "knowledgeGraphModel") ?? assistantModel,
     liveNoteAgent: liveNoteEffective,
     // v1 had no backgroundTask key — getBackgroundTaskAgentModel mirrored
     // the live-note model (override included). v2 gives it its own slot.
     backgroundTask: liveNoteEffective,
-    autoPermissionDecision: v1Override(raw, "autoPermissionDecisionModel", signedIn)
-      ?? (signedIn ? { provider: "rowboat", model: V1_CURATED_LITE } : assistantModel),
-    meetingNotes: v1Override(raw, "meetingNotesModel", signedIn)
-      ?? (signedIn ? V1_SIGNED_IN_ASSISTANT : assistantModel),
-    // Chat titles used the curated lite model ONLY when the assistant itself
-    // routed through the gateway (the exhausted-gateway safeguard).
-    chatTitle: v1Override(raw, "chatTitleModel", signedIn)
-      ?? (assistantModel?.provider === "rowboat"
-        ? { provider: "rowboat", model: V1_CURATED_CHAT_TITLE }
-        : assistantModel),
+    autoPermissionDecision: v1Override(raw, "autoPermissionDecisionModel") ?? assistantModel,
+    meetingNotes: v1Override(raw, "meetingNotesModel") ?? assistantModel,
+    chatTitle: v1Override(raw, "chatTitleModel") ?? assistantModel,
   };
 
   // Write an override only where the old effective model differs from what

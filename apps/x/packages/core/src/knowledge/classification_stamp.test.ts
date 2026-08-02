@@ -7,12 +7,12 @@ import path from "path";
 // sync_gmail (→ config.ts) is imported — hence dynamic imports (not hoisted).
 // This is why these tests don't live in sync_gmail.test.ts, whose static
 // import of sync_gmail would lock in the default WorkDir first.
-process.env.ROWBOAT_WORKDIR = fs.mkdtempSync(path.join(os.tmpdir(), "x-classification-stamp-test-"));
+process.env.DHOW_WORKDIR = fs.mkdtempSync(path.join(os.tmpdir(), "x-classification-stamp-test-"));
 const { stampClassificationFrontmatter } = await import("./sync_gmail.js");
 const { emailAdmission } = await import("./build_graph.js");
 type GmailThreadSnapshot = import("./sync_gmail.js").GmailThreadSnapshot;
 
-const SYNC_DIR = path.join(process.env.ROWBOAT_WORKDIR, "gmail_sync");
+const SYNC_DIR = path.join(process.env.DHOW_WORKDIR, "gmail_sync");
 
 const BODY = "# Pricing discussion\n\n**Thread ID:** t1\n\n---\n\n### From: Sarah <sarah@acme.com>\n**Date:** Fri, 10 Jul 2026\n\nHere is the proposal.\n\n---\n";
 

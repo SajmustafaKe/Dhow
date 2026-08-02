@@ -3,7 +3,7 @@ import path from 'path';
 import { z } from 'zod';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { TriggersSchema, type BackgroundTask } from '@x/shared/dist/background-task.js';
-import type { AppSummary } from '@x/shared/dist/rowboat-app.js';
+import type { AppSummary } from '@x/shared/dist/dhow-app.js';
 import { WorkDir } from '../config/config.js';
 import { getDefaultModelAndProvider } from '../models/defaults.js';
 import { appDir, agentTaskSlug } from './indexer.js';

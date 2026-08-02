@@ -82,7 +82,7 @@ export const composioTools: z.infer<typeof BuiltinToolsSchema> = {
 
     'composio-execute-tool': {
         permission: "composio-execute",
-        description: 'Execute a Composio tool by its slug. You MUST pass the arguments field with all required parameters from the search results inputSchema. Example: composio-execute-tool({ toolSlug: "GITHUB_ISSUES_LIST_FOR_REPO", toolkitSlug: "github", arguments: { owner: "rowboatlabs", repo: "rowboat", state: "open", per_page: 100 } })',
+        description: 'Execute a Composio tool by its slug. You MUST pass the arguments field with all required parameters from the search results inputSchema. Example: composio-execute-tool({ toolSlug: "GITHUB_ISSUES_LIST_FOR_REPO", toolkitSlug: "github", arguments: { owner: "dhow", repo: "dhow", state: "open", per_page: 100 } })',
         inputSchema: z.object({
             toolSlug: z.string().describe('EXACT tool slug from search results (e.g., "GITHUB_ISSUES_LIST_FOR_REPO"). Copy it exactly — do not modify it.'),
             toolkitSlug: z.string().describe('The toolkit slug (e.g., "gmail", "github")'),
@@ -105,7 +105,7 @@ export const composioTools: z.infer<typeof BuiltinToolsSchema> = {
             try {
                 return await executeComposioAction(toolSlug, {
                     connected_account_id: account.id,
-                    user_id: 'rowboat-user',
+                    user_id: 'dhow-user',
                     version: 'latest',
                     arguments: toolArgs,
                 });

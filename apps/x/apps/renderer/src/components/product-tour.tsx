@@ -50,8 +50,8 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'welcome',
     title: 'All aboard! ⚓',
-    text: "I'm your captain for the next minute. The lights are down and the water's in — let me row you across Rowboat, one stop at a time. Use Next or your arrow keys.",
-    voiceText: "I'm your captain for the next minute. The lights are down and the water's in — let me row you across Rowboat, one stop at a time.",
+    text: "I'm your captain for the next minute. The lights are down and the water's in — let me row you across Dhow, one stop at a time. Use Next or your arrow keys.",
+    voiceText: "I'm your captain for the next minute. The lights are down and the water's in — let me row you across Dhow, one stop at a time.",
   },
   {
     id: 'home',
@@ -67,7 +67,7 @@ const TOUR_STEPS: TourStep[] = [
     hat: 'mailcap',
     vignette: 'email',
     title: 'Email',
-    text: 'Read and triage your inbox right here. Rowboat can summarize threads, label messages, and help you draft replies.',
+    text: 'Read and triage your inbox right here. Dhow can summarize threads, label messages, and help you draft replies.',
   },
   {
     id: 'meetings',
@@ -93,7 +93,7 @@ const TOUR_STEPS: TourStep[] = [
     hat: 'gradcap',
     vignette: 'brain',
     title: 'Brain',
-    text: "Brain is your knowledge base — notes, files, and everything Rowboat learns for you, all connected and searchable.",
+    text: "Brain is your knowledge base — notes, files, and everything Dhow learns for you, all connected and searchable.",
   },
   {
     id: 'agents',
@@ -109,7 +109,7 @@ const TOUR_STEPS: TourStep[] = [
     targetId: 'nav-apps',
     navigate: 'apps',
     title: 'Apps',
-    text: 'Apps are mini-apps you build right here in Rowboat — they get the same tools and integrations I do, and you can share them with other people. Just ask for one in chat.',
+    text: 'Apps are mini-apps you build right here in Dhow — they get the same tools and integrations I do, and you can share them with other people. Just ask for one in chat.',
   },
   {
     id: 'workspaces',
@@ -128,7 +128,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: 'composer',
     targetId: 'chat-composer',
-    title: 'Talk to Rowboat',
+    title: 'Talk to Dhow',
     text: 'And this is where we talk! Type, dictate with the mic, or turn on voice output — tap my face button and I’ll read replies out loud myself.',
   },
   {
@@ -351,7 +351,7 @@ export function ProductTour({
 
   // Grab the app shell for the camera zoom; restore it when the tour ends
   useEffect(() => {
-    const shell = document.querySelector<HTMLElement>('.rowboat-shell')
+    const shell = document.querySelector<HTMLElement>('.dhow-shell')
     shellRef.current = shell
     return () => {
       if (shell) {

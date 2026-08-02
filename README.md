@@ -1,43 +1,23 @@
-<a href="https://www.youtube.com/watch?v=5AWoGo-L16I" target="_blank" rel="noopener noreferrer">
-  <img width="1339" height="607" alt="rowboat-github-2" src="assets/readme-dark/hero-video.png" />
-</a>
+<p align="center">
+  <img width="140" height="140" alt="Dhow" src="apps/x/apps/main/icons/icon.png" />
+</p>
 
-<h5 align="center">
-
-<h1 align="center">Rowboat</h1>
+<h1 align="center">Dhow</h1>
 <p align="center">A desktop AI coworker with a memory of your work and built-in surfaces to act on it.</p>
 
-<p align="center" style="display: flex; justify-content: center; gap: 20px; align-items: center;">
-  <a href="https://trendshift.io/repositories/13609" target="blank">
-    <img src="https://trendshift.io/api/badge/repositories/13609" alt="rowboatlabs/rowboat | Trendshift" width="250" height="55"/>
-  </a>
-</p>
-
 <p align="center">
-    <a href="https://www.rowboatlabs.com/" target="_blank" rel="noopener">
-    <img alt="Website" src="https://img.shields.io/badge/Website-10b981?labelColor=10b981&logo=window&logoColor=white">
-  </a>
-  <a href="https://discord.gg/wajrgmJQ6b" target="_blank" rel="noopener">
-    <img alt="Discord" src="https://img.shields.io/badge/Discord-5865F2?logo=discord&logoColor=white&labelColor=5865F2">
-  </a>
-  <a href="https://x.com/intent/user?screen_name=rowboatlabshq" target="_blank" rel="noopener">
-    <img alt="Twitter" src="https://img.shields.io/twitter/follow/rowboatlabshq?style=social">
-  </a>
-  <a href="https://www.ycombinator.com" target="_blank" rel="noopener">
-    <img alt="Y Combinator" src="https://img.shields.io/badge/Y%20Combinator-S24-orange">
-  </a>
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue"></a>
+  <a href="https://github.com/SajmustafaKe/Dhow/releases"><img alt="Releases" src="https://img.shields.io/github/v/release/SajmustafaKe/Dhow?display_name=tag"></a>
 </p>
 
-</h5>
-
-Rowboat indexes your work into a living knowledge graph and uses that to get work done on your machine. It includes work surfaces for collaborating with AI: email client, notes, browser, code mode, meeting note taker, and workspaces for different projects.
+Dhow indexes your work into a living knowledge graph and uses that to get work done on your machine. It includes work surfaces for collaborating with AI: email client, notes, browser, code mode, meeting note taker, and workspaces for different projects.
 
 
-Download latest for Mac/Windows/Linux: [Download](https://www.rowboatlabs.com/downloads)
+Download latest for Mac/Windows/Linux: [Download](https://github.com/SajmustafaKe/Dhow/releases)
 
 <p align="center">
 <a href="https://www.youtube.com/watch?v=et5yQABJ3xI">
-<img width="800" height="450" alt="Rowboat Apps to Code demo" src="apps/x/demo.gif" />
+<img width="800" height="450" alt="Dhow Apps to Code demo" src="apps/x/demo.gif" />
 </a>
 </p>
 
@@ -46,7 +26,7 @@ Download latest for Mac/Windows/Linux: [Download](https://www.rowboatlabs.com/do
 </p>
 
 
-⭐ If you find Rowboat useful, please star the repo. It helps more people find it.
+⭐ If you find Dhow useful, please star the repo. It helps more people find it.
 
 ---
 ## Overview
@@ -55,7 +35,7 @@ Download latest for Mac/Windows/Linux: [Download](https://www.rowboatlabs.com/do
 <tr>
 <td width="40%" valign="middle">
 <h3>Brain</h3>
-Rowboat indexes email, meetings, slack and assistant conversations into a living Obsidian-style backlinked knowledge graph.
+Dhow indexes email, meetings, slack and assistant conversations into a living Obsidian-style backlinked knowledge graph.
 </td>
 <td width="60%">
 <img width="1502" height="939" alt="Brain graph screenshot" src="assets/readme-dark/brain.png" />
@@ -64,7 +44,7 @@ Rowboat indexes email, meetings, slack and assistant conversations into a living
 <tr>
 <td width="40%" valign="middle">
 <h3>Email</h3>
-The built-in email client sorts emails into important and everything else. Rowboat automatically drafts responses for important email using all the work context.
+The built-in email client sorts emails into important and everything else. Dhow automatically drafts responses for important email using all the work context.
 </td>
 <td width="60%">
 <img width="1512" height="948" alt="Email screenshot" src="assets/readme-dark/email.png" />
@@ -83,7 +63,7 @@ You can set up background agents that run on events like new email or on schedul
 <tr>
 <td width="40%" valign="middle">
 <h3>Built-in Browser</h3>
-Rowboat includes a browser that lets you and assistant collaborate on web tasks. Because it's isolated from your main browser, you can log in only to the accounts that want the assistant to access.
+Dhow includes a browser that lets you and assistant collaborate on web tasks. Because it's isolated from your main browser, you can log in only to the accounts that want the assistant to access.
 </td>
 <td width="60%">
 <img width="1512" height="948" alt="Browser screenshot" src="assets/readme-dark/browser.png" />
@@ -101,7 +81,7 @@ A local meeting note-taker that taps into mic & speaker, produces live transcrip
 <tr>
 <td width="40%" valign="middle">
 <h3>Code Mode</h3>
-Code mode lets you spin up parallel coding agents with Claude Code or Codex, and have Rowboat drive them with all the work context where needed.
+Code mode lets you spin up parallel coding agents with Claude Code or Codex, and have Dhow drive them with all the work context where needed.
 </td>
 <td width="60%">
 <img width="1512" height="949" alt="Code mode screenshot" src="assets/readme-dark/code-mode.png" />
@@ -110,7 +90,7 @@ Code mode lets you spin up parallel coding agents with Claude Code or Codex, and
 <tr>
 <td width="40%" valign="middle">
 <h3>Apps</h3>
-You can build your own work surfaces inside Rowboat — they get access to all the tools and integrations, and you can share them with other people.
+You can build your own work surfaces inside Dhow — they get access to all the tools and integrations, and you can share them with other people.
 </td>
 <td width="60%">
 <img width="1512" height="949" alt="Apps screenshot" src="assets/readme-dark/apps.png" />
@@ -132,27 +112,27 @@ Includes one-click integrations to most popular products.
 
 ## Installation
 
-**Download latest for Mac/Windows/Linux:** [Download](https://www.rowboatlabs.com/downloads)
+**Download latest for Mac/Windows/Linux:** [Download](https://github.com/SajmustafaKe/Dhow/releases)
 
-**All release files:**   https://github.com/rowboatlabs/rowboat/releases/latest
+**All release files:**   https://github.com/SajmustafaKe/Dhow/releases/latest
 
 ### Google setup
-To connect Google services (Gmail, Calendar, and Drive), follow [Google setup](https://github.com/rowboatlabs/rowboat/blob/main/google-setup.md).
+To connect Google services (Gmail, Calendar, and Drive), follow [Google setup](https://github.com/SajmustafaKe/Dhow/blob/main/google-setup.md).
 
 ### Voice input
-To enable voice input and voice notes (optional), add a Deepgram API key in `~/.rowboat/config/deepgram.json`
+To enable voice input and voice notes (optional), add a Deepgram API key in `~/.dhow/config/deepgram.json`
 
 ### Voice output
 
-To enable voice output (optional), add an ElevenLabs API key in `~/.rowboat/config/elevenlabs.json`
+To enable voice output (optional), add an ElevenLabs API key in `~/.dhow/config/elevenlabs.json`
 
 ### Web search
 
-To use Exa research search (optional), add the Exa API key in `~/.rowboat/config/exa-search.json`
+To use Exa research search (optional), add the Exa API key in `~/.dhow/config/exa-search.json`
 
 ### External tools
 
-To enable external tools (optional), you can add any MCP server or use Composio tools by adding an API key in `~/.rowboat/config/composio.json`
+To enable external tools (optional), you can add any MCP server or use Composio tools by adding an API key in `~/.dhow/config/composio.json`
 
 All API key files use the same format:
 ```
@@ -166,7 +146,7 @@ All API key files use the same format:
 
 Most AI tools reconstruct context on demand by searching transcripts or documents.
 
-Rowboat maintains **long-lived knowledge** instead:
+Dhow maintains **long-lived knowledge** instead:
 - context accumulates over time
 - relationships are explicit and inspectable
 - notes are editable by you, not hidden inside a model
@@ -176,14 +156,14 @@ The result is memory that compounds, rather than retrieval that starts cold ever
 
 ## Bring your own model
 
-Rowboat works with the model setup you prefer:
+Dhow works with the model setup you prefer:
 - **Local models** via Ollama or LM Studio
 - **Hosted models** (bring your own API key/provider)
 - Swap models anytime — your data stays in your local Markdown vault
 
-## Extend Rowboat with tools (MCP)
+## Extend Dhow with tools (MCP)
 
-Rowboat can connect to external tools and services via **Model Context Protocol (MCP)**.
+Dhow can connect to external tools and services via **Model Context Protocol (MCP)**.
 That means you can plug in (for example) search, databases, CRMs, support tools, and automations - or your own internal tools.
 
 Examples: Exa (web search), Twitter/X, ElevenLabs (voice), Slack, Linear/Jira, GitHub, and more.
@@ -195,7 +175,22 @@ Examples: Exa (web search), Twitter/X, ElevenLabs (voice), Slack, Linear/Jira, G
 - You can inspect, edit, back up, or delete everything at any time
 
 ---
-<div align="center">
 
-[Discord](https://discord.gg/wajrgmJQ6b) · [Twitter](https://x.com/intent/user?screen_name=rowboatlabshq)
-</div>
+## Attribution
+
+Dhow is a fork of [Rowboat](https://github.com/rowboatlabs/rowboat) by RowBoat Labs, used
+under the [Apache License 2.0](LICENSE). **This code has been modified from the original.**
+
+Notable changes in this fork:
+
+- Rebranded to Dhow — application name, bundle identifier `com.dhow.app`, the `dhow://`
+  URL scheme, and the `~/.dhow` home directory.
+- Removed all product analytics. Dhow sends no telemetry.
+- Removed the hosted RowBoat account, billing, credits, and the managed model gateway.
+  Dhow is bring-your-own-key only: the backing service was never open source and is not
+  part of this repository.
+- Google, web search, voice, and Composio now authenticate with your own credentials
+  instead of going through RowBoat Labs' infrastructure.
+
+The `LICENSE` file and its original copyright notice are retained unchanged, as the
+licence requires.

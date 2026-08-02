@@ -12,8 +12,8 @@ for (const [name, tool] of Object.entries(BuiltinTools)) {
 }
 
 export const CopilotAgent: z.infer<typeof Agent> = {
-    name: "rowboatx",
-    description: "Rowboatx copilot",
+    name: "dhowx",
+    description: "Dhowx copilot",
     instructions: CopilotInstructions,
     tools,
 }

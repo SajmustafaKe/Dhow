@@ -27,7 +27,6 @@ import { IRunsRepo } from "./repo.js";
 import { IRunsLock } from "./lock.js";
 import { IAbortRegistry } from "../turns/abort-registry.js";
 import { PrefixLogger } from "@x/shared";
-import { captureLlmUsage } from "../../analytics/usage.js";
 import { enterUseCase, withUseCase, type UseCase } from "../../analytics/use_case.js";
 import { classifyToolPermissions, type AutoPermissionCandidate } from "../../security/auto-permission-classifier.js";
 
@@ -218,7 +217,7 @@ export class AgentRuntime implements IAgentRuntime {
                         void notifyIfEnabled("chat_completion", {
                             title: "Response ready",
                             message: "Your agent finished responding.",
-                            link: `rowboat://open?type=chat&runId=${runId}`,
+                            link: `dhow://open?type=chat&runId=${runId}`,
                             actionLabel: "Open",
                             onlyWhenBackground: true,
                         });
@@ -1033,7 +1032,7 @@ export async function* streamAgent({
                     void notifyIfEnabled("agent_permission", {
                         title: "Permission needed",
                         message: `${agent.name} wants to run "${toolCall.toolName}". Review to continue.`,
-                        link: `rowboat://open?type=chat&runId=${runId}`,
+                        link: `dhow://open?type=chat&runId=${runId}`,
                         actionLabel: "Review",
                     });
                 };
@@ -1225,14 +1224,6 @@ async function* streamLlm(
                 break;
             case "finish-step":
                 if (analytics) {
-                    captureLlmUsage({
-                        useCase: analytics.useCase,
-                        ...(analytics.subUseCase ? { subUseCase: analytics.subUseCase } : {}),
-                        ...(analytics.agentName ? { agentName: analytics.agentName } : {}),
-                        model: analytics.modelId,
-                        provider: analytics.providerName,
-                        usage: event.usage,
-                    });
                 }
                 yield {
                     type: "finish-step",

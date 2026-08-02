@@ -7,10 +7,10 @@ const pkg = require('./package.json');
 
 // The Arch Linux (pacman) package is meant only for local builds on an Arch host
 // with makepkg. It already self-skips elsewhere (maker-pacman checks for makepkg),
-// but CI sets ROWBOAT_SKIP_PACMAN=1 to disable it explicitly — GitHub runners are
+// but CI sets DHOW_SKIP_PACMAN=1 to disable it explicitly — GitHub runners are
 // Ubuntu and shouldn't attempt to ship an Arch package.
-const SKIP_PACMAN = process.env.ROWBOAT_SKIP_PACMAN === '1';
-const SKIP_CODE_SIGNING = process.env.ROWBOAT_SKIP_CODE_SIGNING === '1';
+const SKIP_PACMAN = process.env.DHOW_SKIP_PACMAN === '1';
+const SKIP_CODE_SIGNING = process.env.DHOW_SKIP_CODE_SIGNING === '1';
 
 // Windows code signing via Azure Trusted Signing — CI-only. The GitHub workflow
 // downloads the Azure dlib, writes metadata.json, and exports these env vars;
@@ -58,7 +58,7 @@ const WINDOWS_SIGN =
 //
 // What we DON'T bundle: the agents' native engines (claude / codex, ~200 MB each, shipped
 // as platform-specific packages). Those are PROVISIONED on demand into
-// ~/.rowboat/engines/<agent>/<version>/ and the adapters are pointed at them via
+// ~/.dhow/engines/<agent>/<version>/ and the adapters are pointed at them via
 // CLAUDE_CODE_EXECUTABLE / CODEX_PATH (see packages/core/src/code-mode/acp/). Skipping
 // them keeps each OS installer ~400 MB smaller while code mode stays fully functional.
 // Shared by stageAcpAdapters and verifyAcpStaging so staging and verification use
@@ -221,18 +221,18 @@ module.exports = {
         onlyModules: [],
     },
     packagerConfig: {
-        executableName: 'rowboat',
+        executableName: 'dhow',
         icon: './icons/icon',  // .icns extension added automatically
-        appBundleId: 'com.rowboat.app',
+        appBundleId: 'com.dhow.app',
         appCategoryType: 'public.app-category.productivity',
         protocols: [
-            { name: 'Rowboat', schemes: ['rowboat'] },
+            { name: 'Dhow', schemes: ['dhow'] },
         ],
         extendInfo: {
-            NSAudioCaptureUsageDescription: 'Rowboat needs access to system audio to transcribe meetings from other apps (Zoom, Meet, etc.)',
-            NSCameraUsageDescription: 'Rowboat uses your camera in video chat mode so the assistant can see you and give feedback (e.g. pitch practice).',
+            NSAudioCaptureUsageDescription: 'Dhow needs access to system audio to transcribe meetings from other apps (Zoom, Meet, etc.)',
+            NSCameraUsageDescription: 'Dhow uses your camera in video chat mode so the assistant can see you and give feedback (e.g. pitch practice).',
         },
-        // Signs the packaged app's executables (rowboat.exe etc.); the Squirrel
+        // Signs the packaged app's executables (dhow.exe etc.); the Squirrel
         // maker below separately signs the installer it produces.
         ...(WINDOWS_SIGN ? { windowsSign: WINDOWS_SIGN } : {}),
         ...(SKIP_CODE_SIGNING ? {} : {
@@ -272,23 +272,23 @@ module.exports = {
             name: '@electron-forge/maker-dmg',
             config: (arch) => ({
                 format: 'ULFO',
-                name: `Rowboat-darwin-${arch}-${pkg.version}`,  // Architecture-specific name to avoid conflicts
+                name: `Dhow-darwin-${arch}-${pkg.version}`,  // Architecture-specific name to avoid conflicts
             })
         },
         {
             name: '@electron-forge/maker-squirrel',
             config: (arch) => ({
-                authors: 'rowboatlabs',
+                authors: 'dhow',
                 description: 'AI coworker with memory',
-                name: `Rowboat-win32-${arch}`,
-                setupExe: `Rowboat-win32-${arch}-${pkg.version}-setup.exe`,
+                name: `Dhow-win32-${arch}`,
+                setupExe: `Dhow-win32-${arch}-${pkg.version}-setup.exe`,
                 setupIcon: path.join(__dirname, 'icons/icon.ico'),
                 // The animation is Squirrel's ONLY install UI — without this
                 // users stare at Squirrel's unbranded default mid-install.
                 loadingGif: path.join(__dirname, 'icons/install-loading.gif'),
                 // Add/Remove Programs icon. Must be a remote URL (Squirrel
                 // limitation); defaults to the Atom feather otherwise.
-                iconUrl: 'https://raw.githubusercontent.com/rowboatlabs/rowboat/main/apps/x/apps/main/icons/icon.ico',
+                iconUrl: 'https://raw.githubusercontent.com/SajmustafaKe/Dhow/main/apps/x/apps/main/icons/icon.ico',
                 // Skip the machine-wide MSI deployment stub — it lands on the
                 // GitHub release page next to setup.exe and users grab the
                 // wrong one (it neither launches the app nor auto-updates).
@@ -302,13 +302,13 @@ module.exports = {
             name: '@electron-forge/maker-deb',
             config: (arch) => ({
                 options: {
-                    name: `Rowboat-linux`,
-                    bin: "rowboat",
+                    name: `Dhow-linux`,
+                    bin: "dhow",
                     description: 'AI coworker with memory',
-                    maintainer: 'rowboatlabs',
-                    homepage: 'https://rowboatlabs.com',
+                    maintainer: 'dhow',
+                    homepage: 'https://github.com/SajmustafaKe/Dhow',
                     icon: path.join(__dirname, 'icons/icon.png'),
-                    mimeType: ['x-scheme-handler/rowboat'],
+                    mimeType: ['x-scheme-handler/dhow'],
                 }
             })
         },
@@ -316,29 +316,29 @@ module.exports = {
             name: '@electron-forge/maker-rpm',
             config: {
                 options: {
-                    name: `Rowboat-linux`,
-                    bin: "rowboat",
+                    name: `Dhow-linux`,
+                    bin: "dhow",
                     description: 'AI coworker with memory',
-                    homepage: 'https://rowboatlabs.com',
+                    homepage: 'https://github.com/SajmustafaKe/Dhow',
                     icon: path.join(__dirname, 'icons/icon.png'),
-                    mimeType: ['x-scheme-handler/rowboat'],
+                    mimeType: ['x-scheme-handler/dhow'],
                 }
             }
         },
-        // Arch Linux package — local-only; disabled in CI via ROWBOAT_SKIP_PACMAN.
+        // Arch Linux package — local-only; disabled in CI via DHOW_SKIP_PACMAN.
         ...(SKIP_PACMAN ? [] : [{
             name: require.resolve('./makers/maker-pacman.cjs'),
             platforms: ['linux'],
             config: {
-                name: 'rowboat',
-                bin: 'rowboat',
-                executableName: 'rowboat',
+                name: 'dhow',
+                bin: 'dhow',
+                executableName: 'dhow',
                 description: 'AI coworker with memory',
-                maintainer: 'rowboatlabs',
-                homepage: 'https://rowboatlabs.com',
+                maintainer: 'dhow',
+                homepage: 'https://github.com/SajmustafaKe/Dhow',
                 license: 'Apache',
                 icon: path.join(__dirname, 'icons/icon.png'),
-                mimeType: ['x-scheme-handler/rowboat'],
+                mimeType: ['x-scheme-handler/dhow'],
             }
         }]),
         {
@@ -351,8 +351,8 @@ module.exports = {
             name: '@electron-forge/publisher-github',
             config: {
                 repository: {
-                    owner: 'rowboatlabs',
-                    name: 'rowboat'
+                    owner: 'dhow',
+                    name: 'dhow'
                 },
                 prerelease: true
             }

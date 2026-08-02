@@ -32,13 +32,13 @@ describe("reasoning capability index", () => {
     const index = buildReasoningIndex(CATALOG);
 
     it("joins dotted gateway ids against dashed catalog ids", () => {
-        expect(lookupReasoningFlag(index, "rowboat", "anthropic/claude-opus-4.8")).toBe(true);
-        expect(lookupReasoningFlag(index, "rowboat", "anthropic/claude-haiku-4.5")).toBe(false);
+        expect(lookupReasoningFlag(index, "dhow", "anthropic/claude-opus-4.8")).toBe(true);
+        expect(lookupReasoningFlag(index, "dhow", "anthropic/claude-haiku-4.5")).toBe(false);
     });
 
     it("matches bare unprefixed ids on gateway flavors", () => {
-        expect(lookupReasoningFlag(index, "rowboat", "gpt-5.4")).toBe(true);
-        expect(lookupReasoningFlag(index, "rowboat", "gpt-4.1")).toBe(false);
+        expect(lookupReasoningFlag(index, "dhow", "gpt-5.4")).toBe(true);
+        expect(lookupReasoningFlag(index, "dhow", "gpt-4.1")).toBe(false);
     });
 
     it("matches strict flavors by their own namespace", () => {
@@ -48,8 +48,8 @@ describe("reasoning capability index", () => {
     });
 
     it("returns undefined for unknown models and unknown vendors", () => {
-        expect(lookupReasoningFlag(index, "rowboat", "mistralai/mistral-large")).toBeUndefined();
-        expect(lookupReasoningFlag(index, "rowboat", "some-local-model")).toBeUndefined();
+        expect(lookupReasoningFlag(index, "dhow", "mistralai/mistral-large")).toBeUndefined();
+        expect(lookupReasoningFlag(index, "dhow", "some-local-model")).toBeUndefined();
         expect(lookupReasoningFlag(index, "openai", "gpt-99")).toBeUndefined();
     });
 
@@ -60,9 +60,9 @@ describe("reasoning capability index", () => {
             google: { name: "Google", models: {} },
         } as never;
         const clashIndex = buildReasoningIndex(clashing);
-        expect(lookupReasoningFlag(clashIndex, "rowboat", "shared")).toBeUndefined();
+        expect(lookupReasoningFlag(clashIndex, "dhow", "shared")).toBeUndefined();
         // Vendor-qualified lookups still work.
-        expect(lookupReasoningFlag(clashIndex, "rowboat", "openai/shared")).toBe(true);
+        expect(lookupReasoningFlag(clashIndex, "dhow", "openai/shared")).toBe(true);
         expect(lookupReasoningFlag(clashIndex, "anthropic", "shared")).toBe(false);
     });
 });

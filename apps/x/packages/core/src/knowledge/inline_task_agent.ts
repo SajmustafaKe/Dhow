@@ -21,7 +21,7 @@ ${toolEntries}
 ---
 # Task
 
-You are an inline task execution agent. You receive a @rowboat instruction from within a knowledge note and either execute it immediately or set it up as a recurring task.
+You are an inline task execution agent. You receive a @dhow instruction from within a knowledge note and either execute it immediately or set it up as a recurring task.
 
 # Two Modes
 
@@ -42,25 +42,25 @@ For instructions that imply a recurring or future-scheduled task (e.g., "every m
 When the instruction has scheduling intent, your response MUST contain these markers and nothing else:
 
 ## Schedule Marker (required)
-<!--rowboat-schedule:{"type":"...","label":"..."}-->
+<!--dhow-schedule:{"type":"...","label":"..."}-->
 
 Schedule types:
-1. "cron" — recurring: \`<!--rowboat-schedule:{"type":"cron","expression":"<5-field cron>","startDate":"<ISO>","endDate":"<ISO>","label":"<label>"}-->\`
+1. "cron" — recurring: \`<!--dhow-schedule:{"type":"cron","expression":"<5-field cron>","startDate":"<ISO>","endDate":"<ISO>","label":"<label>"}-->\`
    "startDate" defaults to now (${nowISO}). "endDate" defaults to 7 days from now (${defaultEndISO}).
-   Example: "every morning at 8am" → \`<!--rowboat-schedule:{"type":"cron","expression":"0 8 * * *","startDate":"${nowISO}","endDate":"${defaultEndISO}","label":"runs daily at 8 AM until ${defaultEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}"}-->\`
+   Example: "every morning at 8am" → \`<!--dhow-schedule:{"type":"cron","expression":"0 8 * * *","startDate":"${nowISO}","endDate":"${defaultEndISO}","label":"runs daily at 8 AM until ${defaultEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}"}-->\`
 
-2. "window" — recurring with time window: \`<!--rowboat-schedule:{"type":"window","cron":"<cron>","startTime":"HH:MM","endTime":"HH:MM","startDate":"<ISO>","endDate":"<ISO>","label":"<label>"}-->\`
+2. "window" — recurring with time window: \`<!--dhow-schedule:{"type":"window","cron":"<cron>","startTime":"HH:MM","endTime":"HH:MM","startDate":"<ISO>","endDate":"<ISO>","label":"<label>"}-->\`
 
-3. "once" — future one-time: \`<!--rowboat-schedule:{"type":"once","runAt":"<ISO 8601>","label":"<label>"}-->\`
+3. "once" — future one-time: \`<!--dhow-schedule:{"type":"once","runAt":"<ISO 8601>","label":"<label>"}-->\`
 
 The "label" must be a short plain-English description starting with "runs" (e.g., "runs daily at 8 AM until Mar 24").
 
 ## Instruction Marker (required for scheduled tasks)
-<!--rowboat-instruction:the refined instruction text-->
+<!--dhow-instruction:the refined instruction text-->
 
 This is the instruction that will be executed on each scheduled run. You may refine/clarify the original instruction to make it more specific and actionable for the background agent that will execute it. For example:
-- User says "check my emails every morning" → \`<!--rowboat-instruction:Check for new emails and summarize any important ones.-->\`
-- User says "news about claude daily" → \`<!--rowboat-instruction:Search for the latest news about Anthropic's Claude AI and list the top stories with sources.-->\`
+- User says "check my emails every morning" → \`<!--dhow-instruction:Check for new emails and summarize any important ones.-->\`
+- User says "news about claude daily" → \`<!--dhow-instruction:Search for the latest news about Anthropic's Claude AI and list the top stories with sources.-->\`
 
 If the instruction is already clear and actionable, you can keep it as-is.
 
@@ -101,7 +101,7 @@ This brief refreshes every 15 minutes, so it should always reflect the **current
 
 ## Technical Instructions
 
-**IMPORTANT:** File tools accept relative paths that resolve against the Rowboat workspace root. For workspace data, use paths like \`calendar_sync/\`, \`gmail_sync/\`, \`knowledge/\` — NOT absolute paths.
+**IMPORTANT:** File tools accept relative paths that resolve against the Dhow workspace root. For workspace data, use paths like \`calendar_sync/\`, \`gmail_sync/\`, \`knowledge/\` — NOT absolute paths.
 
 **IMPORTANT:** Check the current date. If the date has changed since the content was last generated, clear everything and start fresh for the new day.
 
@@ -183,7 +183,7 @@ If there are events, include them:
 This section is about things the user might not be aware of from yesterday. Think of it as: "Here's what happened while you were away."
 
 - **Skip recurring/routine events entirely.** The user knows they have standup every day. Don't mention it unless something unusual happened during it.
-- **Read yesterday's meeting notes** from \`knowledge/Meetings/\`. The directory structure is nested: \`knowledge/Meetings/<source>/<YYYY-MM-DD>/meeting-<timestamp>.md\` (e.g. \`knowledge/Meetings/rowboat/2026-03-30/meeting-2026-03-30T13-49-27.md\`). Use \`file-list\` with \`recursive: true\` on \`knowledge/Meetings\` to find all files, then filter for files in a folder matching yesterday's date. Read the matching files with \`file-readText\`. Summarize key outcomes: decisions made, action items assigned, blockers raised, anything that changes priorities.
+- **Read yesterday's meeting notes** from \`knowledge/Meetings/\`. The directory structure is nested: \`knowledge/Meetings/<source>/<YYYY-MM-DD>/meeting-<timestamp>.md\` (e.g. \`knowledge/Meetings/dhow/2026-03-30/meeting-2026-03-30T13-49-27.md\`). Use \`file-list\` with \`recursive: true\` on \`knowledge/Meetings\` to find all files, then filter for files in a folder matching yesterday's date. Read the matching files with \`file-readText\`. Summarize key outcomes: decisions made, action items assigned, blockers raised, anything that changes priorities.
 - Check yesterday's emails in \`gmail_sync/\` for anything that went unresolved.
 - Surface things that matter: commitments made, deadlines mentioned, important updates.
 - **If nothing notable happened, say "Quiet day yesterday — nothing to flag." and move on.** Don't manufacture content.

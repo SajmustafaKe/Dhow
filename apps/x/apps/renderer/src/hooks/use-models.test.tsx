@@ -122,16 +122,16 @@ describe('useModels', () => {
     })
   })
 
-  it('sign-out via the oauth:didConnect broadcast flips isRowboatConnected and drops the rowboat group', async () => {
+  it('sign-out via the oauth:didConnect broadcast flips isDhowConnected and drops the dhow group', async () => {
     serveCatalog({
-      providers: [{ id: 'rowboat', models: [{ id: 'claude-opus-4-8' }] }],
-      defaultModel: { provider: 'rowboat', model: 'claude-opus-4-8' },
+      providers: [{ id: 'dhow', models: [{ id: 'claude-opus-4-8' }] }],
+      defaultModel: { provider: 'dhow', model: 'claude-opus-4-8' },
     })
 
     const { result } = renderHook(() => useModels())
-    await waitFor(() => expect(result.current.isRowboatConnected).toBe(true))
+    await waitFor(() => expect(result.current.isDhowConnected).toBe(true))
     expect(result.current.groups).toEqual([
-      { id: 'rowboat', flavor: 'rowboat', models: ['claude-opus-4-8'], status: 'ok' },
+      { id: 'dhow', flavor: 'dhow', models: ['claude-opus-4-8'], status: 'ok' },
     ])
 
     // Sign out: main broadcasts oauth:didConnect with success:false
@@ -142,12 +142,12 @@ describe('useModels', () => {
     })
     act(() => {
       for (const listener of ipcListeners['oauth:didConnect'] ?? []) {
-        listener({ provider: 'rowboat', success: false })
+        listener({ provider: 'dhow', success: false })
       }
     })
 
-    await waitFor(() => expect(result.current.isRowboatConnected).toBe(false))
-    expect(result.current.groups.some((g) => g.id === 'rowboat')).toBe(false)
+    await waitFor(() => expect(result.current.isDhowConnected).toBe(false))
+    expect(result.current.groups.some((g) => g.id === 'dhow')).toBe(false)
   })
 
   it('refetches on models-config-changed and updates every consumer', async () => {

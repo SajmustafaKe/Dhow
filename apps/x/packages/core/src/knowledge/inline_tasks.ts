@@ -7,7 +7,6 @@ import { runWhenPossible } from '../runtime/assembly/headless-app.js';
 import { getKgModel, resolveProviderConfig } from '../models/defaults.js';
 import { createLanguageModel } from '../models/models.js';
 import { inlineTask } from '@x/shared';
-import { captureLlmUsage } from '../analytics/usage.js';
 import { withUseCase } from '../analytics/use_case.js';
 
 const SYNC_INTERVAL_MS = 15 * 1000; // 15 seconds
@@ -141,9 +140,9 @@ interface InlineTask {
 }
 
 /**
- * Parse the tell-rowboat block content (JSON format).
+ * Parse the tell-dhow block content (JSON format).
  * Returns { instruction, schedule } or null if not valid JSON.
- * Also supports legacy @rowboat format.
+ * Also supports legacy @dhow format.
  */
 function parseBlockContent(contentLines: string[]): { instruction: string; schedule: InlineTaskSchedule | null; lastRunAt: string | null; targetId: string | null } | null {
     const raw = contentLines.join('\n').trim();
@@ -168,10 +167,10 @@ function parseBlockContent(contentLines: string[]): { instruction: string; sched
             };
         }
     } catch {
-        // Legacy format: @rowboat lines + optional schedule: JSON line
+        // Legacy format: @dhow lines + optional schedule: JSON line
     }
 
-    // Legacy fallback: parse @rowboat instruction and schedule: line
+    // Legacy fallback: parse @dhow instruction and schedule: line
     let schedule: InlineTaskSchedule | null = null;
     const instructionLines: string[] = [];
     for (const cl of contentLines) {
@@ -187,9 +186,9 @@ function parseBlockContent(contentLines: string[]): { instruction: string; sched
             instructionLines.push(cl);
         }
     }
-    const firstRowboatLine = instructionLines.find(l => l.trim().startsWith('@rowboat'));
-    const rawInstruction = firstRowboatLine?.trim() ?? instructionLines.join('\n').trim();
-    const instruction = rawInstruction.replace(/^@rowboat:?\s*/, '');
+    const firstDhowLine = instructionLines.find(l => l.trim().startsWith('@dhow'));
+    const rawInstruction = firstDhowLine?.trim() ?? instructionLines.join('\n').trim();
+    const instruction = rawInstruction.replace(/^@dhow:?\s*/, '');
     if (!instruction) return null;
     return { instruction, schedule, lastRunAt: null, targetId: null };
 }
@@ -252,7 +251,7 @@ function isScheduledTaskDue(schedule: InlineTaskSchedule, lastRunAt: string | nu
 
 
 /**
- * Find ```tell-rowboat code blocks in a note body and return tasks that are pending execution.
+ * Find ```tell-dhow code blocks in a note body and return tasks that are pending execution.
  */
 function findPendingTasks(body: string): InlineTask[] {
     const tasks: InlineTask[] = [];
@@ -260,7 +259,7 @@ function findPendingTasks(body: string): InlineTask[] {
     let i = 0;
     while (i < lines.length) {
         const trimmed = lines[i].trim();
-        if (trimmed.startsWith('```task') || trimmed.startsWith('```tell-rowboat')) {
+        if (trimmed.startsWith('```task') || trimmed.startsWith('```tell-dhow')) {
             const startLine = i;
             i++;
             const contentLines: string[] = [];
@@ -292,7 +291,7 @@ function findPendingTasks(body: string): InlineTask[] {
 }
 
 /**
- * Insert the agent result below the tell-rowboat code block in the body.
+ * Insert the agent result below the tell-dhow code block in the body.
  * Returns the updated body string.
  */
 function insertResultBelow(body: string, endLine: number, result: string): string {
@@ -330,7 +329,7 @@ function replaceTargetRegion(body: string, targetId: string, result: string, end
 }
 
 /**
- * Determine if a note has any "live" tell-rowboat tasks.
+ * Determine if a note has any "live" tell-dhow tasks.
  * A task is live if:
  *   - It's a one-time task that hasn't been completed yet
  *   - It's a scheduled task whose endDate hasn't passed (or has no endDate)
@@ -342,7 +341,7 @@ function hasLiveTasks(body: string): boolean {
     let i = 0;
     while (i < lines.length) {
         const trimmed = lines[i].trim();
-        if (trimmed.startsWith('```task') || trimmed.startsWith('```tell-rowboat')) {
+        if (trimmed.startsWith('```task') || trimmed.startsWith('```tell-dhow')) {
             i++;
             const contentLines: string[] = [];
             while (i < lines.length && lines[i].trim() !== '```') {
@@ -441,8 +440,8 @@ async function processInlineTasks(): Promise<void> {
             const live = hasLiveTasks(body);
             if (!live) {
                 fields['live_note'] = 'false';
-                // Remove rowboat_tasks if present (legacy cleanup)
-                delete fields['rowboat_tasks'];
+                // Remove dhow_tasks if present (legacy cleanup)
+                delete fields['dhow_tasks'];
                 const newRaw = buildFrontmatter(fields);
                 const newContent = joinFrontmatter(newRaw, body);
                 try {
@@ -504,10 +503,10 @@ async function processInlineTasks(): Promise<void> {
             }
         }
 
-        // Update frontmatter — only manage live_note, remove legacy rowboat_tasks
+        // Update frontmatter — only manage live_note, remove legacy dhow_tasks
         const live = hasLiveTasks(currentBody);
         fields['live_note'] = live ? 'true' : 'false';
-        delete fields['rowboat_tasks'];
+        delete fields['dhow_tasks'];
         const newRaw = buildFrontmatter(fields);
         const newContent = joinFrontmatter(newRaw, currentBody);
 
@@ -527,7 +526,7 @@ async function processInlineTasks(): Promise<void> {
 }
 
 /**
- * Process a @rowboat instruction via the inline task agent.
+ * Process a @dhow instruction via the inline task agent.
  * The agent can execute one-off tasks and/or detect scheduling intent.
  * Returns schedule info (if any), a schedule label, and optional response text.
  */
@@ -536,7 +535,7 @@ type ScheduleWithoutLabel =
     | { type: 'window'; cron: string; startTime: string; endTime: string; startDate: string; endDate: string }
     | { type: 'once'; runAt: string };
 
-export async function processRowboatInstruction(
+export async function processDhowInstruction(
     instruction: string,
     noteContent: string,
     notePath: string,
@@ -547,7 +546,7 @@ export async function processRowboatInstruction(
     response: string | null;
 }> {
     const message = [
-        `Process the following @rowboat instruction from the note "${notePath}":`,
+        `Process the following @dhow instruction from the note "${notePath}":`,
         '',
         `**Instruction:** ${instruction}`,
         '',
@@ -567,11 +566,11 @@ export async function processRowboatInstruction(
     }
 
     // Parse out the schedule marker if present (allow multiline JSON)
-    const scheduleMarkerRegex = /<!--rowboat-schedule:([\s\S]*?)-->/;
+    const scheduleMarkerRegex = /<!--dhow-schedule:([\s\S]*?)-->/;
     const scheduleMatch = rawResponse.match(scheduleMarkerRegex);
 
     // Parse out the instruction marker if present
-    const instructionMarkerRegex = /<!--rowboat-instruction:([\s\S]*?)-->/;
+    const instructionMarkerRegex = /<!--dhow-instruction:([\s\S]*?)-->/;
     const instructionMatch = rawResponse.match(instructionMarkerRegex);
 
     let schedule: ScheduleWithoutLabel | null = null;
@@ -654,14 +653,6 @@ Respond with ONLY valid JSON: either a schedule object or null. No other text.`;
             instructions: systemPrompt,
             prompt: instruction,
         }));
-
-        captureLlmUsage({
-            useCase: 'knowledge_sync',
-            subUseCase: 'inline_task_classify',
-            model: selection.model,
-            provider: selection.provider,
-            usage: result.usage,
-        });
 
         let text = result.text.trim();
         console.log('[classifySchedule] LLM response:', text);

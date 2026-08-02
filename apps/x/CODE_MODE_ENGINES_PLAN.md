@@ -32,7 +32,7 @@ Split the problem into **engine** vs **auth**, treat them differently — exactl
 Conductor (conductor.build) does:
 
 1. **Engine = owned by the app.** We provision **version-pinned** engine binaries into
-   **app-support** (`~/.rowboat/engines/<agent>/<version>/`), download-on-demand on first
+   **app-support** (`~/.dhow/engines/<agent>/<version>/`), download-on-demand on first
    use, sha256-verified, symlink/path-pinned. Not the user's global npm, not their PATH.
    → no version skew, no PATH quirks → this is what delivers the 99%.
 2. **Auth = reused from the user.** The engines read existing credentials
@@ -83,7 +83,7 @@ Conductor (conductor.build) does:
 
 We fetch the **per-platform engine packages from the npm registry at the exact versions
 our ACP adapters depend on**, extract the native binary, and provision it into
-`~/.rowboat/engines/...`. No self-host, no curl installer, no fallback.
+`~/.dhow/engines/...`. No self-host, no curl installer, no fallback.
 
 - **Tarball URL:** `https://registry.npmjs.org/<pkg>/-/<file>-<version>.tgz`
   - claude: `@anthropic-ai/claude-agent-sdk-<platform>@0.3.156` → extract the `claude` binary.
@@ -173,7 +173,7 @@ New file: `packages/core/src/code-mode/acp/engine-provisioner.ts`.
 ```
 ensureEngine(agent): Promise<{ executablePath: string }>
   1. Read manifest entry for (agent, currentPlatform). Error clearly if unsupported.
-  2. dir = ~/.rowboat/engines/<agent>/<version>/
+  2. dir = ~/.dhow/engines/<agent>/<version>/
   3. If dir exists AND .meta/<agent>-<version>.json sha256 matches → return binPath.
   4. Else acquire a cross-process lock (avoid double download), then:
      a. Download tarball to a temp file, streaming, with progress events.
@@ -250,7 +250,7 @@ In `agents.ts` `getAgentLaunchSpec()` (currently sets only `CLAUDE_CODE_EXECUTAB
    resolver checks staged path first. Verify packaged code mode can at least *spawn* the
    adapter. (Independent of provisioning; the part of #614 worth keeping.)
 2. **P2 — Provisioner (core):** `ensureEngine()` + manifest + wire env vars. Verify both
-   engines provision + boot from `~/.rowboat/engines` on macOS arm64.
+   engines provision + boot from `~/.dhow/engines` on macOS arm64.
 3. **P3 — UX + status:** first-run download UI, status panel, error states.
 4. **P4 — Cross-platform + CI smoke:** matrix manifest, mac/linux/win smoke.
 5. **P5 — Polish:** version cleanup, cancellation, offline messaging, optional local-install

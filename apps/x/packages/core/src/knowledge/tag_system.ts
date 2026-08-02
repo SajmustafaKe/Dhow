@@ -31,7 +31,7 @@ export interface TagDefinition {
 const DEFAULT_TAG_DEFINITIONS: TagDefinition[] = [
   // ── Relationship — who is this from/about (all create) ────────────────
   { tag: 'investor', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Investors, VCs, or angels', example: 'Following up on our meeting — we\'d like to move forward with the Series A term sheet.' },
-  { tag: 'customer', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Paying customers', example: 'We\'re seeing great results with Rowboat. Can we discuss expanding to more teams?' },
+  { tag: 'customer', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Paying customers', example: 'We\'re seeing great results with Dhow. Can we discuss expanding to more teams?' },
   { tag: 'prospect', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Potential customers', example: 'Thanks for the demo yesterday. We\'re interested in starting a pilot.' },
   { tag: 'partner', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Business partners, corp dev, or strategic contacts', example: 'Let\'s discuss how we can promote the integration to both our user bases.' },
   { tag: 'vendor', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Service providers you already pay or have a contract with (legal, accounting, infra). NOT someone pitching their services to you — that is cold-outreach.', example: 'Here are the updated employment agreements you requested.' },
@@ -40,7 +40,7 @@ const DEFAULT_TAG_DEFINITIONS: TagDefinition[] = [
   { tag: 'advisor', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Advisors, mentors, or board members', example: 'I\'ve reviewed the deck. Here are my thoughts on the GTM strategy.' },
   { tag: 'personal', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Family or friends', example: 'Are you coming to Thanksgiving this year? Let me know your travel dates.' },
   { tag: 'press', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Journalists or media', example: 'I\'m writing a piece on AI agents. Would you be available for an interview?' },
-  { tag: 'community', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Peers, YC batchmates, or open source contributors with direct interaction', example: 'Love what you\'re building with Rowboat. Here\'s a bug I found...' },
+  { tag: 'community', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Peers, YC batchmates, or open source contributors with direct interaction', example: 'Love what you\'re building with Dhow. Here\'s a bug I found...' },
   { tag: 'government', type: 'relationship', applicability: 'both', noteEffect: 'create', description: 'Government agencies', example: 'Your Delaware franchise tax is due by March 1, 2025.' },
 
   // ── Relationship Sub-Tags — role metadata (notes only, all none) ──────
@@ -61,8 +61,8 @@ const DEFAULT_TAG_DEFINITIONS: TagDefinition[] = [
   { tag: 'hiring', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Recruiting, interviews, and employment', example: 'We\'d like to move forward with a final round interview. Are you available Thursday?' },
   { tag: 'fundraising', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Raising money, SAFEs, term sheets, and investor relations', example: 'Thanks for sending the deck. We\'d like to schedule a partner meeting.' },
   { tag: 'security', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Vulnerability disclosures, login alerts, brand impersonation, or compliance requests', example: 'We found a JWT bypass in your auth endpoint. Details attached.' },
-  { tag: 'infrastructure', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Deploy failures, build errors, webhook issues, API migrations, and production alerts', example: 'Vercel deploy failed for rowboat-app. Build log attached.' },
-  { tag: 'meeting', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Calendar invites and scheduling for real meetings with named people — investors, customers, partners, candidates, team members. The key signal is a specific person you have a relationship with.', example: 'Invitation: Zoom: Rowboat Labs <> Dalton Caldwell @ Sat 7 Mar 2026' },
+  { tag: 'infrastructure', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Deploy failures, build errors, webhook issues, API migrations, and production alerts', example: 'Vercel deploy failed for dhow-app. Build log attached.' },
+  { tag: 'meeting', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Calendar invites and scheduling for real meetings with named people — investors, customers, partners, candidates, team members. The key signal is a specific person you have a relationship with.', example: 'Invitation: Zoom: Dhow <> Dalton Caldwell @ Sat 7 Mar 2026' },
   { tag: 'event', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Conferences, meetups, and gatherings you are attending or invited to', example: 'You\'re invited to speak at TechCrunch Disrupt. Can you confirm your availability?' },
   { tag: 'research', type: 'topic', applicability: 'both', noteEffect: 'create', description: 'Research requests and information gathering', example: 'Here\'s the market analysis you requested on the AI agent space.' },
 

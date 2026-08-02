@@ -276,7 +276,7 @@ export function buildOwnerBlock(): string {
     const isFreeMail = FREE_MAIL_DOMAINS.has(domain);
 
     // Optional profile lines from Agent Notes/user.md (e.g. role, company) —
-    // gives the agent context like "the owner runs Rowboat" so it correctly
+    // gives the agent context like "the owner runs Dhow" so it correctly
     // reads outbound product email as the owner's own actions.
     let profileLines = '';
     try {
@@ -517,7 +517,7 @@ async function buildGraphWithFiles(
 
             // Commit knowledge changes to version history
             try {
-                await commitAll('Knowledge update', 'Rowboat');
+                await commitAll('Knowledge update', 'Dhow');
             } catch (err) {
                 console.error(`[GraphBuilder] Failed to commit version history:`, err);
             }
@@ -690,7 +690,7 @@ async function processVoiceMemosForKnowledge(): Promise<boolean> {
 
             // Commit knowledge changes to version history
             try {
-                await commitAll('Knowledge update', 'Rowboat');
+                await commitAll('Knowledge update', 'Dhow');
             } catch (err) {
                 console.error(`[GraphBuilder] Failed to commit version history:`, err);
             }
@@ -996,7 +996,7 @@ export async function curateNotes(): Promise<void> {
     }
 
     try {
-        await commitAll('Knowledge curation', 'Rowboat');
+        await commitAll('Knowledge curation', 'Dhow');
     } catch (err) {
         console.error('[GraphBuilder] Failed to commit curation to version history:', err);
     }

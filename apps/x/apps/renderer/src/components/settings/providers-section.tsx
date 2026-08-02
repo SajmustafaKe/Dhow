@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
-import * as analytics from "@/lib/analytics"
 import { ArrowLeft, CheckCircle2, Loader2, Plus, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -8,10 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { providerDisplayNames, type ModelRef } from "@/components/model-selector"
-import { selectInitialModel, selectInitialTaskModels } from "@x/shared/dist/initial-selection.js"
-import { normalizeModelRecommendation, type ModelRecommendations } from "@x/shared/dist/rowboat-account.js"
+import { selectInitialModel } from "@x/shared/dist/initial-selection.js"
 import { useModels } from "@/hooks/use-models"
-import { useRowboatConfig } from "@/hooks/use-rowboat-config"
 import { useChatGPT } from "@/hooks/useChatGPT"
 import {
   AnthropicIcon,
@@ -82,9 +79,8 @@ export function ProvidersSection({ dialogOpen, variant = "settings" }: {
    */
   variant?: "settings" | "onboarding"
 }) {
-  const { groups, isRowboatConnected, refresh } = useModels()
+  const { groups, refresh } = useModels()
   const chatgpt = useChatGPT()
-  const modelRecommendations = useRowboatConfig()?.modelRecommendations
 
   const [providersMeta, setProvidersMeta] = useState<ProviderMeta[]>([])
   const [selections, setSelections] = useState<Selections>({ assistantModel: null, taskModels: {} })
@@ -107,7 +103,7 @@ export function ProvidersSection({ dialogOpen, variant = "settings" }: {
   useEffect(() => {
     const handler = () => void load()
     window.addEventListener("models-config-changed", handler)
-    // Main-side config writes (Rowboat sign-in seeding the assistant,
+    // Main-side config writes (Dhow sign-in seeding the assistant,
     // sign-out clearing selections, ChatGPT state) announce themselves on
     // the auth broadcasts, not the window event — reload on those too.
     const cleanups = [
@@ -166,7 +162,7 @@ export function ProvidersSection({ dialogOpen, variant = "settings" }: {
       <div className="space-y-2">
         {cards.length === 0 && (
           <div className="rounded-md border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
-            Connect Rowboat, use your own API key, or choose a local provider to start using the Assistant.
+            Connect Dhow, use your own API key, or choose a local provider to start using the Assistant.
           </div>
         )}
         {cards.map((c) => (
@@ -223,12 +219,9 @@ export function ProvidersSection({ dialogOpen, variant = "settings" }: {
         open={addOpen}
         onOpenChange={setAddOpen}
         connectedIds={cards.map((c) => c.id)}
-        isRowboatConnected={isRowboatConnected}
         chatgptSignedIn={chatgpt.status.signedIn}
         onChatGPTSignIn={chatgpt.signIn}
         hadAssistant={selections.assistantModel !== null}
-        modelRecommendations={modelRecommendations}
-        analyticsSource={variant === "onboarding" ? "onboarding" : "connect"}
       />
 
       {manageCard && (
@@ -248,21 +241,18 @@ export function ProvidersSection({ dialogOpen, variant = "settings" }: {
 type AddStep =
   | { kind: "choose" }
   | { kind: "creds"; flavor: ByokFlavor }
-  | { kind: "authwait"; which: "rowboat" | "chatgpt" }
+  | { kind: "authwait"; which: "dhow" | "chatgpt" }
   | { kind: "loading"; flavor: ByokFlavor }
   | { kind: "result"; name: string; first: boolean; pickedModel: string | null; modelCount: number | null }
   | { kind: "error"; flavor: ByokFlavor; message: string }
 
-function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnected, chatgptSignedIn, onChatGPTSignIn, hadAssistant, modelRecommendations, analyticsSource }: {
+function AddProviderDialog({ open, onOpenChange, connectedIds, chatgptSignedIn, onChatGPTSignIn, hadAssistant }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   connectedIds: string[]
-  isRowboatConnected: boolean
   chatgptSignedIn: boolean
   onChatGPTSignIn: () => Promise<unknown> | void
   hadAssistant: boolean
-  modelRecommendations: ModelRecommendations | undefined
-  analyticsSource: 'connect' | 'onboarding'
 }) {
   const [step, setStep] = useState<AddStep>({ kind: "choose" })
   const [apiKey, setApiKey] = useState("")
@@ -278,12 +268,12 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
     }
   }, [open])
 
-  // Rowboat / ChatGPT sign-in completes out-of-band (browser); the shared
+  // Dhow / ChatGPT sign-in completes out-of-band (browser); the shared
   // store refreshes on the auth broadcasts, so the provider appearing in
   // connectedIds is the completion signal.
   useEffect(() => {
     if (step.kind !== "authwait") return
-    const id = step.which === "rowboat" ? "rowboat" : "codex"
+    const id = step.which === "dhow" ? "dhow" : "codex"
     if (connectedIds.includes(id)) {
       setStep({
         kind: "result",
@@ -299,21 +289,6 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
 
   const chooseEntries = useMemo(() => {
     const entries: Array<{ id: string; name: string; tagline: string; icon: React.ElementType | null; onChoose: () => void }> = []
-    if (!isRowboatConnected) {
-      entries.push({
-        id: "rowboat",
-        name: "Rowboat",
-        tagline: "Included with your plan",
-        icon: null,
-        onChoose: () => {
-          setStep({ kind: "authwait", which: "rowboat" })
-          void window.ipc.invoke("oauth:connect", { provider: "rowboat" }).catch(() => {
-            setStep({ kind: "choose" })
-            toast.error("Sign-in failed to start")
-          })
-        },
-      })
-    }
     if (!chatgptSignedIn) {
       entries.push({
         id: "codex",
@@ -345,7 +320,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
       })
     }
     return entries
-  }, [isRowboatConnected, chatgptSignedIn, connectedIds, onChatGPTSignIn])
+  }, [chatgptSignedIn, connectedIds, onChatGPTSignIn])
 
   const connect = useCallback(async (flavor: ByokFlavor) => {
     const meta = flavorMeta(flavor)
@@ -370,7 +345,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
       const listRes = await window.ipc.invoke("models:listForProvider", { provider: providerEntry })
       const list = listRes.success ? listRes.models ?? [] : []
       const typed = manualModel.trim()
-      const model = typed || (selectInitialModel(flavor, list, modelRecommendations) ?? "")
+      const model = typed || (selectInitialModel(list) ?? "")
       if (!listRes.success && !model) {
         setStep({ kind: "error", flavor, message: listRes.error || "Could not load the provider's model list." })
         return
@@ -385,26 +360,14 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
         return
       }
       await window.ipc.invoke("models:setProvider", { id: flavor, provider: providerEntry })
-      // Initial selection only — a saved assistant is never replaced. The
-      // prop can be stale (a Rowboat sign-in moments ago seeds the
-      // assistant MAIN-side), so re-read the authoritative config at the
-      // moment of decision instead of trusting render-time state.
+      // Initial selection only — a saved assistant is never replaced. Re-read
+      // the authoritative config at the moment of decision rather than
+      // trusting render-time state.
       const cfgNow = await window.ipc.invoke("models:getConfig", null).catch(() => null)
       const hasAssistantNow = cfgNow ? cfgNow.assistantModel !== null : hadAssistant
       if (!hasAssistantNow) {
-        // Task recommendations ride along the seeding moment as visible
-        // overrides (validated against the live list; only differences).
-        const taskModels = selectInitialTaskModels(flavor, flavor, list, modelRecommendations, model)
         await window.ipc.invoke("models:updateConfig", {
           assistantModel: { provider: flavor, model },
-          ...(Object.keys(taskModels).length > 0 ? { taskModels } : {}),
-        })
-        analytics.llmInitialModelSelected({
-          flavor,
-          model,
-          recommended: model === normalizeModelRecommendation(modelRecommendations, flavor)?.assistantModel,
-          taskOverridesSeeded: Object.keys(taskModels).length,
-          source: analyticsSource,
         })
       }
       for (const warning of testRes.warnings ?? []) {
@@ -421,7 +384,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
     } catch {
       setStep({ kind: "error", flavor, message: "Connection failed" })
     }
-  }, [apiKey, baseURL, manualModel, modelRecommendations, hadAssistant])
+  }, [apiKey, baseURL, manualModel, hadAssistant])
 
   const credsMeta = step.kind === "creds" || step.kind === "error" ? flavorMeta(step.flavor) : null
 
@@ -437,7 +400,7 @@ function AddProviderDialog({ open, onOpenChange, connectedIds, isRowboatConnecte
         {step.kind === "choose" && (
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
-              Connect Rowboat, add your own API key, or run models locally. Each provider&apos;s models appear alongside the others in every picker.
+              Connect Dhow, add your own API key, or run models locally. Each provider&apos;s models appear alongside the others in every picker.
             </p>
             <div className="grid grid-cols-2 gap-2">
               {chooseEntries.map((e) => (
@@ -585,7 +548,7 @@ function ManageProviderDialog({ card, usedBy, onClose, onRefreshModels }: {
   onClose: () => void
   onRefreshModels: () => Promise<void>
 }) {
-  const isAuthDerived = card.flavor === "rowboat" || card.flavor === "codex"
+  const isAuthDerived = card.flavor === "dhow" || card.flavor === "codex"
   const meta = flavorMeta(card.flavor)
   const chatgpt = useChatGPT()
   const [replacingKey, setReplacingKey] = useState(false)
@@ -625,8 +588,8 @@ function ManageProviderDialog({ card, usedBy, onClose, onRefreshModels }: {
 
   const disconnect = useCallback(async () => {
     try {
-      if (card.flavor === "rowboat") {
-        await window.ipc.invoke("oauth:disconnect", { provider: "rowboat" })
+      if (card.flavor === "dhow") {
+        await window.ipc.invoke("oauth:disconnect", { provider: "dhow" })
       } else if (card.flavor === "codex") {
         await chatgpt.signOut()
       } else {
@@ -727,9 +690,9 @@ function ManageProviderDialog({ card, usedBy, onClose, onRefreshModels }: {
             {!confirmDisconnect ? (
               <div className="flex items-center justify-between gap-3">
                 <span className="text-xs text-muted-foreground">
-                  {card.flavor === "rowboat"
-                    ? "Sign out of your Rowboat account."
-                    : `Remove ${card.name} and its models from Rowboat.`}
+                  {card.flavor === "dhow"
+                    ? "Sign out of your Dhow account."
+                    : `Remove ${card.name} and its models from Dhow.`}
                 </span>
                 <Button variant="outline" size="sm" className="text-destructive" onClick={() => setConfirmDisconnect(true)}>
                   Disconnect
@@ -741,7 +704,7 @@ function ManageProviderDialog({ card, usedBy, onClose, onRefreshModels }: {
                 <p className="text-xs text-muted-foreground">
                   {usedBy.length > 0
                     ? `${usedBy.length} model selection${usedBy.length === 1 ? "" : "s"} use${usedBy.length === 1 ? "s" : ""} this provider. Task overrides will reset to the Assistant model${assistantAffected ? ", and you'll need to pick a new Assistant model" : ""}.`
-                    : "Its models will no longer be available in Rowboat."}
+                    : "Its models will no longer be available in Dhow."}
                 </p>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" size="sm" onClick={() => setConfirmDisconnect(false)}>

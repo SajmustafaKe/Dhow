@@ -1,4 +1,4 @@
-name: rowboat
+name: dhow
 
 on:
   pull_request:
@@ -64,6 +64,6 @@ jobs:
 
       - name: Package Electron app without signing
         env:
-          ROWBOAT_SKIP_CODE_SIGNING: "1"
+          DHOW_SKIP_CODE_SIGNING: "1"
         run: npm run package
         working-directory: apps/x/apps/main

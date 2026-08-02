@@ -202,7 +202,7 @@ export async function modelConfig() {
     const rl = createInterface({ input, output });
     try {
         const defaultApiKeyEnvVars: Record<z.infer<typeof Flavor>, string> = {
-            "rowboat [free]": "",
+            "dhow [free]": "",
             openai: "OPENAI_API_KEY",
             aigateway: "AI_GATEWAY_API_KEY",
             anthropic: "ANTHROPIC_API_KEY",
@@ -212,7 +212,7 @@ export async function modelConfig() {
             openrouter: "",
         };
         const defaultBaseUrls: Record<z.infer<typeof Flavor>, string> = {
-            "rowboat [free]": "",
+            "dhow [free]": "",
             openai: "https://api.openai.com/v1",
             aigateway: "https://ai-gateway.vercel.sh/v1/ai",
             anthropic: "https://api.anthropic.com/v1",
@@ -222,7 +222,7 @@ export async function modelConfig() {
             openrouter: "https://openrouter.ai/api/v1",
         };
         const defaultModels: Record<z.infer<typeof Flavor>, string> = {
-            "rowboat [free]": "google/gemini-3-pro-preview",
+            "dhow [free]": "google/gemini-3-pro-preview",
             openai: "gpt-5.1",
             aigateway: "gpt-5.1",
             anthropic: "claude-sonnet-4-5",
@@ -318,7 +318,7 @@ export async function modelConfig() {
 
         const headers: Record<string, string> = {};
 
-        if (selectedFlavor !== "rowboat [free]") {
+        if (selectedFlavor !== "dhow [free]") {
             const providerNameAns = await rl.question(
                 `Enter a name/alias for this provider [${selectedFlavor}]: `,
             );
@@ -328,7 +328,7 @@ export async function modelConfig() {
         }
 
         let baseURL: string | undefined = undefined;
-        if (selectedFlavor !== "rowboat [free]") {
+        if (selectedFlavor !== "dhow [free]") {
             const baseUrlAns = await rl.question(
                 `Enter baseURL for ${selectedFlavor} [${defaultBaseUrls[selectedFlavor]}]: `,
             );
@@ -336,7 +336,7 @@ export async function modelConfig() {
         }
 
         let apiKey: string | undefined = undefined;
-        if (selectedFlavor !== "ollama" && selectedFlavor !== "rowboat [free]") {
+        if (selectedFlavor !== "ollama" && selectedFlavor !== "dhow [free]") {
             let autopickText = "";
             if (defaultApiKeyEnvVars[selectedFlavor]) {
                 autopickText = ` (leave blank to pick from environment variable ${defaultApiKeyEnvVars[selectedFlavor]})`;
@@ -510,7 +510,7 @@ export async function importExample(exampleName?: string, filePath?: string) {
     }
     
     // Display next steps
-    console.log(`\nRun: rowboatx --agent ${entryAgent}`);
+    console.log(`\nRun: dhowx --agent ${entryAgent}`);
 }
 
 export async function listExamples() {

@@ -135,7 +135,7 @@ async function tick(state: NotificationState): Promise<{ state: NotificationStat
                 // Single labeled button — adding a secondary action would force
                 // macOS to bundle them into an "Options" dropdown, hiding the
                 // primary label.
-                link: `rowboat://action?type=join-and-take-meeting-notes&eventId=${eid}`,
+                link: `dhow://action?type=join-and-take-meeting-notes&eventId=${eid}`,
                 actionLabel: "Join & Notes",
             });
             console.log(`[CalendarNotify] notified for "${summary}" (${eventId})`);

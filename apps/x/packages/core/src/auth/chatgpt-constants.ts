@@ -1,6 +1,6 @@
 // OAuth constants for "Sign in with ChatGPT" (ChatGPT subscription auth).
 //
-// Rowboat authenticates against OpenAI's auth server using the SAME public
+// Dhow authenticates against OpenAI's auth server using the SAME public
 // client the open-source Codex CLI uses. Every value below was verified
 // against the openai/codex sources on 2026-07-15 — do not edit from memory;
 // re-check the linked files instead.
@@ -51,7 +51,7 @@ export const CHATGPT_REVOKE_URL = `${CHATGPT_ISSUER}/oauth/revoke`;
 
 /**
  * The loopback callback the Codex client id is registered for. The port is
- * fixed — unlike Rowboat's DCR providers there is no scan-to-next-port
+ * fixed — unlike Dhow's DCR providers there is no scan-to-next-port
  * fallback, because the redirect URI is pre-registered at OpenAI.
  * Source: codex-rs/login/src/server.rs (`DEFAULT_PORT: u16 = 1455`,
  * `http://localhost:{port}/auth/callback`).
@@ -64,7 +64,7 @@ export const CHATGPT_REDIRECT_URI = `http://localhost:${CHATGPT_CALLBACK_PORT}${
  * Scopes to request at authorize time (Phase 2).
  * Source: codex-rs/login/src/server.rs requests
  * "openid profile email offline_access api.connectors.read api.connectors.invoke";
- * we deliberately drop the two `api.connectors.*` scopes — Rowboat only needs
+ * we deliberately drop the two `api.connectors.*` scopes — Dhow only needs
  * identity + refresh (`offline_access`) for model calls, matching what Zed's
  * ChatGPT provider requests.
  */

@@ -4,7 +4,6 @@ import { generateText } from 'ai';
 import { WorkDir } from '../config/config.js';
 import { createLanguageModel } from '../models/models.js';
 import { getMeetingNotesModel, resolveProviderConfig } from '../models/defaults.js';
-import { captureLlmUsage } from '../analytics/usage.js';
 import { withUseCase } from '../analytics/use_case.js';
 import { parseFrontmatter } from '../application/lib/parse-frontmatter.js';
 import { resolveMeetingPrep, type MeetingPrepResult } from './meeting_prep.js';
@@ -184,7 +183,6 @@ async function generateBrief(event: CalendarEvent, ctx: Awaited<ReturnType<typeo
         instructions: BRIEF_SYSTEM,
         prompt: parts.join('\n\n'),
     }));
-    captureLlmUsage({ useCase: 'meeting_prep', model: modelId, provider: providerName, usage: result.usage });
     return result.text.trim();
 }
 

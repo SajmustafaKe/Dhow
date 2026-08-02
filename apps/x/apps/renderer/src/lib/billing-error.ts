@@ -3,7 +3,7 @@ export const BILLING_ERROR_PATTERNS = [
     kind: 'subscription_required',
     pattern: /upgrade required/i,
     title: 'A subscription is required',
-    subtitle: 'Get started with a plan to access AI features in Rowboat.',
+    subtitle: 'Get started with a plan to access AI features in Dhow.',
     cta: 'Subscribe',
   },
   {

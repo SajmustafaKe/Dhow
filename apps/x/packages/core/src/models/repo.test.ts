@@ -14,13 +14,6 @@ const workDir = vi.hoisted(() =>
 );
 
 vi.mock('../config/config.js', () => ({ WorkDir: workDir }));
-vi.mock('../account/account.js', () => ({ isSignedIn: async () => false }));
-vi.mock('../analytics/posthog.js', () => ({ capture: () => {} }));
-vi.mock('../analytics/model-providers.js', () => ({
-    captureProviderConnected: () => {},
-    captureProviderDisconnected: () => {},
-    syncModelProviderPersonProperties: async () => {},
-}));
 
 import { FSModelConfigRepo } from './repo.js';
 

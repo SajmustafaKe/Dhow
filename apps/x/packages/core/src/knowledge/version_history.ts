@@ -48,7 +48,7 @@ export async function initRepo(): Promise<void> {
             fs,
             dir: KNOWLEDGE_DIR,
             message: 'Initial snapshot',
-            author: { name: 'Rowboat', email: 'local' },
+            author: { name: 'Dhow', email: 'local' },
         });
     }
 }

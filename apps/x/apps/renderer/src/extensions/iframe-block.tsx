@@ -4,8 +4,8 @@ import { Globe, X } from 'lucide-react'
 import { blocks } from '@x/shared'
 import { useEffect, useRef, useState } from 'react'
 
-const IFRAME_HEIGHT_MESSAGE = 'rowboat:iframe-height'
-const IFRAME_HEIGHT_CACHE_PREFIX = 'rowboat:iframe-height:'
+const IFRAME_HEIGHT_MESSAGE = 'dhow:iframe-height'
+const IFRAME_HEIGHT_CACHE_PREFIX = 'dhow:iframe-height:'
 const DEFAULT_IFRAME_HEIGHT = 560
 const MIN_IFRAME_HEIGHT = 240
 const HEIGHT_UPDATE_THRESHOLD = 4

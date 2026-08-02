@@ -1,10 +1,9 @@
 import { app, autoUpdater, net, nativeImage, BrowserWindow } from "electron";
-import { capture } from "@x/core/dist/analytics/posthog.js";
 import type { ipc } from "@x/shared";
 
 export type UpdaterStatus = ipc.IPCChannels["updater:status"]["req"];
 
-const REPO = "rowboatlabs/rowboat";
+const REPO = "SajmustafaKe/Dhow";
 const CHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 let status: UpdaterStatus = { state: "disabled", version: "", reason: "dev" };
@@ -99,7 +98,6 @@ export function initUpdater(): void {
   });
   autoUpdater.on("error", (err) => {
     setStatus({ state: "error", error: err.message, lastCheckedAt: status.lastCheckedAt });
-    capture("update_failed", { message: err.message });
   });
 
   // update.electronjs.org serves both Squirrel dialects from one URL:
@@ -126,7 +124,7 @@ async function backfillReleaseNotes(releaseName: string | undefined): Promise<vo
   try {
     const tag = `v${releaseName.replace(/^v/, "")}`;
     const res = await net.fetch(`https://api.github.com/repos/${REPO}/releases/tags/${tag}`, {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "Rowboat" },
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "Dhow" },
     });
     if (!res.ok) return;
     const { body } = (await res.json()) as { body?: string };
@@ -152,13 +150,11 @@ export function checkForUpdates(): UpdaterStatus {
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       setStatus({ state: "error", error: error.message, lastCheckedAt: status.lastCheckedAt });
-      capture("update_failed", { message: error.message });
     }
   }
   return status;
 }
 
 export function quitAndInstallUpdate(): void {
-  capture("update_restarted", { from: status.version, to: status.newVersion });
   autoUpdater.quitAndInstall();
 }

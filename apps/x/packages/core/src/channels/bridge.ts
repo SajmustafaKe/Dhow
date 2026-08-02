@@ -23,7 +23,7 @@ const MAX_REPLY_CHUNKS = 3;
 const ASK_HUMAN_TOOL_ID = `builtin:${ASK_HUMAN_TOOL}`;
 
 const HELP_TEXT = [
-    "🤖 Rowboat commands:",
+    "🤖 Dhow commands:",
     "• list — recent chats",
     "• resume N — continue chat N from the list",
     "• new [message] — start a fresh chat",
@@ -120,7 +120,7 @@ function chunkReply(text: string): string[] {
         rest = rest.slice(REPLY_CHUNK_SIZE);
     }
     if (rest.length > 0) {
-        parts[parts.length - 1] += "\n… (truncated — open Rowboat for the full reply)";
+        parts[parts.length - 1] += "\n… (truncated — open Dhow for the full reply)";
     }
     return parts;
 }
@@ -223,7 +223,7 @@ export class ChannelBridge {
     private async renderModelList(state: SenderState): Promise<string> {
         const choices = await this.deps.listModels();
         if (choices.length === 0) {
-            return "No models available — configure one in Rowboat → Settings → Models.";
+            return "No models available — configure one in Dhow → Settings → Models.";
         }
         state.lastModels = choices;
         const shown = choices.slice(0, MODEL_LIST_LIMIT);
@@ -483,7 +483,7 @@ export class ChannelBridge {
             }
             case "suspended":
                 await reply(
-                    "⚠️ The agent is waiting for a permission approval — open Rowboat on your desktop to continue.",
+                    "⚠️ The agent is waiting for a permission approval — open Dhow on your desktop to continue.",
                 );
                 return;
             case "timeout":

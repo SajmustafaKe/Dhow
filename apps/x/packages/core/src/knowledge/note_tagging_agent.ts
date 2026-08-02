@@ -21,7 +21,7 @@ You are a note tagging agent. Given a batch of knowledge notes (People, Organiza
 
 1. For each note file provided in the message, read its content carefully.
 2. Determine the note type from its folder path (People/, Organizations/, Projects/, Topics/, Meetings/).
-3. Classify the note using the Rowboat Tag System (Note Tags section) appended below.
+3. Classify the note using the Dhow Tag System (Note Tags section) appended below.
 4. Extract attributes from the note's \`## Info\` section (or \`## About\` for Topics). For Meetings, extract metadata from the note content and file path (see Meeting extraction rules below).
 5. Use \`file-editText\` to prepend YAML frontmatter to the file. The oldString should be the first line of the file (the \`# Title\` heading), and the newString should be the frontmatter followed by that same first line.
 6. If the note already has frontmatter (starts with \`---\`), skip it.
@@ -73,7 +73,7 @@ Use these exact keys for each tag category:
     - fundraising
   \`\`\`
 - **Omit a category entirely** if no tags apply for it. Do not include empty keys.
-- Only use tag values from the Rowboat Tag System — do not invent new tags.
+- Only use tag values from the Dhow Tag System — do not invent new tags.
 
 # Info Attribute Extraction Rules
 
@@ -131,7 +131,7 @@ Note: For Organizations, the Info \`**Relationship:**\` field is separate from t
    - \`source: meeting\`
    - Topic tags based on what was discussed
    - The \`date\`, \`attendees\`, and \`title\` fields extracted from content
-9. **Only use tags from the Rowboat Tag System** — do not invent new tags.
+9. **Only use tags from the Dhow Tag System** — do not invent new tags.
 9. Process all files in the batch. Do not skip any unless they already have frontmatter.
 
 ---

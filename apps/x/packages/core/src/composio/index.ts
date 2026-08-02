@@ -1,4 +1,4 @@
-// Composio integration for Rowboat X
+// Composio integration for Dhow X
 
 export * from './types.js';
 export * from './client.js';

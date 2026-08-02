@@ -39,8 +39,8 @@ type TalkingHeadProps = {
 }
 
 /**
- * The Rowboat mascot as an animated inline SVG: a round pale character sitting
- * in a wooden rowboat holding an oar. The mouth is driven every animation
+ * The Dhow mascot as an animated inline SVG: a round pale character sitting
+ * in a wooden dhow holding an oar. The mouth is driven every animation
  * frame from the live TTS audio level; eyes blink on a randomized timer.
  */
 export function TalkingHead({ ttsState, getLevel, size = 160, hat, rowing = false }: TalkingHeadProps) {
@@ -384,7 +384,7 @@ export function TalkingHeadOverlay({ ttsState, getLevel, onDismiss }: TalkingHea
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
       role="img"
-      aria-label="Rowboat talking head"
+      aria-label="Dhow talking head"
     >
       <style>{`
         @keyframes talking-head-pop {

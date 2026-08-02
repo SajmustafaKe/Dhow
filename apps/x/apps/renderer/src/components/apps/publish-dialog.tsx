@@ -116,12 +116,12 @@ export function PublishDialog({ folder, appName, published, onClose, onPublished
 
         {error && <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
-          {error.includes('name_taken') && <div className="mt-1 text-xs">That name is taken — rename the app in <code>rowboat-app.json</code> and retry.</div>}
+          {error.includes('name_taken') && <div className="mt-1 text-xs">That name is taken — rename the app in <code>dhow-app.json</code> and retry.</div>}
         </div>}
 
         {phase === 'auth' && (
           <div className="space-y-3 text-sm">
-            <p className="text-muted-foreground">Publishing creates a public GitHub repo under your account, uploads the app as a release, and lists it in the Rowboat catalog. A generated MIT LICENSE is added if your app has none.</p>
+            <p className="text-muted-foreground">Publishing creates a public GitHub repo under your account, uploads the app as a release, and lists it in the Dhow catalog. A generated MIT LICENSE is added if your app has none.</p>
             <button type="button" onClick={() => void startSignIn()}
               className="w-full rounded-md bg-primary py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
               Sign in with GitHub

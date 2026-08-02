@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs/promises';
 import z from 'zod';
 import { WorkDir } from '../../config/config.js';
-import { capture } from '../../analytics/posthog.js';
 import type { CodeSession, CodeSessionMode } from '@x/shared/dist/code-sessions.js';
 import type { CodingAgent, ApprovalPolicy } from '@x/shared/dist/code-mode.js';
 import { RunEvent, MessageEvent } from '@x/shared/dist/runs.js';
@@ -25,7 +24,7 @@ export interface CreateSessionArgs {
     mode: CodeSessionMode;
     policy: ApprovalPolicy;
     isolation: 'in-repo' | 'worktree';
-    // LLM for Rowboat-mode turns; unset falls through to the configured default.
+    // LLM for Dhow-mode turns; unset falls through to the configured default.
     model?: string;
     provider?: string;
     // The coding agent's own model + reasoning effort (ACP engine); unset leaves
@@ -45,7 +44,7 @@ function worktreeRoot(projectId: string, sessionId: string): string {
 
 // The per-run work directory the copilot anchors its general context to
 // (same file the chat composer writes for regular chats). Keeping it in sync
-// with the session cwd means Rowboat-mode turns see the right "# User Work
+// with the session cwd means Dhow-mode turns see the right "# User Work
 // Directory" even for tools other than code_agent_run.
 async function persistRunWorkDir(runId: string, cwd: string): Promise<void> {
     try {
@@ -57,7 +56,7 @@ async function persistRunWorkDir(runId: string, cwd: string): Promise<void> {
 }
 
 // Drives Code-section sessions. A session is a run (same id) whose JSONL holds
-// both modes' history: Rowboat turns are written by the agent runtime; direct
+// both modes' history: Dhow turns are written by the agent runtime; direct
 // turns are written here. The direct path talks straight to the ACP engine —
 // no copilot LLM in between — but mirrors the runtime's lifecycle contract
 // (runs lock, abort registry, processing-start/end, run-stopped) so the rest
@@ -113,7 +112,7 @@ export class CodeSessionService {
         const project = await this.codeProjectsRepo.get(args.projectId);
         if (!project) throw new Error(`Unknown project: ${args.projectId}`);
 
-        // The session is a real run so Rowboat mode (agent runtime) works on it
+        // The session is a real run so Dhow mode (agent runtime) works on it
         // directly and the existing runs plumbing (fetch/events/stop) applies.
         const { createRun } = await import('../../runtime/legacy/runs.js');
         const run = await createRun({
@@ -131,7 +130,7 @@ export class CodeSessionService {
             if (!info.isGitRepo || !info.hasCommits) {
                 throw new Error('Worktree isolation needs a git repository with at least one commit.');
             }
-            const branch = `rowboat/${sessionId}`;
+            const branch = `dhow/${sessionId}`;
             const wtPath = worktreeRoot(project.id, sessionId);
             await gitService.worktreeAdd(project.path, wtPath, branch);
             worktree = { path: wtPath, branch, baseBranch: info.branch };
@@ -176,16 +175,13 @@ export class CodeSessionService {
         if (this.inflight.has(sessionId)) {
             return { accepted: false, error: 'The agent is still working on the previous message.' };
         }
-        // The runs lock is shared with the agent runtime, so a Rowboat-mode turn
+        // The runs lock is shared with the agent runtime, so a Dhow-mode turn
         // in flight blocks direct sends (and vice versa) — the run JSONL never
         // interleaves two writers.
         if (!await this.runsLock.lock(sessionId)) {
-            return { accepted: false, error: 'The session is busy with a Rowboat-driven turn.' };
+            return { accepted: false, error: 'The session is busy with a Dhow-driven turn.' };
         }
         this.inflight.add(sessionId);
-        // Direct-drive turns bypass the agent runtime, so they never show up in
-        // llm_usage — this is the only signal that direct code mode is used.
-        capture('code_session_message_sent', { mode: session.mode, agent: session.agent });
         const signal = this.abortRegistry.createForRun(sessionId);
         const turnId = await this.idGenerator.next();
         const toolCallId = `direct-${turnId}`;
@@ -212,7 +208,7 @@ export class CodeSessionService {
             // Stream events live; persist the structural ones (tool calls, plan,
             // resolved permissions). Streaming `message` chunks are NOT persisted —
             // the agent's full text lands as one assistant MessageEvent below, which
-            // is also what lets a later Rowboat-mode turn see this conversation.
+            // is also what lets a later Dhow-mode turn see this conversation.
             let finalText = '';
             const persistQueue: Array<z.infer<typeof RunEvent>> = [];
             const onAbort = () => this.codePermissionRegistry.cancelRun(sessionId);
