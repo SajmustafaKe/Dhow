@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
 
 export type AgentStatus = { installed: boolean; signedIn: boolean }
-export type CodeModeAgentStatus = { claude: AgentStatus; codex: AgentStatus; omp: AgentStatus }
+export type OmpAgentStatus = AgentStatus & { authenticated: boolean | null }
+export type CodeModeAgentStatus = { claude: AgentStatus; codex: AgentStatus; omp: OmpAgentStatus }
 
 // Engine provisioning runs in the main process and keeps going even if the UI that
 // started it (the Settings dialog OR the onboarding step) unmounts. Track its state at

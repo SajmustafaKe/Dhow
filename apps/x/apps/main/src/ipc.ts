@@ -1454,8 +1454,8 @@ export function setupIpcHandlers() {
       invalidateCopilotInstructionsCache();
       return { success: true };
     },
-    'codeMode:checkAgentStatus': async () => {
-      return await checkCodeModeAgentStatus();
+    'codeMode:checkAgentStatus': async (_event, args) => {
+      return await checkCodeModeAgentStatus({ refresh: args?.refresh === true });
     },
     'codeMode:provisionEngine': async (_event, args) => {
       // Download + install the agent's engine, streaming progress back to the

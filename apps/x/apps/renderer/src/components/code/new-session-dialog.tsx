@@ -27,6 +27,7 @@ import {
 import type { ProjectRow } from './use-code-sessions'
 
 type AgentStatus = { installed: boolean; signedIn: boolean }
+type OmpAgentStatus = AgentStatus & { authenticated: boolean | null }
 
 const POLICY_LABEL: Record<ApprovalPolicy, string> = {
   ask: 'Ask every time',
@@ -45,7 +46,7 @@ export function NewSessionDialog({
   onOpenChange: (open: boolean) => void
   onCreated: (session: CodeSession) => void
 }) {
-  const [agentStatus, setAgentStatus] = useState<Record<CodingAgent, AgentStatus> | null>(null)
+  const [agentStatus, setAgentStatus] = useState<{ claude: AgentStatus; codex: AgentStatus; omp: OmpAgentStatus } | null>(null)
   const [agent, setAgent] = useState<CodingAgent>('claude')
   // Direct drive by default; Dhow orchestration remains an opt-in per session.
   const [mode, setMode] = useState<CodeSessionMode>('direct')
@@ -101,6 +102,10 @@ export function NewSessionDialog({
   const agentReady = (a: CodingAgent): boolean => {
     if (!agentStatus) return true
     const s = agentStatus[a]
+    // omp has no credential file; its auth is an ACP probe that may still be
+    // running. Only a confirmed failure blocks it — an unfinished check must
+    // not lock the user out of an agent that works.
+    if (a === 'omp') return s.installed && agentStatus.omp.authenticated !== false
     return s.installed && s.signedIn
   }
 
@@ -159,7 +164,7 @@ export function NewSessionDialog({
                 const hint = ready
                   ? 'Ready'
                   : a === 'omp'
-                    ? 'Not installed'
+                    ? (agentStatus?.omp.installed ? 'No model provider' : 'Not installed')
                     : agentStatus?.[a]?.installed ? 'Not signed in' : 'Enable in Settings'
                 return (
                   <button

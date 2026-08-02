@@ -1225,14 +1225,16 @@ const ipcSchemas = {
     }),
   },
   'codeMode:checkAgentStatus': {
-    req: z.null(),
+    // `refresh: true` forces omp's ACP auth probe to re-run instead of using
+    // its short-lived cache — the Settings "Re-check" button sets it.
+    req: z.object({ refresh: z.boolean().optional() }).nullable(),
     res: z.object({
       claude: z.object({ installed: z.boolean(), signedIn: z.boolean() }),
       codex: z.object({ installed: z.boolean(), signedIn: z.boolean() }),
       // omp is user-installed and carries its own model credentials, so
       // `signedIn` mirrors `installed` — there is no separate auth step Dhow
       // can observe.
-      omp: z.object({ installed: z.boolean(), signedIn: z.boolean() }),
+      omp: z.object({ installed: z.boolean(), signedIn: z.boolean(), authenticated: z.boolean().nullable() }),
     }),
   },
   // Download + install an agent's native engine (the Settings "Enable" action).

@@ -5,6 +5,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { CodeModeAgentStatus } from './types.js';
 import { isEngineProvisioned } from './acp/engine-provisioner.js';
+import { checkOmpAuthenticated, getOmpAuthState } from './acp/omp.js';
 import { decodeJwtPayload } from '../auth/jwt.js';
 
 const execAsync = promisify(exec);
@@ -148,22 +149,40 @@ async function checkCodexSignedIn(): Promise<boolean> {
 // Exported for diagnostics — silenced unused-var warning by re-export only.
 export { decodeJwtPayload };
 
-export async function checkCodeModeAgentStatus(): Promise<CodeModeAgentStatus> {
+export async function checkCodeModeAgentStatus(
+    { refresh = false }: { refresh?: boolean } = {},
+): Promise<CodeModeAgentStatus> {
+    const ompInstalled = isEngineProvisioned('omp');
     const [claudeSignedIn, codexSignedIn] = await Promise.all([
         checkClaudeSignedIn(),
         checkCodexSignedIn(),
     ]);
+
+    // omp's verdict comes from spawning the agent (~20s on success, a timeout
+    // on failure), so it must never gate this call. An explicit refresh — the
+    // Re-check button — waits for it because the user asked for exactly that;
+    // every other caller takes the last known verdict and warms the cache in
+    // the background, leaving `null` (checking) for the UI to render.
+    let ompAuthenticated: boolean | null;
+    if (!ompInstalled) {
+        ompAuthenticated = false;
+    } else if (refresh) {
+        ompAuthenticated = await checkOmpAuthenticated({ force: true });
+    } else {
+        ompAuthenticated = getOmpAuthState();
+        if (ompAuthenticated === null) void checkOmpAuthenticated().catch(() => {});
+    }
+
     // `installed` means the engine is provisioned (downloaded) locally — the user has
     // clicked Enable in Settings → Code Mode. We no longer look for a global claude/codex
     // CLI on PATH; code mode runs our own pinned engine from ~/.dhow/engines.
     //
-    // omp is the exception: it is user-installed and speaks ACP itself, so
-    // "installed" means the binary is discoverable, and there is no separate
-    // sign-in for Dhow to observe (it carries its own provider credentials).
-    const ompInstalled = isEngineProvisioned('omp');
+    // omp is the exception: it is user-installed, so "installed" means the binary is
+    // discoverable, and `signedIn` mirrors it — there is no credential file to read.
+    // The verified answer lives in `authenticated`.
     return {
         claude: { installed: isEngineProvisioned('claude'), signedIn: claudeSignedIn },
         codex: { installed: isEngineProvisioned('codex'), signedIn: codexSignedIn },
-        omp: { installed: ompInstalled, signedIn: ompInstalled },
+        omp: { installed: ompInstalled, signedIn: ompInstalled, authenticated: ompAuthenticated },
     };
 }

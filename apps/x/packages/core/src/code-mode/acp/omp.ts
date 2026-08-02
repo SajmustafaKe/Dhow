@@ -77,3 +77,129 @@ export function resolveOmpExecutable(): string | null {
 export function isOmpInstalled(): boolean {
     return resolveOmpExecutable() !== null;
 }
+
+/**
+ * Whether omp can actually start a session — i.e. it has usable model
+ * credentials.
+ *
+ * Claude and Codex write a credential file Dhow can stat (~/.claude, the
+ * macOS Keychain, ~/.codex/auth.json). omp does not: its ACP handshake
+ * reports that auth comes from "provider keys/OAuth state already configured
+ * under ~/.omp", which may be a config file, an env var, or an OAuth blob.
+ * Rather than guess at that, ask the agent: a session that opens is proof.
+ *
+ * Measured cost: ~20s when it succeeds, and an unconfigured omp *hangs* at
+ * `session/new` rather than returning an auth error — so a negative verdict
+ * is a timeout. That makes this far too slow to block a UI open on. Callers
+ * read the last known verdict synchronously and start a refresh separately;
+ * `null` means "not established yet", which the UI must not render as a
+ * failure.
+ */
+const AUTH_CACHE_TTL_MS = 10 * 60_000;
+const AUTH_PROBE_TIMEOUT_MS = 45_000;
+let authCache: { exe: string; ok: boolean; at: number } | null = null;
+let inFlight: Promise<boolean> | null = null;
+
+export function invalidateOmpAuthCache(): void {
+    authCache = null;
+}
+
+/** Last verified verdict, or null when unknown/stale. Never blocks, never spawns. */
+export function getOmpAuthState(): boolean | null {
+    const exe = resolveOmpExecutable();
+    if (!exe) return false;
+    if (authCache && authCache.exe === exe && Date.now() - authCache.at < AUTH_CACHE_TTL_MS) {
+        return authCache.ok;
+    }
+    return null;
+}
+
+/**
+ * Establish the verdict, reusing a fresh cache entry unless `force`.
+ * Concurrent callers share one spawn — Settings, the session dialog and the
+ * startup warm-up all land on the same probe rather than three omp processes.
+ */
+export async function checkOmpAuthenticated(
+    { force = false, timeoutMs = AUTH_PROBE_TIMEOUT_MS }: { force?: boolean; timeoutMs?: number } = {},
+): Promise<boolean> {
+    const exe = resolveOmpExecutable();
+    if (!exe) {
+        authCache = null;
+        return false;
+    }
+    if (!force) {
+        const cached = getOmpAuthState();
+        if (cached !== null) return cached;
+        if (inFlight) return inFlight;
+    }
+    if (inFlight) return inFlight;
+
+    inFlight = (async () => {
+        try {
+            const ok = await probeSession(exe, timeoutMs);
+            authCache = { exe, ok, at: Date.now() };
+            return ok;
+        } finally {
+            inFlight = null;
+        }
+    })();
+    return inFlight;
+}
+
+async function probeSession(exe: string, timeoutMs: number): Promise<boolean> {
+    // Imported lazily: this module is loaded by the status probe on startup,
+    // and the ACP SDK + child_process plumbing should not be paid for unless
+    // an actual auth check runs.
+    const { spawn } = await import('child_process');
+    const { Writable, Readable } = await import('node:stream');
+    const { ClientSideConnection, ndJsonStream, PROTOCOL_VERSION } = await import('@agentclientprotocol/sdk');
+    const os = await import('os');
+
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    const shellPath = loginShellPath();
+    if (shellPath) {
+        const dirs = [...shellPath.split(path.delimiter), ...(env.PATH ?? '').split(path.delimiter)];
+        env.PATH = [...new Set(dirs.filter(Boolean))].join(path.delimiter);
+    }
+
+    const child = spawn(exe, ['acp'], { stdio: ['pipe', 'pipe', 'pipe'], env });
+    // A probe must never surface the agent's noise or crash the host on a
+    // broken pipe; we only care whether a session opens.
+    child.stderr?.resume();
+    child.on('error', () => { /* handled by the race below */ });
+
+    const done = (): void => { try { child.kill(); } catch { /* already gone */ } };
+
+    try {
+        const connection = new ClientSideConnection(() => ({
+            requestPermission: async () => ({ outcome: { outcome: 'cancelled' as const } }),
+            sessionUpdate: async () => {},
+            readTextFile: async () => ({ content: '' }),
+            writeTextFile: async () => ({}),
+        }), ndJsonStream(
+            Writable.toWeb(child.stdin!) as WritableStream<Uint8Array>,
+            Readable.toWeb(child.stdout!) as ReadableStream<Uint8Array>,
+        ));
+
+        const deadline = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('omp auth probe timed out')), timeoutMs).unref?.());
+
+        await Promise.race([
+            (async () => {
+                await connection.initialize({
+                    protocolVersion: PROTOCOL_VERSION,
+                    clientCapabilities: { fs: { readTextFile: true, writeTextFile: true } },
+                });
+                // A throwaway session in a scratch cwd — we never prompt it.
+                await connection.newSession({ cwd: os.tmpdir(), mcpServers: [] });
+            })(),
+            deadline,
+        ]);
+        return true;
+    } catch {
+        // Auth failure, a wedged agent, or a timeout all mean "not usable now".
+        return false;
+    } finally {
+        done();
+    }
+}

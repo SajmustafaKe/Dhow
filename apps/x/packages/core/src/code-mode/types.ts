@@ -15,9 +15,19 @@ export const AgentStatus = z.object({
 });
 export type AgentStatus = z.infer<typeof AgentStatus>;
 
+/**
+ * omp's auth cannot be read off disk, so it is verified by an ACP probe that
+ * is too slow to block on. `null` = not established yet (render as checking),
+ * never as a failure.
+ */
+export const OmpAgentStatus = AgentStatus.extend({
+    authenticated: z.boolean().nullable(),
+});
+export type OmpAgentStatus = z.infer<typeof OmpAgentStatus>;
+
 export const CodeModeAgentStatus = z.object({
     claude: AgentStatus,
     codex: AgentStatus,
-    omp: AgentStatus,
+    omp: OmpAgentStatus,
 });
 export type CodeModeAgentStatus = z.infer<typeof CodeModeAgentStatus>;

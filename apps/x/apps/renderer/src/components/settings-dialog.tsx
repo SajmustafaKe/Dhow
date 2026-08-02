@@ -29,7 +29,7 @@ import { MobileChannelsSettings } from "@/components/settings/mobile-channels-se
 import type { ApprovalPolicy } from "@x/shared/src/code-mode.js"
 import { DEFAULT_TURN_LIMITS_SETTINGS } from "@x/shared/src/turn-limits.js"
 import type { ipc as ipcShared } from "@x/shared"
-import { startProvisioning, useProvisioning, enabledOptimistic, type AgentStatus, type CodeModeAgentStatus } from "@/lib/code-mode-provisioning"
+import { startProvisioning, useProvisioning, enabledOptimistic, type AgentStatus, type OmpAgentStatus, type CodeModeAgentStatus } from "@/lib/code-mode-provisioning"
 import { ModelSelectionSection } from "@/components/settings/model-selection-section"
 import { ProvidersSection } from "@/components/settings/providers-section"
 import { useModels } from "@/hooks/use-models"
@@ -1195,8 +1195,12 @@ function AgentStatusRow({
  * button (there is nothing for Dhow to download) and no separate sign-in row
  * (it uses the provider credentials already configured under ~/.omp).
  */
-function OmpStatusRow({ status, onRecheck }: { status: AgentStatus | null; onRecheck: () => void }) {
+export function OmpStatusRow({ status, onRecheck }: { status: OmpAgentStatus | null; onRecheck: () => void }) {
   const installed = status?.installed ?? false
+  // Verified by an ACP probe, not a credential file. `null` means the probe
+  // hasn't finished — that is "checking", never "failed".
+  const authenticated = status?.authenticated ?? null
+  const ready = installed && authenticated === true
   return (
     <div className="rounded-md border px-3 py-2.5 flex items-center gap-3">
       <Terminal className="size-5 shrink-0" />
@@ -1207,6 +1211,17 @@ function OmpStatusRow({ status, onRecheck }: { status: AgentStatus | null; onRec
             {installed ? <CheckCircle2 className="size-3" /> : <X className="size-3" />}
             {installed ? 'Installed' : 'Not installed'}
           </span>
+          {installed && (
+            <span className={cn(
+              "inline-flex items-center gap-1",
+              authenticated === true ? "text-green-600" : "text-muted-foreground",
+            )}>
+              {authenticated === null
+                ? <Loader2 className="size-3 animate-spin" />
+                : authenticated ? <CheckCircle2 className="size-3" /> : <X className="size-3" />}
+              {authenticated === null ? 'Checking…' : 'Authenticated'}
+            </span>
+          )}
         </div>
         {!installed && (
           <div className="text-xs text-muted-foreground mt-1">
@@ -1216,8 +1231,15 @@ function OmpStatusRow({ status, onRecheck }: { status: AgentStatus | null; onRec
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">brew install omp</code>
           </div>
         )}
+        {installed && authenticated === false && (
+          <div className="text-xs text-muted-foreground mt-1">
+            omp is installed but couldn&apos;t open a session — configure a model provider in{' '}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">~/.omp/agent/config.yml</code>,
+            then re-check.
+          </div>
+        )}
       </div>
-      {installed ? (
+      {ready ? (
         <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] font-medium leading-none text-green-600">
           Ready
         </span>
@@ -1242,10 +1264,12 @@ function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
   const [status, setStatus] = useState<CodeModeAgentStatus | null>(null)
   const [statusLoading, setStatusLoading] = useState(false)
 
-  const loadStatus = useCallback(async () => {
+  // `refresh` forces omp's ACP auth probe to re-run rather than reuse its
+  // cache; the Re-check button sets it, the initial open does not.
+  const loadStatus = useCallback(async (refresh = false) => {
     setStatusLoading(true)
     try {
-      const result = await window.ipc.invoke("codeMode:checkAgentStatus", null)
+      const result = await window.ipc.invoke("codeMode:checkAgentStatus", { refresh })
       setStatus(result)
     } catch {
       setStatus(null)
@@ -1253,6 +1277,15 @@ function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
       setStatusLoading(false)
     }
   }, [])
+
+  // omp's auth probe runs in the background and can take ~20s. Poll until it
+  // settles so the row flips out of "Checking…" on its own.
+  useEffect(() => {
+    if (!dialogOpen) return
+    if (!status?.omp.installed || status.omp.authenticated !== null) return
+    const t = setTimeout(() => { void loadStatus() }, 4000)
+    return () => clearTimeout(t)
+  }, [dialogOpen, status, loadStatus])
 
   useEffect(() => {
     if (!dialogOpen) return
@@ -1348,7 +1381,7 @@ function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Agent status</span>
           <button
-            onClick={() => { void loadStatus() }}
+            onClick={() => { void loadStatus(true) }}
             disabled={statusLoading}
             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -1371,7 +1404,7 @@ function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
             status={status?.codex ?? null}
             onProvisioned={loadStatus}
           />
-          <OmpStatusRow status={status?.omp ?? null} onRecheck={loadStatus} />
+          <OmpStatusRow status={status?.omp ?? null} onRecheck={() => { void loadStatus(true) }} />
         </div>
       </div>
 
