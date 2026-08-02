@@ -34,6 +34,11 @@ export const providerDisplayNames: Record<string, string> = {
   openrouter: 'OpenRouter',
   aigateway: 'AI Gateway',
   'openai-compatible': 'OpenAI-Compatible',
+  'ollama-cloud': 'Ollama Cloud',
+  deepseek: 'DeepSeek',
+  moonshot: 'Kimi (Moonshot)',
+  zhipu: 'GLM (Z.ai)',
+  dashscope: 'Qwen (DashScope)',
   dhow: 'Dhow',
   // Matches what other subscription clients call this provider; the auth
   // itself is "Sign in with ChatGPT" (Plus/Pro subscription).

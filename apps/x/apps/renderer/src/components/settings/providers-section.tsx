@@ -18,7 +18,12 @@ import {
   OpenAIIcon,
   OpenRouterIcon,
   VercelIcon,
+  DeepSeekIcon,
+  MoonshotIcon,
+  ZhipuIcon,
+  QwenIcon,
 } from "@/components/onboarding/provider-icons"
+import { PROVIDER_DEFAULT_BASE_URLS } from "@x/shared/dist/provider-endpoints.js"
 
 // Provider lifecycle: connected-provider cards (status + model counts), the
 // add-provider flow, per-provider manage (replace key / endpoint / refresh
@@ -26,7 +31,7 @@ import {
 // Providers manage CREDENTIALS only — model choices live in
 // ModelSelectionSection above this section.
 
-type ByokFlavor = "openai" | "anthropic" | "google" | "openrouter" | "aigateway" | "ollama" | "openai-compatible"
+type ByokFlavor = "openai" | "anthropic" | "google" | "openrouter" | "aigateway" | "ollama" | "openai-compatible" | "deepseek" | "moonshot" | "zhipu" | "dashscope" | "ollama-cloud"
 
 interface ProviderMeta {
   id: string
@@ -57,6 +62,11 @@ const BYOK_CATALOG: Array<{ flavor: ByokFlavor; name: string; tagline: string; i
   { flavor: "ollama", name: "Ollama", tagline: "Run models locally", icon: OllamaIcon, needsKey: false, needsEndpoint: true },
   { flavor: "openrouter", name: "OpenRouter", tagline: "One key, many models", icon: OpenRouterIcon, needsKey: true, needsEndpoint: false },
   { flavor: "aigateway", name: "AI Gateway (Vercel)", tagline: "Vercel's AI Gateway", icon: VercelIcon, needsKey: true, needsEndpoint: false },
+  { flavor: "ollama-cloud", name: "Ollama Cloud", tagline: "Hosted Ollama models", icon: OllamaIcon, needsKey: true, needsEndpoint: false },
+  { flavor: "deepseek", name: "DeepSeek", tagline: "DeepSeek V3 and R1", icon: DeepSeekIcon, needsKey: true, needsEndpoint: false },
+  { flavor: "moonshot", name: "Kimi (Moonshot)", tagline: "Kimi K2 models", icon: MoonshotIcon, needsKey: true, needsEndpoint: true },
+  { flavor: "zhipu", name: "GLM (Z.ai)", tagline: "GLM models from Zhipu", icon: ZhipuIcon, needsKey: true, needsEndpoint: true },
+  { flavor: "dashscope", name: "Qwen (DashScope)", tagline: "Alibaba Qwen models", icon: QwenIcon, needsKey: true, needsEndpoint: true },
   { flavor: "openai-compatible", name: "OpenAI-Compatible", tagline: "Custom OpenAI-compatible endpoint", icon: GenericApiIcon, needsKey: true, optionalKey: true, needsEndpoint: true, manualModel: true },
 ]
 
@@ -64,6 +74,9 @@ const DEFAULT_BASE_URLS: Partial<Record<ByokFlavor, string>> = {
   ollama: "http://localhost:11434",
   "openai-compatible": "http://localhost:1234/v1",
   aigateway: "https://ai-gateway.vercel.sh/v1",
+  // Presets for the hosted providers. Kimi, GLM and Qwen each run a separate
+  // mainland-China host, so their endpoint stays editable (needsEndpoint).
+  ...PROVIDER_DEFAULT_BASE_URLS,
 }
 
 function flavorMeta(flavor: string) {

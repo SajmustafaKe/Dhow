@@ -7,6 +7,7 @@ import { createOllama } from "ollama-ai-provider-v2";
 import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { LlmModelConfig, LlmProvider } from "@x/shared/dist/models.js";
+import { defaultBaseUrlFor } from "@x/shared/dist/provider-endpoints.js";
 import z from "zod";
 import { getCodexProvider } from "./codex.js";
 import { getDefaultModelAndProvider, resolveProviderConfig } from "./defaults.js";
@@ -66,6 +67,33 @@ export function createProvider(config: z.infer<typeof Provider>): ProviderV4 {
                 ),
             });
         }
+        case "ollama-cloud": {
+            // Ollama's hosted service speaks the same native API as a local
+            // daemon; the only differences are the host and a bearer token.
+            const cloudBase = (baseURL || defaultBaseUrlFor("ollama-cloud")!).replace(/\/+$/, "");
+            return createOllama({
+                baseURL: cloudBase.endsWith("/api") ? cloudBase : `${cloudBase}/api`,
+                headers: {
+                    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+                    ...headers,
+                },
+                fetch: makeOllamaThinkFetch(
+                    config.reasoningEffort ?? DEFAULT_OLLAMA_REASONING_EFFORT,
+                ),
+            });
+        }
+        case "deepseek":
+        case "moonshot":
+        case "zhipu":
+        case "dashscope":
+            // All four expose an OpenAI-compatible surface; only the host
+            // differs, so they share one construction path.
+            return createOpenAICompatible({
+                name: config.flavor,
+                apiKey,
+                baseURL: baseURL || defaultBaseUrlFor(config.flavor) || "",
+                headers,
+            });
         case "openai-compatible":
             return createOpenAICompatible({
                 name: "openai-compatible",
@@ -277,6 +305,17 @@ export async function listModelsForProvider(
             case "ollama":
                 url = `${(baseURL ?? "http://localhost:11434").replace(/\/$/, "")}/api/tags`;
                 break;
+            case "ollama-cloud":
+                url = `${(baseURL || defaultBaseUrlFor("ollama-cloud")!).replace(/\/$/, "")}/api/tags`;
+                if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+                break;
+            case "deepseek":
+            case "moonshot":
+            case "zhipu":
+            case "dashscope":
+                url = `${(baseURL || defaultBaseUrlFor(flavor) || "").replace(/\/$/, "")}/models`;
+                if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
+                break;
             case "openai-compatible":
             case "aigateway":
                 url = `${(baseURL ?? "").replace(/\/$/, "")}/models`;
@@ -298,7 +337,7 @@ export async function listModelsForProvider(
         if (flavor === "google") {
             // { models: [{ name: "models/gemini-..." }] }
             ids = (data.models ?? []).map((m: { name: string }) => m.name.replace(/^models\//, ""));
-        } else if (flavor === "ollama") {
+        } else if (flavor === "ollama" || flavor === "ollama-cloud") {
             // { models: [{ name: "llama3:latest" }] }
             ids = (data.models ?? []).map((m: { name: string }) => m.name);
         } else {

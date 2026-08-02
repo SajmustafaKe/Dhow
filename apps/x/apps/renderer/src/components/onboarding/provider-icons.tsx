@@ -137,3 +137,49 @@ export function GenericApiIcon({ className }: IconProps) {
     </svg>
   )
 }
+
+/**
+ * Neutral lettermark badges for the preset third-party providers. These are
+ * deliberately generic initials rather than reproductions of each vendor's
+ * logo — they read at 20px, stay legible in both themes, and avoid shipping
+ * trademarked artwork. Swap in an official mark per vendor if you obtain
+ * permission to redistribute it.
+ */
+function LetterMark({ letter, className }: IconProps & { letter: string }) {
+  // Shrink as the mark gets longer so "GLM" fits the same badge as "Q".
+  const fontSize = letter.length >= 3 ? 7 : letter.length === 2 ? 9.5 : 12
+  return (
+    <svg viewBox="0 0 24 24" className={cn("size-5", className)} aria-hidden="true">
+      <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="currentColor" opacity="0.14" />
+      <rect x="1.5" y="1.5" width="21" height="21" rx="6" fill="none" stroke="currentColor" strokeOpacity="0.35" />
+      <text
+        x="12"
+        y="12"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={fontSize}
+        fontWeight="600"
+        fill="currentColor"
+        fontFamily="ui-sans-serif, system-ui, sans-serif"
+      >
+        {letter}
+      </text>
+    </svg>
+  )
+}
+
+export function DeepSeekIcon({ className }: IconProps) {
+  return <LetterMark letter="DS" className={className} />
+}
+
+export function MoonshotIcon({ className }: IconProps) {
+  return <LetterMark letter="K" className={className} />
+}
+
+export function ZhipuIcon({ className }: IconProps) {
+  return <LetterMark letter="GLM" className={className} />
+}
+
+export function QwenIcon({ className }: IconProps) {
+  return <LetterMark letter="Q" className={className} />
+}
