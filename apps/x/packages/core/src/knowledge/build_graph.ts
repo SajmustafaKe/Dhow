@@ -316,9 +316,32 @@ export function buildOwnerBlock(): string {
  * outreach. Code decides "did the user's side ever send a message in this
  * thread"; the model only decides what the reply *means*.
  */
+/**
+ * Whether a synced artifact belongs to a mail source.
+ *
+ * Mail lives at `<WorkDir>/mail/<provider>/<accountId>/threads`, one directory
+ * per mailbox — so this cannot match a fixed directory name the way the old
+ * flat `gmail_sync` layout allowed. Legacy installs are still recognised until
+ * their one-time migration runs.
+ */
+export function isMailArtifactPath(filePath: string): boolean {
+    const parts = filePath.split(path.sep);
+    if (parts.includes('gmail_sync')) return true;
+    const i = parts.indexOf('mail');
+    return i >= 0 && parts.includes('threads') && parts.indexOf('threads') > i;
+}
+
+/** Same question for a source directory rather than a file inside one. */
+export function isMailSourceDir(sourceDir: string): boolean {
+    if (sourceDir.endsWith('gmail_sync')) return true;
+    const parts = sourceDir.split(path.sep);
+    const i = parts.indexOf('mail');
+    return i >= 0 && parts[parts.length - 1] === 'threads';
+}
+
 export function emailReplyGateBanner(filePath: string, content: string): string | null {
     // Only email sources have the ### From: thread structure.
-    if (!filePath.split(path.sep).includes('gmail_sync')) return null;
+    if (!isMailArtifactPath(filePath)) return null;
     const user = loadUserConfig();
     if (!user?.email) return null;
     const email = user.email.toLowerCase();
@@ -558,9 +581,9 @@ export async function buildGraph(sourceDir: string): Promise<void> {
     // Get files that need processing (new or changed)
     let filesToProcess = getFilesToProcess(sourceDir, state);
 
-    // For gmail_sync, only process emails the classifier admitted: hold files
+    // For mail, only process emails the classifier admitted: hold files
     // with no stamped verdict yet, permanently skip `knowledge: skip`.
-    if (sourceDir.endsWith('gmail_sync')) {
+    if (isMailSourceDir(sourceDir)) {
         filesToProcess = filesToProcess.filter(filePath => {
             try {
                 const content = fs.readFileSync(filePath, 'utf-8');
@@ -777,7 +800,7 @@ export async function processAllSources(): Promise<void> {
         try {
             let filesToProcess = getFilesToProcess(sourceDir, state);
 
-            // For gmail_sync, only process emails the classifier admitted: hold
+            // For mail, only process emails the classifier admitted: hold
             // files with no stamped verdict yet, permanently skip `knowledge: skip`.
             if (source.provider === 'gmail') {
                 filesToProcess = filesToProcess.filter(filePath => {

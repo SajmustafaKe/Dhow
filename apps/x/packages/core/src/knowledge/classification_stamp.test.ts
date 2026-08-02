@@ -10,14 +10,17 @@ import path from "path";
 process.env.DHOW_WORKDIR = fs.mkdtempSync(path.join(os.tmpdir(), "x-classification-stamp-test-"));
 const { stampClassificationFrontmatter } = await import("./sync_gmail.js");
 const { emailAdmission } = await import("./build_graph.js");
+const { mailPaths } = await import("./mail_paths.js");
 type GmailThreadSnapshot = import("./sync_gmail.js").GmailThreadSnapshot;
 
-const SYNC_DIR = path.join(process.env.DHOW_WORKDIR, "gmail_sync");
+const ACCOUNT_ID = "default";
+const SYNC_DIR = mailPaths("google", ACCOUNT_ID).threads;
 
 const BODY = "# Pricing discussion\n\n**Thread ID:** t1\n\n---\n\n### From: Sarah <sarah@acme.com>\n**Date:** Fri, 10 Jul 2026\n\nHere is the proposal.\n\n---\n";
 
 function snapshot(overrides: Partial<GmailThreadSnapshot> = {}): GmailThreadSnapshot {
     return {
+        accountId: ACCOUNT_ID,
         threadId: "t1",
         threadUrl: "https://mail.google.com/mail/#inbox/t1",
         importance: "important",
@@ -38,7 +41,7 @@ function writeMd(threadId: string, content: string): string {
 describe("stampClassificationFrontmatter", () => {
     it("stamps a verdict the graph builder admits, preserving the body", () => {
         const p = writeMd("t1", BODY);
-        stampClassificationFrontmatter("t1", snapshot());
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot());
         const stamped = fs.readFileSync(p, "utf-8");
         expect(stamped.startsWith("---\nimportance: important\ncategory: correspondence\nknowledge: extract\n")).toBe(true);
         expect(stamped.endsWith(BODY)).toBe(true);
@@ -47,13 +50,13 @@ describe("stampClassificationFrontmatter", () => {
 
     it("a knowledge: skip stamp is what excludes the thread", () => {
         const p = writeMd("t1", BODY);
-        stampClassificationFrontmatter("t1", snapshot({ importance: "other", category: "newsletter", knowledge: "skip" }));
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot({ importance: "other", category: "newsletter", knowledge: "skip" }));
         expect(emailAdmission(fs.readFileSync(p, "utf-8"))).toBe("skip");
     });
 
     it("does not stamp a verdict that was never made (classify failure)", () => {
         const p = writeMd("t1", BODY);
-        stampClassificationFrontmatter("t1", snapshot({ category: undefined, knowledge: undefined }));
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot({ category: undefined, knowledge: undefined }));
         const content = fs.readFileSync(p, "utf-8");
         expect(content).toBe(BODY);
         expect(emailAdmission(content)).toBe("wait");
@@ -62,7 +65,7 @@ describe("stampClassificationFrontmatter", () => {
     it("replaces legacy labeling-agent frontmatter instead of stacking on top", () => {
         const legacy = `---\nlabels:\n  relationship:\n    - investor\n  filter: []\nprocessed: true\n---\n\n${BODY}`;
         const p = writeMd("t1", legacy);
-        stampClassificationFrontmatter("t1", snapshot());
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot());
         const stamped = fs.readFileSync(p, "utf-8");
         expect(stamped).not.toContain("labels:");
         expect(stamped.endsWith(BODY)).toBe(true);
@@ -71,14 +74,14 @@ describe("stampClassificationFrontmatter", () => {
 
     it("is idempotent — an unchanged verdict does not rewrite the file", () => {
         const p = writeMd("t1", BODY);
-        stampClassificationFrontmatter("t1", snapshot());
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot());
         // Pin classified_at to a sentinel; a rewrite would replace it.
         const pinned = fs.readFileSync(p, "utf-8").replace(/^classified_at: .*$/m, 'classified_at: "sentinel"');
         fs.writeFileSync(p, pinned);
-        stampClassificationFrontmatter("t1", snapshot());
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot());
         expect(fs.readFileSync(p, "utf-8")).toContain('classified_at: "sentinel"');
         // ...but a changed verdict does restamp.
-        stampClassificationFrontmatter("t1", snapshot({ importance: "other" }));
+        stampClassificationFrontmatter(ACCOUNT_ID, "t1", snapshot({ importance: "other" }));
         const restamped = fs.readFileSync(p, "utf-8");
         expect(restamped).toContain("importance: other");
         expect(restamped).not.toContain('classified_at: "sentinel"');
@@ -86,6 +89,6 @@ describe("stampClassificationFrontmatter", () => {
     });
 
     it("is a no-op when the thread has no markdown mirror", () => {
-        expect(() => stampClassificationFrontmatter("missing-thread", snapshot())).not.toThrow();
+        expect(() => stampClassificationFrontmatter(ACCOUNT_ID, "missing-thread", snapshot())).not.toThrow();
     });
 });

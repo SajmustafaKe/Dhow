@@ -192,11 +192,13 @@ const ipcSchemas = {
     }),
   },
   'gmail:triggerSync': {
-    req: z.object({}),
+    // Omit accountId to sync every connected mailbox.
+    req: z.object({ accountId: z.string().optional() }),
     res: z.object({}),
   },
   'gmail:sendReply': {
     req: z.object({
+      accountId: z.string(),
       threadId: z.string().min(1).optional(),
       to: z.string().min(1),
       cc: z.string().optional(),
@@ -223,6 +225,7 @@ const ipcSchemas = {
   },
   'gmail:saveDraft': {
     req: z.object({
+      accountId: z.string(),
       // Existing Gmail draft to update; omitted on first save (creates a new one).
       draftId: z.string().min(1).optional(),
       threadId: z.string().min(1).optional(),
@@ -251,7 +254,7 @@ const ipcSchemas = {
     }),
   },
   'gmail:deleteDraft': {
-    req: z.object({ draftId: z.string().min(1) }),
+    req: z.object({ accountId: z.string(), draftId: z.string().min(1) }),
     res: z.object({ ok: z.boolean(), error: z.string().optional() }),
   },
   'gmail:getDrafts': {
@@ -297,6 +300,7 @@ const ipcSchemas = {
   // importance classifier learns from.
   'gmail:setImportance': {
     req: z.object({
+      accountId: z.string(),
       threadId: z.string().min(1),
       importance: z.enum(['important', 'other']),
     }),
@@ -311,6 +315,7 @@ const ipcSchemas = {
   // classifier learns from. Never affects the knowledge-graph verdict.
   'gmail:setCategory': {
     req: z.object({
+      accountId: z.string(),
       threadId: z.string().min(1),
       // Open string: valid ids come from the email label registry (built-ins
       // plus user-defined labels), which the renderer fetches at runtime.
@@ -346,7 +351,7 @@ const ipcSchemas = {
   },
   // Archive every "Everything else" thread of one category in a single sweep.
   'gmail:archiveCategory': {
-    req: z.object({ category: z.string().min(1) }),
+    req: z.object({ accountId: z.string(), category: z.string().min(1) }),
     res: z.object({
       archived: z.number(),
       failed: z.number(),
@@ -354,19 +359,20 @@ const ipcSchemas = {
     }),
   },
   'gmail:archiveThread': {
-    req: z.object({ threadId: z.string().min(1) }),
+    req: z.object({ accountId: z.string(), threadId: z.string().min(1) }),
     res: z.object({ ok: z.boolean(), error: z.string().optional() }),
   },
   'gmail:trashThread': {
-    req: z.object({ threadId: z.string().min(1) }),
+    req: z.object({ accountId: z.string(), threadId: z.string().min(1) }),
     res: z.object({ ok: z.boolean(), error: z.string().optional() }),
   },
   'gmail:markThreadRead': {
-    req: z.object({ threadId: z.string().min(1), read: z.boolean().optional() }),
+    req: z.object({ accountId: z.string(), threadId: z.string().min(1), read: z.boolean().optional() }),
     res: z.object({ ok: z.boolean(), error: z.string().optional() }),
   },
   'gmail:downloadAttachment': {
     req: z.object({
+      accountId: z.string(),
       messageId: z.string().min(1),
       savedPath: z.string().min(1),
       attachmentId: z.string().optional(),
@@ -375,6 +381,7 @@ const ipcSchemas = {
   },
   'gmail:saveMessageHeight': {
     req: z.object({
+      accountId: z.string(),
       threadId: z.string().min(1),
       messageId: z.string().min(1),
       height: z.number().int().positive(),
@@ -798,11 +805,28 @@ const ipcSchemas = {
   },
   'oauth:disconnect': {
     req: z.object({
+      accountId: z.string().optional(),
       provider: z.string(),
     }),
     res: z.object({
       success: z.boolean(),
     }),
+  },
+  'oauth:list-accounts': {
+    req: z.object({ provider: z.string() }),
+    res: z.object({
+      accounts: z.array(z.object({
+        id: z.string(),
+        email: z.string().nullable(),
+        connected: z.boolean(),
+        error: z.string().nullable(),
+      })),
+      primaryAccountId: z.string().nullable(),
+    }),
+  },
+  'oauth:set-primary': {
+    req: z.object({ provider: z.string(), accountId: z.string() }),
+    res: z.object({ success: z.boolean() }),
   },
   'oauth:list-providers': {
     req: z.null(),
@@ -818,6 +842,13 @@ const ipcSchemas = {
         error: z.string().nullable().optional(),
         userId: z.string().optional(),
         clientId: z.string().nullable().optional(),
+        primaryAccountId: z.string().nullable().optional(),
+        accounts: z.array(z.object({
+          id: z.string(),
+          email: z.string().nullable(),
+          connected: z.boolean(),
+          error: z.string().nullable(),
+        })).optional(),
       })),
     }),
   },

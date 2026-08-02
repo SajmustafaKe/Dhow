@@ -6,7 +6,9 @@ import * as oauthClient from '@x/core/dist/auth/oauth-client.js';
 import type { Configuration } from '@x/core/dist/auth/oauth-client.js';
 import { getProviderConfig, getAvailableProviders } from '@x/core/dist/auth/providers.js';
 import container from '@x/core/dist/di/container.js';
-import { IOAuthRepo } from '@x/core/dist/auth/repo.js';
+import { IOAuthRepo, LEGACY_ACCOUNT_ID } from '@x/core/dist/auth/repo.js';
+import { assertSafeAccountId } from '@x/core/dist/knowledge/mail_paths.js';
+import { createHash } from 'crypto';
 import { IClientRegistrationRepo } from '@x/core/dist/auth/client-repo.js';
 import { triggerSync as triggerGmailSync } from '@x/core/dist/knowledge/sync_gmail.js';
 import { triggerSync as triggerCalendarSync } from '@x/core/dist/knowledge/sync_calendar.js';
@@ -230,6 +232,29 @@ export async function resolveStartPort(
 /**
  * Initiate OAuth flow for a provider
  */
+/**
+ * Turn a grant's claims into a stable, filesystem-safe account id.
+ *
+ * Keyed on the provider's `sub` rather than the address: an address can be
+ * renamed, and reusing it as a key would orphan the account's synced mail.
+ * `sub` is opaque, so it is hashed when it contains anything that cannot be a
+ * path segment. Providers that issue no id_token fall back to the legacy id,
+ * which keeps single-account connects working exactly as before.
+ */
+function resolveAccountIdentity(identity: { sub?: string; email?: string }): { accountId: string; email: string | null } {
+  const email = identity.email ?? null;
+  const sub = identity.sub;
+  if (!sub) return { accountId: LEGACY_ACCOUNT_ID, email };
+  try {
+    assertSafeAccountId(sub);
+    return { accountId: sub, email };
+  } catch {
+    // Deterministic so the same subject always resolves to the same account.
+    const digest = createHash('sha256').update(sub).digest('hex').slice(0, 32);
+    return { accountId: digest, email };
+  }
+}
+
 export async function connectProvider(provider: string, credentials?: { clientId: string; clientSecret: string }): Promise<{ success: boolean; error?: string }> {
   try {
     console.log(`[OAuth] Starting connection flow for ${provider}...`);
@@ -285,22 +310,32 @@ export async function connectProvider(provider: string, credentials?: { clientId
         try {
           // Use full callback URL (includes iss, scope, etc.) so openid-client validation succeeds
           console.log(`[OAuth] Exchanging authorization code for tokens (${provider})...`);
-          const tokens = await oauthClient.exchangeCodeForTokens(
+          const { tokens, identity: grantIdentity } = await oauthClient.exchangeCodeForTokens(
             flow.config,
             callbackUrl,
             flow.codeVerifier,
             state
           );
 
-          // Save tokens and credentials. For Google, BYOK is the only path
-          // that reaches this token exchange (dhow path returns above
-          // before any local server runs); stamp mode: 'byok' so a future
-          // refresh / reconnect can't get confused with a dhow entry.
-          console.log(`[OAuth] Token exchange successful for ${provider}`);
-          await oauthRepo.upsert(provider, {
+          // The grant identifies which mailbox was just authorized. Without
+          // this every connect would overwrite the previous one; with it, a
+          // second account lands beside the first.
+          const identity = resolveAccountIdentity(grantIdentity);
+
+          // Save tokens per account, credentials per provider. For Google, BYOK
+          // is the only path that reaches this token exchange (dhow path
+          // returns above before any local server runs); stamp mode: 'byok' so
+          // a future refresh / reconnect can't get confused with a dhow entry.
+          console.log(`[OAuth] Token exchange successful for ${provider} (account ${identity.accountId})`);
+          if (credentials || provider === 'google') {
+            await oauthRepo.upsert(provider, {
+              ...(credentials ? { clientId: credentials.clientId, clientSecret: credentials.clientSecret } : {}),
+              ...(provider === 'google' ? { mode: 'byok' as const } : {}),
+            });
+          }
+          await oauthRepo.upsertAccount(provider, identity.accountId, {
             tokens,
-            ...(credentials ? { clientId: credentials.clientId, clientSecret: credentials.clientSecret } : {}),
-            ...(provider === 'google' ? { mode: 'byok' as const } : {}),
+            email: identity.email,
             error: null,
           });
 
@@ -423,13 +458,17 @@ export async function connectProvider(provider: string, credentials?: { clientId
 /**
  * Disconnect a provider (clear tokens)
  */
-export async function disconnectProvider(provider: string): Promise<{ success: boolean }> {
+export async function disconnectProvider(provider: string, accountId?: string): Promise<{ success: boolean }> {
   try {
     const oauthRepo = getOAuthRepo();
 
-
-
-    await oauthRepo.delete(provider);
+    if (accountId) {
+      // Removing one mailbox leaves the others connected, and leaves the app
+      // registration in place so the user need not re-enter it.
+      await oauthRepo.deleteAccount(provider, accountId);
+    } else {
+      await oauthRepo.delete(provider);
+    }
 
     // Notify renderer so sidebar, voice, and billing re-check state
     emitOAuthEvent({ provider, success: false });
@@ -465,51 +504,53 @@ export async function disconnectGoogleIfScopesStale(): Promise<void> {
     const oauthRepo = getOAuthRepo();
     const connection = await oauthRepo.read('google');
 
-    // Not connected (or already invalidated) — nothing to migrate.
-    if (!connection.tokens) {
-      return;
-    }
-
     const providerConfig = await getProviderConfig('google');
     const requiredScopes = providerConfig.scopes ?? [];
     if (requiredScopes.length === 0) {
       return;
     }
 
-    const granted = new Set(connection.tokens.scopes ?? []);
-    const missingScopes = requiredScopes.filter((scope) => !granted.has(scope));
-    if (missingScopes.length === 0) {
-      return;
-    }
+    let invalidatedAny = false;
+    // Each account carries its own grant, so scopes are checked per account:
+    // an older mailbox can be stale while a freshly connected one is current.
+    for (const [accountId, account] of Object.entries(connection.accounts)) {
+      // Not connected (or already invalidated) — nothing to migrate.
+      if (!account.tokens) continue;
 
-    console.log(
-      `[OAuth] Google grant is missing current scopes [${missingScopes.join(', ')}]; ` +
-      'invalidating it so the user is prompted to reconnect with the new scopes.'
-    );
+      const granted = new Set(account.tokens.scopes ?? []);
+      const missingScopes = requiredScopes.filter((scope) => !granted.has(scope));
+      if (missingScopes.length === 0) continue;
 
-    // Best-effort revoke at Google for dhow-mode grants (mirrors disconnectProvider).
-    if (connection.mode === 'dhow' && connection.tokens.access_token) {
-      try {
-        const revokeUrl = `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(connection.tokens.access_token)}`;
-        const res = await fetch(revokeUrl, { method: 'POST', signal: AbortSignal.timeout(5000) });
-        if (!res.ok) {
-          console.warn(`[OAuth] Google revoke returned ${res.status}; continuing with local invalidation`);
+      console.log(
+        `[OAuth] Google grant for ${accountId} is missing current scopes [${missingScopes.join(', ')}]; ` +
+        'invalidating it so the user is prompted to reconnect with the new scopes.'
+      );
+
+      // Best-effort revoke at Google for dhow-mode grants (mirrors disconnectProvider).
+      if (connection.mode === 'dhow' && account.tokens.access_token) {
+        try {
+          const revokeUrl = `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(account.tokens.access_token)}`;
+          const res = await fetch(revokeUrl, { method: 'POST', signal: AbortSignal.timeout(5000) });
+          if (!res.ok) {
+            console.warn(`[OAuth] Google revoke returned ${res.status}; continuing with local invalidation`);
+          }
+        } catch (error) {
+          console.warn('[OAuth] Google revoke failed; continuing with local invalidation:', error);
         }
-      } catch (error) {
-        console.warn('[OAuth] Google revoke failed; continuing with local invalidation:', error);
       }
-    }
 
-    // Drop the stale token but keep the entry with an error so the reconnect
-    // prompt fires (see the note above).
-    await oauthRepo.upsert('google', {
-      tokens: null,
-      error: 'Google permissions changed. Please reconnect to continue.',
-    });
+      // Drop the stale token but keep the account with an error so the reconnect
+      // prompt fires (see the note above).
+      await oauthRepo.upsertAccount('google', accountId, {
+        tokens: null,
+        error: 'Google permissions changed. Please reconnect to continue.',
+      });
+      invalidatedAny = true;
+    }
 
     // Nudge any already-open window to re-read state. The renderer's initial
     // mount also re-reads, so the prompt shows even if no window is up yet.
-    emitOAuthEvent({ provider: 'google', success: false });
+    if (invalidatedAny) emitOAuthEvent({ provider: 'google', success: false });
   } catch (error) {
     console.error('[OAuth] Google scope migration check failed:', error);
   }
@@ -519,11 +560,15 @@ export async function disconnectGoogleIfScopesStale(): Promise<void> {
  * Get access token for a provider (internal use only)
  * Refreshes token if expired
  */
-export async function getAccessToken(provider: string): Promise<string | null> {
+export async function getAccessToken(provider: string, accountId?: string): Promise<string | null> {
   try {
     const oauthRepo = getOAuthRepo();
 
-    let { tokens } = await oauthRepo.read(provider);
+    const resolved = accountId ?? await oauthRepo.getPrimaryAccountId(provider);
+    if (!resolved) {
+      return null;
+    }
+    let { tokens } = await oauthRepo.readAccount(provider, resolved);
     if (!tokens) {
       return null;
     }
@@ -532,7 +577,7 @@ export async function getAccessToken(provider: string): Promise<string | null> {
     if (oauthClient.isTokenExpired(tokens)) {
       if (!tokens.refresh_token) {
         // No refresh token, need to reconnect
-        await oauthRepo.upsert(provider, { error: 'Missing refresh token. Please reconnect.' });
+        await oauthRepo.upsertAccount(provider, resolved, { error: 'Missing refresh token. Please reconnect.' });
         return null;
       }
 
@@ -543,11 +588,11 @@ export async function getAccessToken(provider: string): Promise<string | null> {
         // Refresh token, preserving existing scopes
         const existingScopes = tokens.scopes;
         const refreshedTokens = await oauthClient.refreshTokens(config, tokens.refresh_token, existingScopes);
-        await oauthRepo.upsert(provider, { tokens: refreshedTokens });
+        await oauthRepo.upsertAccount(provider, resolved, { tokens: refreshedTokens });
         tokens = refreshedTokens;
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Token refresh failed';
-        await oauthRepo.upsert(provider, { error: message });
+        await oauthRepo.upsertAccount(provider, resolved, { error: message });
         console.error('Token refresh failed:', error);
         return null;
       }

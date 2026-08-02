@@ -148,6 +148,11 @@ export const GmailThreadMessageSchema = z.object({
 export type GmailThreadMessage = z.infer<typeof GmailThreadMessageSchema>;
 
 export const GmailThreadSchema = EmailBlockSchema.extend({
+  /**
+   * Mailbox this thread belongs to. Thread ids are only unique within an
+   * account, so every action on a thread must name its account.
+   */
+  accountId: z.string(),
   threadId: z.string(),
   threadUrl: z.string().url(),
   unread: z.boolean().optional(),

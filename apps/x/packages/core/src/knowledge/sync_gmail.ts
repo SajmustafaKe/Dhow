@@ -4,6 +4,7 @@ import { google, gmail_v1 as gmail } from 'googleapis';
 import { NodeHtmlMarkdown } from 'node-html-markdown'
 import { OAuth2Client } from 'google-auth-library';
 import { WorkDir } from '../config/config.js';
+import { mailPaths, MAIL_ROOT } from './mail_paths.js';
 import { getMaxEmails } from '../config/gmail_sync_config.js';
 import { GoogleClientFactory } from './google-client-factory.js';
 import { serviceLogger, type ServiceRunContext } from '../services/service_logger.js';
@@ -16,24 +17,40 @@ import { notifyIfEnabled } from '../application/notification/notifier.js';
 import { formatTimestampForModel } from '@x/shared/dist/time.js';
 
 // Configuration
-const SYNC_DIR = path.join(WorkDir, 'gmail_sync');
-const LEGACY_CACHE_DIR = path.join(SYNC_DIR, 'cache');
-const CACHE_DIR = path.join(WorkDir, 'inbox_lists');
-// Local index of full-text search results. Kept separate from inbox_lists/ so it
+//
+// Mail artifacts are namespaced per account: Gmail thread ids are only unique
+// within a mailbox, so a second account sharing one directory would overwrite
+// the first account's threads rather than sit beside them.
+const PROVIDER = 'google';
+
+function syncDirFor(accountId: string): string { return mailPaths(PROVIDER, accountId).threads; }
+function cacheDirFor(accountId: string): string { return mailPaths(PROVIDER, accountId).cache; }
+// Local index of full-text search results. Kept separate from the inbox cache so it
 // never leaks non-inbox threads into the inbox view. Grows as you search; we
 // don't prune it (the user wants a durable local index).
-const SEARCH_CACHE_DIR = path.join(WorkDir, 'search_index');
+function searchDirFor(accountId: string): string { return mailPaths(PROVIDER, accountId).searchIndex; }
+function attachmentsDirFor(accountId: string): string { return mailPaths(PROVIDER, accountId).attachments; }
+function stateFileFor(accountId: string): string { return path.join(mailPaths(PROVIDER, accountId).root, 'sync_state.json'); }
 
-(function migrateLegacyCacheDir() {
+/** Accounts with a Google grant. Empty when nothing is connected. */
+async function listAccountIds(): Promise<string[]> {
+    return GoogleClientFactory.listAccountIds();
+}
+
+/**
+ * Accounts that have synced at least once, read straight off disk.
+ * The inbox listing is synchronous and cannot await the credential store; a
+ * directory under the mail root is the durable record of a synced mailbox.
+ */
+function listSyncedAccountIdsSync(): string[] {
     try {
-        if (fs.existsSync(LEGACY_CACHE_DIR) && !fs.existsSync(CACHE_DIR)) {
-            fs.renameSync(LEGACY_CACHE_DIR, CACHE_DIR);
-            console.log(`[Gmail] Migrated cache from ${LEGACY_CACHE_DIR} → ${CACHE_DIR}`);
-        }
-    } catch (err) {
-        console.warn('[Gmail] Cache directory migration failed:', err);
+        return fs.readdirSync(path.join(MAIL_ROOT, PROVIDER), { withFileTypes: true })
+            .filter((d) => d.isDirectory())
+            .map((d) => d.name);
+    } catch {
+        return [];
     }
-})();
+}
 const SYNC_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
 const REQUIRED_SCOPE = 'https://www.googleapis.com/auth/gmail.modify';
 const MAX_THREADS_IN_DIGEST = 10;
@@ -53,29 +70,30 @@ interface SnapshotCacheEntry {
     snapshot: GmailThreadSnapshot;
 }
 
-function cachePath(threadId: string): string {
-    return path.join(CACHE_DIR, `${encodeURIComponent(threadId)}.json`);
+function cachePath(accountId: string, threadId: string): string {
+    return path.join(cacheDirFor(accountId), `${encodeURIComponent(threadId)}.json`);
 }
 
-function readCachedSnapshot(threadId: string): SnapshotCacheEntry | null {
+function readCachedSnapshot(accountId: string, threadId: string): SnapshotCacheEntry | null {
     try {
-        const raw = fs.readFileSync(cachePath(threadId), 'utf-8');
+        const raw = fs.readFileSync(cachePath(accountId, threadId), 'utf-8');
         return JSON.parse(raw) as SnapshotCacheEntry;
     } catch {
         return null;
     }
 }
 
-function writeCachedSnapshot(threadId: string, historyId: string, snapshot: GmailThreadSnapshot): void {
+function writeCachedSnapshot(accountId: string, threadId: string, historyId: string, snapshot: GmailThreadSnapshot): void {
     try {
-        if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
+        const dir = cacheDirFor(accountId);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const entry: SnapshotCacheEntry = {
             historyId,
             fetchedAt: new Date().toISOString(),
             parserVersion: SNAPSHOT_PARSER_VERSION,
             snapshot,
         };
-        fs.writeFileSync(cachePath(threadId), JSON.stringify(entry), 'utf-8');
+        fs.writeFileSync(cachePath(accountId, threadId), JSON.stringify(entry), 'utf-8');
     } catch (err) {
         console.warn(`[Gmail cache] write failed for ${threadId}:`, err);
     }
@@ -89,10 +107,11 @@ function writeCachedSnapshot(threadId: string, historyId: string, snapshot: Gmai
  *     (few-shot + distilled rules) for FUTURE threads.
  */
 export function setThreadImportance(
+    accountId: string,
     threadId: string,
     importance: 'important' | 'other',
 ): { success: boolean; previous?: 'important' | 'other'; error?: string } {
-    const cached = readCachedSnapshot(threadId);
+    const cached = readCachedSnapshot(accountId, threadId);
     if (!cached) {
         return { success: false, error: `No inbox entry found for thread ${threadId}` };
     }
@@ -100,7 +119,7 @@ export function setThreadImportance(
     cached.snapshot.importance = importance;
     cached.snapshot.importanceSource = 'user';
     try {
-        fs.writeFileSync(cachePath(threadId), JSON.stringify(cached), 'utf-8');
+        fs.writeFileSync(cachePath(accountId, threadId), JSON.stringify(cached), 'utf-8');
     } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -115,7 +134,7 @@ export function setThreadImportance(
     // Keep the markdown mirror's stamped importance truthful. The knowledge
     // verdict is deliberately untouched — "stop showing me this" must never
     // silently starve the knowledge graph.
-    stampClassificationFrontmatter(threadId, cached.snapshot);
+    stampClassificationFrontmatter(accountId, threadId, cached.snapshot);
     return { success: true, previous };
 }
 
@@ -126,10 +145,11 @@ export function setThreadImportance(
  * importance flips, this never touches the knowledge verdict.
  */
 export function setThreadCategory(
+    accountId: string,
     threadId: string,
     category: EmailCategory,
 ): { success: boolean; error?: string } {
-    const cached = readCachedSnapshot(threadId);
+    const cached = readCachedSnapshot(accountId, threadId);
     if (!cached) {
         return { success: false, error: `No inbox entry found for thread ${threadId}` };
     }
@@ -137,7 +157,7 @@ export function setThreadCategory(
     cached.snapshot.category = category;
     cached.snapshot.categorySource = 'user';
     try {
-        fs.writeFileSync(cachePath(threadId), JSON.stringify(cached), 'utf-8');
+        fs.writeFileSync(cachePath(accountId, threadId), JSON.stringify(cached), 'utf-8');
     } catch (err) {
         return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -149,63 +169,64 @@ export function setThreadCategory(
         userCategory: category,
         at: new Date().toISOString(),
     });
-    stampClassificationFrontmatter(threadId, cached.snapshot);
+    stampClassificationFrontmatter(accountId, threadId, cached.snapshot);
     return { success: true };
 }
 
-export function saveMessageBodyHeight(threadId: string, messageId: string, height: number): void {
-    const cached = readCachedSnapshot(threadId);
+export function saveMessageBodyHeight(accountId: string, threadId: string, messageId: string, height: number): void {
+    const cached = readCachedSnapshot(accountId, threadId);
     if (!cached) return;
     const message = cached.snapshot.messages.find((m) => m.id === messageId);
     if (!message) return;
     if (message.bodyHeight === height) return;
     message.bodyHeight = height;
     try {
-        fs.writeFileSync(cachePath(threadId), JSON.stringify(cached), 'utf-8');
+        fs.writeFileSync(cachePath(accountId, threadId), JSON.stringify(cached), 'utf-8');
     } catch (err) {
         console.warn(`[Gmail cache] height write failed for ${threadId}/${messageId}:`, err);
     }
 }
 
-function deleteCachedSnapshot(threadId: string): void {
+function deleteCachedSnapshot(accountId: string, threadId: string): void {
     try {
-        fs.rmSync(cachePath(threadId), { force: true });
+        fs.rmSync(cachePath(accountId, threadId), { force: true });
     } catch (err) {
         console.warn(`[Gmail cache] delete failed for ${threadId}:`, err);
     }
 }
 
 // Local search index — same on-disk shape as the inbox cache, separate dir.
-function searchCachePath(threadId: string): string {
-    return path.join(SEARCH_CACHE_DIR, `${encodeURIComponent(threadId)}.json`);
+function searchCachePath(accountId: string, threadId: string): string {
+    return path.join(searchDirFor(accountId), `${encodeURIComponent(threadId)}.json`);
 }
 
-function readSearchSnapshot(threadId: string): SnapshotCacheEntry | null {
+function readSearchSnapshot(accountId: string, threadId: string): SnapshotCacheEntry | null {
     try {
-        const raw = fs.readFileSync(searchCachePath(threadId), 'utf-8');
+        const raw = fs.readFileSync(searchCachePath(accountId, threadId), 'utf-8');
         return JSON.parse(raw) as SnapshotCacheEntry;
     } catch {
         return null;
     }
 }
 
-function writeSearchSnapshot(threadId: string, historyId: string, snapshot: GmailThreadSnapshot): void {
+function writeSearchSnapshot(accountId: string, threadId: string, historyId: string, snapshot: GmailThreadSnapshot): void {
     try {
-        if (!fs.existsSync(SEARCH_CACHE_DIR)) fs.mkdirSync(SEARCH_CACHE_DIR, { recursive: true });
+        const dir = searchDirFor(accountId);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const entry: SnapshotCacheEntry = {
             historyId,
             fetchedAt: new Date().toISOString(),
             parserVersion: SNAPSHOT_PARSER_VERSION,
             snapshot,
         };
-        fs.writeFileSync(searchCachePath(threadId), JSON.stringify(entry), 'utf-8');
+        fs.writeFileSync(searchCachePath(accountId, threadId), JSON.stringify(entry), 'utf-8');
     } catch (err) {
         console.warn(`[Gmail search index] write failed for ${threadId}:`, err);
     }
 }
 
-async function getGmailClientOrThrow() {
-    const auth = await GoogleClientFactory.getClient();
+async function getGmailClientOrThrow(accountId: string) {
+    const auth = await GoogleClientFactory.getClient(accountId);
     if (!auth) throw new Error('Gmail is not connected.');
     return google.gmail({ version: 'v1', auth });
 }
@@ -215,47 +236,47 @@ export interface ThreadActionResult {
     error?: string;
 }
 
-export async function archiveThread(threadId: string): Promise<ThreadActionResult> {
+export async function archiveThread(accountId: string, threadId: string): Promise<ThreadActionResult> {
     try {
-        const gmailClient = await getGmailClientOrThrow();
+        const gmailClient = await getGmailClientOrThrow(accountId);
         await gmailClient.users.threads.modify({
             userId: 'me',
             id: threadId,
             requestBody: { removeLabelIds: ['INBOX'] },
         });
-        deleteCachedSnapshot(threadId);
+        deleteCachedSnapshot(accountId, threadId);
         return { ok: true };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
 }
 
-export async function trashThread(threadId: string): Promise<ThreadActionResult> {
+export async function trashThread(accountId: string, threadId: string): Promise<ThreadActionResult> {
     try {
-        const gmailClient = await getGmailClientOrThrow();
+        const gmailClient = await getGmailClientOrThrow(accountId);
         await gmailClient.users.threads.trash({ userId: 'me', id: threadId });
-        deleteCachedSnapshot(threadId);
+        deleteCachedSnapshot(accountId, threadId);
         return { ok: true };
     } catch (err) {
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
     }
 }
 
-export async function markThreadRead(threadId: string, read: boolean = true): Promise<ThreadActionResult> {
+export async function markThreadRead(accountId: string, threadId: string, read: boolean = true): Promise<ThreadActionResult> {
     try {
-        const gmailClient = await getGmailClientOrThrow();
+        const gmailClient = await getGmailClientOrThrow(accountId);
         await gmailClient.users.threads.modify({
             userId: 'me',
             id: threadId,
             requestBody: read ? { removeLabelIds: ['UNREAD'] } : { addLabelIds: ['UNREAD'] },
         });
         // Mirror the new read state onto every message in the cached thread.
-        const cached = readCachedSnapshot(threadId);
+        const cached = readCachedSnapshot(accountId, threadId);
         if (cached) {
             for (const m of cached.snapshot.messages) m.unread = !read;
             cached.snapshot.unread = !read;
             try {
-                fs.writeFileSync(cachePath(threadId), JSON.stringify(cached), 'utf-8');
+                fs.writeFileSync(cachePath(accountId, threadId), JSON.stringify(cached), 'utf-8');
             } catch (err) {
                 console.warn(`[Gmail cache] markRead write failed for ${threadId}:`, err);
             }
@@ -272,6 +293,12 @@ interface SyncedThread {
 }
 
 export interface GmailThreadSnapshot {
+    /**
+     * Mailbox this thread belongs to. Thread ids are only unique within an
+     * account, so every consumer that acts on a thread needs this to know
+     * which mailbox to talk to.
+     */
+    accountId: string;
     threadId: string;
     threadUrl: string;
     summary?: string;
@@ -374,10 +401,10 @@ export function isEmailTooOldToNotify(dateMs: number, now: number = Date.now()):
  * goes through fullSync — never notifies. Suppressed while the app is focused,
  * and for stale backlog (see isEmailTooOldToNotify).
  */
-function notifyNewEmails(threads: SyncedThread[]): void {
+function notifyNewEmails(accountId: string, threads: SyncedThread[]): void {
     const now = Date.now();
     for (const { threadId } of threads) {
-        const snapshot = readCachedSnapshot(threadId)?.snapshot;
+        const snapshot = readCachedSnapshot(accountId, threadId)?.snapshot;
         if (snapshot?.importance !== 'important') continue;
         if (snapshot && isEmailTooOldToNotify(snapshotDateMs(snapshot), now)) continue;
         const subject = snapshot?.subject?.trim() || '(no subject)';
@@ -409,9 +436,14 @@ async function publishGmailSyncEvent(threads: SyncedThread[]): Promise<void> {
 // --- Wake Signal for Immediate Sync Trigger ---
 let wakeResolve: (() => void) | null = null;
 
-export function triggerSync(): void {
+export function triggerSync(accountId?: string): void {
+    // The scheduler always sweeps every account, so a targeted trigger just
+    // wakes it early rather than running one mailbox out of band — which would
+    // race the sweep and double-fetch that mailbox.
     if (wakeResolve) {
-        console.log('[Gmail] Triggered - waking up immediately');
+        console.log(accountId
+            ? `[Gmail] Triggered for ${accountId} - waking up immediately`
+            : '[Gmail] Triggered - waking up immediately');
         wakeResolve();
         wakeResolve = null;
     }
@@ -721,9 +753,19 @@ export interface InboxPageResult {
 }
 
 interface IndexedEntry {
+    accountId: string;
     threadId: string;
     dateMs: number;
     snapshot: GmailThreadSnapshot;
+}
+
+/**
+ * Total order key for a merged, multi-account listing. Thread ids repeat
+ * across mailboxes, so they alone cannot break ties — without the account the
+ * sort is unstable and pagination can skip or repeat rows.
+ */
+function entryKey(accountId: string, threadId: string): string {
+    return `${accountId}\u0000${threadId}`;
 }
 
 function snapshotImportance(s: GmailThreadSnapshot): InboxSection {
@@ -738,18 +780,18 @@ function snapshotDateMs(s: GmailThreadSnapshot): number {
     return Number.isFinite(ms) ? ms : 0;
 }
 
-function parseCursor(cursor: string | undefined): { dateMs: number; threadId: string } | null {
+function parseCursor(cursor: string | undefined): { dateMs: number; key: string } | null {
     if (!cursor) return null;
     const idx = cursor.indexOf('|');
     if (idx < 0) return null;
     const dateMs = Number(cursor.slice(0, idx));
-    const threadId = cursor.slice(idx + 1);
-    if (!Number.isFinite(dateMs) || !threadId) return null;
-    return { dateMs, threadId };
+    const key = cursor.slice(idx + 1);
+    if (!Number.isFinite(dateMs) || !key) return null;
+    return { dateMs, key };
 }
 
-function encodeCursor(entry: { dateMs: number; threadId: string }): string {
-    return `${entry.dateMs}|${entry.threadId}`;
+function encodeCursor(entry: { dateMs: number; key: string }): string {
+    return `${entry.dateMs}|${entry.key}`;
 }
 
 export function listImportantThreads(opts: { cursor?: string; limit?: number } = {}): InboxPageResult {
@@ -780,24 +822,31 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
     const cursor = parseCursor(opts.cursor);
     const categoryCounts: Record<string, number> = {};
 
-    if (!fs.existsSync(CACHE_DIR)) {
+    const accountIds = listSyncedAccountIdsSync();
+    if (accountIds.length === 0) {
         listCache.clear();
-        return { threads: [], nextCursor: null, categoryCounts };
-    }
-
-    let names: string[];
-    try {
-        names = fs.readdirSync(CACHE_DIR);
-    } catch {
         return { threads: [], nextCursor: null, categoryCounts };
     }
 
     const seen = new Set<string>();
     const entries: IndexedEntry[] = [];
-    for (const name of names) {
+    for (const accountId of accountIds) {
+        const dir = cacheDirFor(accountId);
+        let names: string[];
+        try {
+            names = fs.readdirSync(dir);
+        } catch {
+            // A connected account that has not cached anything yet is not an
+            // error — the other mailboxes still list.
+            continue;
+        }
+        for (const name of names) {
         if (!name.endsWith('.json')) continue;
-        seen.add(name);
-        const filePath = path.join(CACHE_DIR, name);
+        // Cache key carries the account: the same thread id in two mailboxes
+        // produces the same filename.
+        const cacheKey = entryKey(accountId, name);
+        seen.add(cacheKey);
+        const filePath = path.join(dir, name);
 
         let mtimeMs: number;
         try {
@@ -807,14 +856,14 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
             continue;
         }
 
-        let cached = listCache.get(name);
+        let cached = listCache.get(cacheKey);
         if (!cached || cached.mtimeMs !== mtimeMs) {
             try {
                 const raw = fs.readFileSync(filePath, 'utf-8');
                 const wrapper = JSON.parse(raw) as SnapshotCacheEntry;
                 const snapshot = wrapper.snapshot;
                 if (!snapshot) {
-                    listCache.delete(name);
+                    listCache.delete(cacheKey);
                     continue;
                 }
                 cached = {
@@ -823,10 +872,10 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
                     section: snapshotImportance(snapshot),
                     snapshot,
                 };
-                listCache.set(name, cached);
+                listCache.set(cacheKey, cached);
             } catch (err) {
                 console.warn(`[Inbox lists] read failed for ${name}:`, err);
-                listCache.delete(name);
+                listCache.delete(cacheKey);
                 continue;
             }
         }
@@ -836,10 +885,12 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
         categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
         if (opts.category && cat !== opts.category) continue;
         entries.push({
+            accountId,
             threadId: cached.snapshot.threadId,
             dateMs: cached.dateMs,
             snapshot: cached.snapshot,
         });
+        }
     }
 
     // Evict cache entries for files that are gone (archived/trashed/pruned).
@@ -847,17 +898,20 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
         if (!seen.has(key)) listCache.delete(key);
     }
 
-    // Newest first, threadId asc as tiebreak.
+    // Newest first, (account, threadId) asc as tiebreak so the order is total
+    // across mailboxes and pagination cannot skip or repeat a row.
     entries.sort((a, b) => {
         if (b.dateMs !== a.dateMs) return b.dateMs - a.dateMs;
-        return a.threadId < b.threadId ? -1 : 1;
+        const ak = entryKey(a.accountId, a.threadId);
+        const bk = entryKey(b.accountId, b.threadId);
+        return ak < bk ? -1 : ak > bk ? 1 : 0;
     });
 
     let startIdx = 0;
     if (cursor) {
         startIdx = entries.findIndex((e) => {
             if (e.dateMs < cursor.dateMs) return true;
-            if (e.dateMs === cursor.dateMs && e.threadId > cursor.threadId) return true;
+            if (e.dateMs === cursor.dateMs && entryKey(e.accountId, e.threadId) > cursor.key) return true;
             return false;
         });
         if (startIdx < 0) startIdx = entries.length;
@@ -869,7 +923,9 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
 
     return {
         threads: slice.map((e) => e.snapshot),
-        nextCursor: hasMore && last ? encodeCursor({ dateMs: last.dateMs, threadId: last.threadId }) : null,
+        nextCursor: hasMore && last
+            ? encodeCursor({ dateMs: last.dateMs, key: entryKey(last.accountId, last.threadId) })
+            : null,
         categoryCounts,
     };
 }
@@ -884,11 +940,12 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
  * Returns per-thread failures rather than aborting: one 404 (thread deleted
  * elsewhere) shouldn't strand the other 80 promotions in the inbox.
  */
-export async function archiveCategoryThreads(category: string): Promise<{ archived: number; failed: number; error?: string }> {
-    if (!fs.existsSync(CACHE_DIR)) return { archived: 0, failed: 0 };
+export async function archiveCategoryThreads(accountId: string, category: string): Promise<{ archived: number; failed: number; error?: string }> {
+    const cacheDir = cacheDirFor(accountId);
+    if (!fs.existsSync(cacheDir)) return { archived: 0, failed: 0 };
     let names: string[];
     try {
-        names = fs.readdirSync(CACHE_DIR);
+        names = fs.readdirSync(cacheDir);
     } catch (err) {
         return { archived: 0, failed: 0, error: err instanceof Error ? err.message : String(err) };
     }
@@ -896,7 +953,7 @@ export async function archiveCategoryThreads(category: string): Promise<{ archiv
     for (const name of names) {
         if (!name.endsWith('.json')) continue;
         const threadId = decodeURIComponent(name.replace(/\.json$/, ''));
-        const snapshot = readCachedSnapshot(threadId)?.snapshot;
+        const snapshot = readCachedSnapshot(accountId, threadId)?.snapshot;
         if (!snapshot) continue;
         if (snapshotImportance(snapshot) !== 'other') continue;
         if ((snapshot.category ?? 'unclassified') !== category) continue;
@@ -905,15 +962,15 @@ export async function archiveCategoryThreads(category: string): Promise<{ archiv
     let archived = 0;
     let failed = 0;
     for (const threadId of targets) {
-        const result = await archiveThread(threadId);
+        const result = await archiveThread(accountId, threadId);
         if (result.ok) archived += 1;
         else failed += 1;
     }
     return { archived, failed };
 }
 
-export async function listRecentThreadIds(daysAgo: number = 2): Promise<RecentThreadInfo[]> {
-    const auth = await GoogleClientFactory.getClient();
+export async function listRecentThreadIds(accountId: string, daysAgo: number = 2): Promise<RecentThreadInfo[]> {
+    const auth = await GoogleClientFactory.getClient(accountId);
     if (!auth) {
         throw new Error('Gmail is not connected.');
     }
@@ -968,9 +1025,9 @@ function stripLeadingFrontmatter(content: string): string {
  *
  * Exported for tests.
  */
-export function stampClassificationFrontmatter(threadId: string, snapshot: GmailThreadSnapshot): void {
+export function stampClassificationFrontmatter(accountId: string, threadId: string, snapshot: GmailThreadSnapshot): void {
     if (!snapshot.category || !snapshot.knowledge) return;
-    const mdPath = path.join(SYNC_DIR, `${threadId}.md`);
+    const mdPath = path.join(syncDirFor(accountId), `${threadId}.md`);
     let content: string;
     try {
         content = fs.readFileSync(mdPath, 'utf-8');
@@ -1011,6 +1068,7 @@ export function stampClassificationFrontmatter(threadId: string, snapshot: Gmail
  * those shouldn't show up in the inbox.
  */
 async function buildAndCacheSnapshot(
+    accountId: string,
     threadId: string,
     threadData: gmail.Schema$Thread,
     gmailClient: gmail.Gmail,
@@ -1019,7 +1077,7 @@ async function buildAndCacheSnapshot(
     const messages = threadData.messages;
     if (!messages || messages.length === 0) return null;
 
-    const cached = readCachedSnapshot(threadId);
+    const cached = readCachedSnapshot(accountId, threadId);
     // Short-circuit: if the thread hasn't changed since we last classified it,
     // skip the rebuild + classifier. Saves the cid-image fetches and one LLM
     // call per unchanged thread (matters most during fullSync after a
@@ -1039,10 +1097,10 @@ async function buildAndCacheSnapshot(
     ) {
         // processThread may have just rewritten the markdown mirror (which
         // drops its frontmatter) — re-stamp from the cached verdict.
-        stampClassificationFrontmatter(threadId, cached.snapshot);
+        stampClassificationFrontmatter(accountId, threadId, cached.snapshot);
         return cached.snapshot;
     }
-    const snapshot = await parseThreadSnapshot(threadId, threadData, gmailClient);
+    const snapshot = await parseThreadSnapshot(accountId, threadId, threadData, gmailClient);
     if (!snapshot) return null;
 
     // The user's explicit verdicts on this thread are sticky — carry them over
@@ -1080,9 +1138,9 @@ async function buildAndCacheSnapshot(
     }
 
     if (threadData.historyId) {
-        writeCachedSnapshot(threadId, threadData.historyId, snapshot);
+        writeCachedSnapshot(accountId, threadId, threadData.historyId, snapshot);
     }
-    stampClassificationFrontmatter(threadId, snapshot);
+    stampClassificationFrontmatter(accountId, threadId, snapshot);
 
     return snapshot;
 }
@@ -1094,6 +1152,7 @@ async function buildAndCacheSnapshot(
  * (non-draft) messages.
  */
 async function parseThreadSnapshot(
+    accountId: string,
     threadId: string,
     threadData: gmail.Schema$Thread,
     gmailClient: gmail.Gmail,
@@ -1101,7 +1160,7 @@ async function parseThreadSnapshot(
     const messages = threadData.messages;
     if (!messages || messages.length === 0) return null;
 
-    const cached = readCachedSnapshot(threadId);
+    const cached = readCachedSnapshot(accountId, threadId);
     const heightCarryover = new Map<string, number>();
     if (cached) {
         for (const m of cached.snapshot.messages) {
@@ -1167,6 +1226,7 @@ async function parseThreadSnapshot(
 
     return {
         threadId,
+        accountId,
         threadUrl: `https://mail.google.com/mail/u/0/#all/${threadId}`,
         subject: latest.subject || visibleMessages[0]?.subject,
         from: latest.from,
@@ -1224,18 +1284,20 @@ export interface DownloadAttachmentResult {
  * can go stale on a cached snapshot, whereas the file name is stable.
  */
 export async function downloadAttachment(args: {
+    /** Mailbox owning the attachment. */
+    accountId: string;
     messageId: string;
     savedPath: string;
     attachmentId?: string;
 }): Promise<DownloadAttachmentResult> {
     try {
-        const { messageId, savedPath, attachmentId } = args;
+        const { accountId, messageId, savedPath, attachmentId } = args;
         if (!messageId || !savedPath) return { ok: false, error: 'Missing attachment reference.' };
 
         const absPath = path.join(WorkDir, savedPath);
         if (fs.existsSync(absPath)) return { ok: true };
 
-        const gmailClient = await getGmailClientOrThrow();
+        const gmailClient = await getGmailClientOrThrow(accountId);
         const dir = path.dirname(absPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
@@ -1288,7 +1350,7 @@ export async function downloadAttachment(args: {
 
 // --- Sync Logic ---
 
-async function processThread(auth: OAuth2Client, threadId: string, syncDir: string, attachmentsDir: string): Promise<SyncedThread | null> {
+async function processThread(accountId: string, auth: OAuth2Client, threadId: string, syncDir: string, attachmentsDir: string): Promise<SyncedThread | null> {
     const gmail = google.gmail({ version: 'v1', auth });
     try {
         const res = await gmail.users.threads.get({ userId: 'me', id: threadId });
@@ -1370,7 +1432,7 @@ async function processThread(auth: OAuth2Client, threadId: string, syncDir: stri
         // Also build + cache the rich snapshot for the inbox view.
         // Reuses the threads.get response — no extra API call.
         try {
-            await buildAndCacheSnapshot(threadId, thread, gmail, auth);
+            await buildAndCacheSnapshot(accountId, threadId, thread, gmail, auth);
         } catch (err) {
             console.warn(`[Gmail] Inbox snapshot build failed for ${threadId}:`, err);
         }
@@ -1390,8 +1452,9 @@ async function processThread(auth: OAuth2Client, threadId: string, syncDir: stri
  * no longer in INBOX (archived/trashed elsewhere). Single threads.list call,
  * keeps the cache in lock-step with Gmail's INBOX label.
  */
-async function pruneInboxCache(auth: OAuth2Client): Promise<void> {
-    if (!fs.existsSync(CACHE_DIR)) return;
+async function pruneInboxCache(accountId: string, auth: OAuth2Client): Promise<void> {
+    const cacheDir = cacheDirFor(accountId);
+    if (!fs.existsSync(cacheDir)) return;
     try {
         const gmailClient = google.gmail({ version: 'v1', auth });
         const inInbox = new Set<string>();
@@ -1409,12 +1472,12 @@ async function pruneInboxCache(auth: OAuth2Client): Promise<void> {
             pageToken = res.data.nextPageToken ?? undefined;
         } while (pageToken);
 
-        for (const name of fs.readdirSync(CACHE_DIR)) {
+        for (const name of fs.readdirSync(cacheDir)) {
             if (!name.endsWith('.json')) continue;
             const threadId = decodeURIComponent(name.replace(/\.json$/, ''));
             if (!inInbox.has(threadId)) {
                 try {
-                    fs.rmSync(path.join(CACHE_DIR, name), { force: true });
+                    fs.rmSync(path.join(cacheDir, name), { force: true });
                 } catch (err) {
                     console.warn(`[Gmail] prune failed for ${threadId}:`, err);
                 }
@@ -1492,6 +1555,7 @@ function shouldRunRecentBackfill(stateFile: string): boolean {
 }
 
 async function backfillMissingRecentThreads(
+    accountId: string,
     auth: OAuth2Client,
     syncDir: string,
     attachmentsDir: string,
@@ -1508,7 +1572,7 @@ async function backfillMissingRecentThreads(
 
     const synced: SyncedThread[] = [];
     for (const threadId of missingThreadIds) {
-        const result = await processThread(auth, threadId, syncDir, attachmentsDir);
+        const result = await processThread(accountId, auth, threadId, syncDir, attachmentsDir);
         if (result) synced.push(result);
     }
 
@@ -1521,7 +1585,7 @@ async function backfillMissingRecentThreads(
     return synced;
 }
 
-async function fullSync(auth: OAuth2Client, syncDir: string, attachmentsDir: string, stateFile: string, lookbackDays: number) {
+async function fullSync(accountId: string, auth: OAuth2Client, syncDir: string, attachmentsDir: string, stateFile: string, lookbackDays: number) {
     const gmail = google.gmail({ version: 'v1', auth });
 
     // The onboarding / recovery fetch is bounded by a COUNT of the most recent
@@ -1616,7 +1680,7 @@ async function fullSync(auth: OAuth2Client, syncDir: string, attachmentsDir: str
 
         const synced: SyncedThread[] = [];
         for (const threadId of threadIds) {
-            const result = await processThread(auth, threadId, syncDir, attachmentsDir);
+            const result = await processThread(accountId, auth, threadId, syncDir, attachmentsDir);
             if (result) synced.push(result);
         }
 
@@ -1658,7 +1722,7 @@ async function fullSync(auth: OAuth2Client, syncDir: string, attachmentsDir: str
     }
 }
 
-async function partialSync(auth: OAuth2Client, startHistoryId: string, syncDir: string, attachmentsDir: string, stateFile: string, lookbackDays: number) {
+async function partialSync(accountId: string, auth: OAuth2Client, startHistoryId: string, syncDir: string, attachmentsDir: string, stateFile: string, lookbackDays: number) {
     console.log(`Checking updates since historyId ${startHistoryId}...`);
     const gmail = google.gmail({ version: 'v1', auth });
 
@@ -1690,7 +1754,7 @@ async function partialSync(auth: OAuth2Client, startHistoryId: string, syncDir: 
 
         if (!changes || changes.length === 0) {
             console.log("No new changes.");
-            const backfilled = await backfillMissingRecentThreads(auth, syncDir, attachmentsDir, stateFile, lookbackDays);
+            const backfilled = await backfillMissingRecentThreads(accountId, auth, syncDir, attachmentsDir, stateFile, lookbackDays);
             await publishGmailSyncEvent(backfilled);
             const profile = await gmail.users.getProfile({ userId: 'me' });
             saveState(profile.data.historyId!, stateFile);
@@ -1721,7 +1785,7 @@ async function partialSync(auth: OAuth2Client, startHistoryId: string, syncDir: 
         }
 
         if (threadIds.size === 0) {
-            const backfilled = await backfillMissingRecentThreads(auth, syncDir, attachmentsDir, stateFile, lookbackDays);
+            const backfilled = await backfillMissingRecentThreads(accountId, auth, syncDir, attachmentsDir, stateFile, lookbackDays);
             await publishGmailSyncEvent(backfilled);
             const profile = await gmail.users.getProfile({ userId: 'me' });
             saveState(profile.data.historyId!, stateFile);
@@ -1744,13 +1808,13 @@ async function partialSync(auth: OAuth2Client, startHistoryId: string, syncDir: 
 
         const synced: SyncedThread[] = [];
         for (const tid of threadIdList) {
-            const result = await processThread(auth, tid, syncDir, attachmentsDir);
+            const result = await processThread(accountId, auth, tid, syncDir, attachmentsDir);
             if (result) synced.push(result);
         }
         // Notify for the history-derived new threads only — before the older
         // backfilled threads are merged in below, so backfill stays silent.
-        notifyNewEmails(synced);
-        const backfilled = await backfillMissingRecentThreads(auth, syncDir, attachmentsDir, stateFile, lookbackDays);
+        notifyNewEmails(accountId, synced);
+        const backfilled = await backfillMissingRecentThreads(accountId, auth, syncDir, attachmentsDir, stateFile, lookbackDays);
         synced.push(...backfilled);
 
         await publishGmailSyncEvent(synced);
@@ -1772,7 +1836,7 @@ async function partialSync(auth: OAuth2Client, startHistoryId: string, syncDir: 
         const e = error as { response?: { status?: number } };
         if (e.response?.status === 404) {
             console.log("History ID expired. Falling back to full sync.");
-            await fullSync(auth, syncDir, attachmentsDir, stateFile, lookbackDays);
+            await fullSync(accountId, auth, syncDir, attachmentsDir, stateFile, lookbackDays);
             return;
         }
 
@@ -1820,11 +1884,12 @@ const sweepSkip = new Set<string>();
  * this sweep those emails would silently never produce knowledge notes.
  * LLM work is bounded per tick; cache-backed stamps are free and unbounded.
  */
-async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number = 15): Promise<void> {
-    if (!fs.existsSync(SYNC_DIR)) return;
+async function sweepUnclassifiedMarkdown(accountId: string, auth: OAuth2Client, llmBudget: number = 15): Promise<void> {
+    const syncDir = syncDirFor(accountId);
+    if (!fs.existsSync(syncDir)) return;
     let names: string[];
     try {
-        names = fs.readdirSync(SYNC_DIR);
+        names = fs.readdirSync(syncDir);
     } catch {
         return;
     }
@@ -1837,7 +1902,7 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
         if (sweepSkip.has(threadId)) continue;
         let content: string;
         try {
-            content = fs.readFileSync(path.join(SYNC_DIR, name), 'utf-8');
+            content = fs.readFileSync(path.join(syncDir, name), 'utf-8');
         } catch {
             continue;
         }
@@ -1845,9 +1910,9 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
         // legacy labeling-agent verdict the graph builder still understands.
         if (content.startsWith('---')) continue;
 
-        const cached = readCachedSnapshot(threadId)?.snapshot;
+        const cached = readCachedSnapshot(accountId, threadId)?.snapshot;
         if (cached?.category && cached.knowledge) {
-            stampClassificationFrontmatter(threadId, cached);
+            stampClassificationFrontmatter(accountId, threadId, cached);
             stamped += 1;
             continue;
         }
@@ -1858,13 +1923,13 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
             const res = await gmailClient.users.threads.get({ userId: 'me', id: threadId });
             if (cached) {
                 // In the inbox — reuse the full path (classify, cache, stamp).
-                await buildAndCacheSnapshot(threadId, res.data, gmailClient, auth);
-                if (!readCachedSnapshot(threadId)?.snapshot.category) sweepSkip.add(threadId);
+                await buildAndCacheSnapshot(accountId, threadId, res.data, gmailClient, auth);
+                if (!readCachedSnapshot(accountId, threadId)?.snapshot.category) sweepSkip.add(threadId);
             } else {
                 // Not in the inbox cache (archived/pruned). Classify and stamp
                 // only — writing the cache would resurrect the thread in the
                 // inbox UI.
-                const snapshot = await parseThreadSnapshot(threadId, res.data, gmailClient);
+                const snapshot = await parseThreadSnapshot(accountId, threadId, res.data, gmailClient);
                 if (!snapshot) {
                     sweepSkip.add(threadId);
                     continue;
@@ -1874,7 +1939,7 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
                 snapshot.importance = classification.importance;
                 if (classification.category) snapshot.category = classification.category;
                 if (classification.knowledge) snapshot.knowledge = classification.knowledge;
-                stampClassificationFrontmatter(threadId, snapshot);
+                stampClassificationFrontmatter(accountId, threadId, snapshot);
                 if (!classification.category) sweepSkip.add(threadId);
             }
         } catch (err) {
@@ -1889,10 +1954,10 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
     // re-stamp markdown that carries legacy labels: frontmatter — rewriting
     // those files would make the graph builder reprocess emails it already
     // extracted (mtime+hash change detection).
-    if (classified < llmBudget && fs.existsSync(CACHE_DIR)) {
+    if (classified < llmBudget && fs.existsSync(cacheDirFor(accountId))) {
         let cacheNames: string[] = [];
         try {
-            cacheNames = fs.readdirSync(CACHE_DIR);
+            cacheNames = fs.readdirSync(cacheDirFor(accountId));
         } catch { /* ignore */ }
         const userEmail = await getUserEmail(auth);
         for (const name of cacheNames) {
@@ -1900,7 +1965,7 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
             if (!name.endsWith('.json')) continue;
             const threadId = decodeURIComponent(name.replace(/\.json$/, ''));
             if (sweepSkip.has(threadId)) continue;
-            const entry = readCachedSnapshot(threadId);
+            const entry = readCachedSnapshot(accountId, threadId);
             if (!entry || !entry.snapshot.importance || entry.snapshot.category) continue;
             classified += 1;
             try {
@@ -1913,14 +1978,14 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
                 entry.snapshot.knowledge = classification.knowledge;
                 // The user's sticky verdict (and the previously shown one) win —
                 // this pass is about adding the missing fields, not re-judging.
-                writeCachedSnapshot(threadId, entry.historyId, entry.snapshot);
-                const mdPath = path.join(SYNC_DIR, `${threadId}.md`);
+                writeCachedSnapshot(accountId, threadId, entry.historyId, entry.snapshot);
+                const mdPath = path.join(syncDirFor(accountId), `${threadId}.md`);
                 let mdContent: string | null = null;
                 try {
                     mdContent = fs.readFileSync(mdPath, 'utf-8');
                 } catch { /* no markdown mirror */ }
                 if (mdContent !== null && !mdContent.startsWith('---')) {
-                    stampClassificationFrontmatter(threadId, entry.snapshot);
+                    stampClassificationFrontmatter(accountId, threadId, entry.snapshot);
                 }
             } catch (err) {
                 console.warn(`[Gmail] cache enrichment failed for ${threadId}:`, err);
@@ -1934,32 +1999,38 @@ async function sweepUnclassifiedMarkdown(auth: OAuth2Client, llmBudget: number =
     }
 }
 
-async function performSync() {
+/**
+ * Sync one mailbox. Throws nothing — the caller runs every account and one
+ * failing grant must not stop the rest.
+ */
+async function performSyncForAccount(accountId: string): Promise<void> {
     const LOOKBACK_DAYS = 7; // Default to 1 week
-    const ATTACHMENTS_DIR = path.join(SYNC_DIR, 'attachments');
-    const STATE_FILE = path.join(SYNC_DIR, 'sync_state.json');
+    const syncDir = syncDirFor(accountId);
+    const cacheDir = cacheDirFor(accountId);
+    const attachmentsDir = attachmentsDirFor(accountId);
+    const stateFile = stateFileFor(accountId);
 
     // Ensure directories exist
-    if (!fs.existsSync(SYNC_DIR)) fs.mkdirSync(SYNC_DIR, { recursive: true });
-    if (!fs.existsSync(ATTACHMENTS_DIR)) fs.mkdirSync(ATTACHMENTS_DIR, { recursive: true });
+    if (!fs.existsSync(syncDir)) fs.mkdirSync(syncDir, { recursive: true });
+    if (!fs.existsSync(attachmentsDir)) fs.mkdirSync(attachmentsDir, { recursive: true });
 
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) {
-            console.log("No valid OAuth credentials available.");
+            console.log(`No valid OAuth credentials available for ${accountId}.`);
             return;
         }
 
-        console.log("Authorization successful. Starting sync...");
+        console.log(`Authorization successful for ${accountId}. Starting sync...`);
 
-        const state = loadState(STATE_FILE);
+        const state = loadState(stateFile);
         // Backfill case: users who upgraded from a pre-inbox-view build have a
-        // stored historyId but no inbox_lists/ cache, so partialSync would only
+        // stored historyId but no snapshot cache, so partialSync would only
         // touch *new* threads and the inbox UI would stay empty. Force a one-
         // shot fullSync to populate snapshots for the lookback window. After
         // this runs once, the cache directory is populated and we fall back to
         // partial-sync on subsequent calls.
-        const cacheMissing = !fs.existsSync(CACHE_DIR) || fs.readdirSync(CACHE_DIR).length === 0;
+        const cacheMissing = !fs.existsSync(cacheDir) || fs.readdirSync(cacheDir).length === 0;
         // partialSync replays *every* messageAdded since the stored historyId,
         // regardless of date/count — so after a long offline gap a still-valid
         // historyId would pull the entire gap (e.g. 3 weeks). When last_sync is
@@ -1969,35 +2040,50 @@ async function performSync() {
         const gapTooLarge = gapMs > LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
         if (!state.historyId) {
             console.log("No history ID found, starting full sync...");
-            await fullSync(auth, SYNC_DIR, ATTACHMENTS_DIR, STATE_FILE, LOOKBACK_DAYS);
+            await fullSync(accountId, auth, syncDir, attachmentsDir, stateFile, LOOKBACK_DAYS);
         } else if (cacheMissing) {
             console.log("History ID present but inbox cache empty — running full sync to backfill snapshots...");
-            await fullSync(auth, SYNC_DIR, ATTACHMENTS_DIR, STATE_FILE, LOOKBACK_DAYS);
+            await fullSync(accountId, auth, syncDir, attachmentsDir, stateFile, LOOKBACK_DAYS);
         } else if (gapTooLarge) {
             console.log(`Last sync older than ${LOOKBACK_DAYS} days — running count-bounded full sync instead of partial sync...`);
-            await fullSync(auth, SYNC_DIR, ATTACHMENTS_DIR, STATE_FILE, LOOKBACK_DAYS);
+            await fullSync(accountId, auth, syncDir, attachmentsDir, stateFile, LOOKBACK_DAYS);
         } else {
             console.log("History ID found, starting partial sync...");
-            await partialSync(auth, state.historyId, SYNC_DIR, ATTACHMENTS_DIR, STATE_FILE, LOOKBACK_DAYS);
+            await partialSync(accountId, auth, state.historyId, syncDir, attachmentsDir, stateFile, LOOKBACK_DAYS);
         }
 
-        // Keep inbox_lists/ in lock-step with Gmail's INBOX label —
+        // Keep the snapshot cache in lock-step with Gmail's INBOX label —
         // remove cache files for threads that were archived/trashed elsewhere.
-        await pruneInboxCache(auth);
+        await pruneInboxCache(accountId, auth);
 
         // Backfill classification verdicts onto any markdown the main sync
         // paths missed — the knowledge graph holds unstamped files forever.
-        await sweepUnclassifiedMarkdown(auth);
+        await sweepUnclassifiedMarkdown(accountId, auth);
 
-        console.log("Sync completed.");
+        console.log(`Sync completed for ${accountId}.`);
     } catch (error) {
-        console.error("Error during sync:", error);
+        console.error(`Error during sync for ${accountId}:`, error);
+    }
+}
+
+async function performSync(accountId?: string): Promise<void> {
+    const accountIds = accountId ? [accountId] : await listAccountIds();
+    if (accountIds.length === 0) {
+        console.log("No connected Google accounts.");
+        return;
+    }
+    // Sequential on purpose: concurrent mailboxes would multiply Gmail API
+    // quota usage and interleave the sync logs past readability.
+    for (const id of accountIds) {
+        await performSyncForAccount(id);
     }
 }
 
 // --- Send Reply ---
 
 export interface SendReplyOptions {
+    /** Mailbox this operation targets. */
+    accountId: string;
     threadId?: string;
     to: string;
     cc?: string;
@@ -2037,8 +2123,8 @@ export interface GmailConnectionStatus {
 }
 
 /** The connected Gmail address (cached). Used by the composer to exclude "me" from reply-all. */
-export async function getAccountEmail(): Promise<string | null> {
-    const auth = await GoogleClientFactory.getClient();
+export async function getAccountEmail(accountId?: string): Promise<string | null> {
+    const auth = await GoogleClientFactory.getClient(accountId);
     if (!auth) return null;
     return getUserEmail(auth);
 }
@@ -2052,10 +2138,10 @@ let cachedAccountName: string | null | undefined;
  * scope, so it never triggers a re-consent. Used by the composer to sign off
  * AI-generated emails with the real name.
  */
-export async function getAccountName(): Promise<string | null> {
+export async function getAccountName(accountId?: string): Promise<string | null> {
     if (cachedAccountName !== undefined) return cachedAccountName;
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) return null;
         const gmailClient = google.gmail({ version: 'v1', auth });
         const list = await gmailClient.users.messages.list({ userId: 'me', labelIds: ['SENT'], maxResults: 1 });
@@ -2215,8 +2301,9 @@ function buildRawMimeMessage(opts: SaveDraftOptions, userEmail: string): { raw: 
 }
 
 export async function sendThreadReply(opts: SendReplyOptions): Promise<SendReplyResult> {
+    const accountId = opts.accountId;
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) return { error: 'Gmail is not connected.' };
 
         const gmailClient = google.gmail({ version: 'v1', auth });
@@ -2272,8 +2359,9 @@ export async function sendThreadReply(opts: SendReplyOptions): Promise<SendReply
  * (deleted/sent elsewhere) falls back to creating a fresh draft.
  */
 export async function saveThreadDraft(opts: SaveDraftOptions): Promise<SaveDraftResult> {
+    const accountId = opts.accountId;
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) return { error: 'Gmail is not connected.' };
 
         const gmailClient = google.gmail({ version: 'v1', auth });
@@ -2330,11 +2418,11 @@ export async function saveThreadDraft(opts: SaveDraftOptions): Promise<SaveDraft
         // whole sync loop per autosave (md/event writes + LLM reclassification)
         // is exactly what we're avoiding.
         if (opts.threadId) {
-            const cached = readCachedSnapshot(opts.threadId);
+            const cached = readCachedSnapshot(accountId, opts.threadId);
             if (cached) {
                 cached.snapshot.gmail_draft = opts.bodyText?.trim() || undefined;
                 try {
-                    fs.writeFileSync(cachePath(opts.threadId), JSON.stringify(cached), 'utf-8');
+                    fs.writeFileSync(cachePath(accountId, opts.threadId), JSON.stringify(cached), 'utf-8');
                 } catch (err) {
                     console.warn(`[Gmail cache] draft write failed for ${opts.threadId}:`, err);
                 }
@@ -2348,9 +2436,9 @@ export async function saveThreadDraft(opts: SaveDraftOptions): Promise<SaveDraft
 }
 
 /** Delete a Gmail draft by id. A missing draft is treated as success. */
-export async function deleteThreadDraft(draftId: string): Promise<{ ok: boolean; error?: string }> {
+export async function deleteThreadDraft(accountId: string, draftId: string): Promise<{ ok: boolean; error?: string }> {
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) return { ok: false, error: 'Gmail is not connected.' };
 
         const gmailClient = google.gmail({ version: 'v1', auth });
@@ -2379,6 +2467,7 @@ const draftListCache = new Map<string, DraftCacheEntry>();
 
 // Fetch one draft and parse it into a lightweight snapshot for the Drafts view.
 async function buildDraftSnapshot(
+    accountId: string,
     gmailClient: gmail.Gmail,
     draftId: string,
 ): Promise<GmailThreadSnapshot | null> {
@@ -2407,6 +2496,7 @@ async function buildDraftSnapshot(
 
     return {
         threadId,
+        accountId,
         threadUrl: `https://mail.google.com/mail/u/0/#drafts?compose=${draftId}`,
         subject,
         from,
@@ -2442,8 +2532,21 @@ async function buildDraftSnapshot(
  * classification; recipients/subject/body come straight off the draft message.
  */
 export async function listDraftThreads(): Promise<{ threads: GmailThreadSnapshot[]; error?: string }> {
+    const accountIds = await listAccountIds();
+    const threads: GmailThreadSnapshot[] = [];
+    let firstError: string | undefined;
+    for (const id of accountIds) {
+        const res = await listDraftThreadsForAccount(id);
+        // One mailbox failing must not blank the whole drafts view.
+        if (res.error && !firstError) firstError = res.error;
+        threads.push(...res.threads);
+    }
+    return { threads, error: threads.length === 0 ? firstError : undefined };
+}
+
+async function listDraftThreadsForAccount(accountId: string): Promise<{ threads: GmailThreadSnapshot[]; error?: string }> {
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) {
             draftListCache.clear();
             return { threads: [], error: 'Gmail is not connected.' };
@@ -2464,7 +2567,7 @@ export async function listDraftThreads(): Promise<{ threads: GmailThreadSnapshot
                 return cached.snapshot;
             }
             try {
-                const snapshot = await buildDraftSnapshot(gmailClient, d.id);
+                const snapshot = await buildDraftSnapshot(accountId, gmailClient, d.id);
                 if (snapshot) draftListCache.set(d.id, { messageId, snapshot });
                 return snapshot;
             } catch (err) {
@@ -2507,8 +2610,24 @@ export interface SearchResult {
 export async function searchThreads(query: string, opts: { limit?: number } = {}): Promise<SearchResult> {
     const q = query.trim();
     if (!q) return { threads: [] };
+    const accountIds = await listAccountIds();
+    const threads: GmailThreadSnapshot[] = [];
+    let firstError: string | undefined;
+    for (const id of accountIds) {
+        const res = await searchThreadsForAccount(id, q, opts);
+        if (res.error && !firstError) firstError = res.error;
+        threads.push(...res.threads);
+    }
+    // Newest first across mailboxes.
+    threads.sort((a, b) => new Date(b.date ?? 0).getTime() - new Date(a.date ?? 0).getTime());
+    return { threads, error: threads.length === 0 ? firstError : undefined };
+}
+
+async function searchThreadsForAccount(accountId: string, query: string, opts: { limit?: number } = {}): Promise<SearchResult> {
+    const q = query.trim();
+    if (!q) return { threads: [] };
     try {
-        const auth = await GoogleClientFactory.getClient();
+        const auth = await GoogleClientFactory.getClient(accountId);
         if (!auth) return { threads: [], error: 'Gmail is not connected.' };
 
         const gmailClient = google.gmail({ version: 'v1', auth });
@@ -2521,14 +2640,14 @@ export async function searchThreads(query: string, opts: { limit?: number } = {}
 
         const built = await Promise.all(ids.map(async (threadId) => {
             // Prefer the inbox snapshot (kept fresh by sync), then the search index.
-            const inboxCached = readCachedSnapshot(threadId);
+            const inboxCached = readCachedSnapshot(accountId, threadId);
             if (inboxCached?.snapshot) return inboxCached.snapshot;
-            const indexed = readSearchSnapshot(threadId);
+            const indexed = readSearchSnapshot(accountId, threadId);
             if (indexed?.snapshot) return indexed.snapshot;
             try {
                 const threadData = await gmailClient.users.threads.get({ userId: 'me', id: threadId, format: 'full' });
-                const snapshot = await parseThreadSnapshot(threadId, threadData.data, gmailClient);
-                if (snapshot) writeSearchSnapshot(threadId, threadData.data.historyId || '', snapshot);
+                const snapshot = await parseThreadSnapshot(accountId, threadId, threadData.data, gmailClient);
+                if (snapshot) writeSearchSnapshot(accountId, threadId, threadData.data.historyId || '', snapshot);
                 return snapshot;
             } catch (err) {
                 console.warn(`[Gmail search] fetch failed for ${threadId}:`, err);

@@ -20,6 +20,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname } from "node:path";
 import { initUpdater } from "./updater.js";
 import { init as initGmailSync } from "@x/core/dist/knowledge/sync_gmail.js";
+import { migrateLegacyMailLayout } from "@x/core/dist/knowledge/mail_migration.js";
 import { init as initCalendarSync } from "@x/core/dist/knowledge/sync_calendar.js";
 import { init as initFirefliesSync } from "@x/core/dist/knowledge/sync_fireflies.js";
 import { init as initGranolaSync } from "@x/core/dist/knowledge/granola/sync.js";
@@ -685,6 +686,10 @@ app.whenReady().then(async () => {
   registerConsumer(liveNoteEventConsumer);
   registerConsumer(backgroundTaskEventConsumer);
   initEventProcessor();
+
+  // Move the flat single-mailbox vault layout to the per-account one before
+  // anything reads it. Idempotent, and a no-op on fresh installs.
+  migrateLegacyMailLayout();
 
   // If the stored Google grant predates a scope change (only old scopes),
   // disconnect it now so the user re-connects with the current scopes before

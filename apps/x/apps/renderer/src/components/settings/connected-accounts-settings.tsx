@@ -102,6 +102,90 @@ export function ConnectedAccountsSettings({ dialogOpen }: ConnectedAccountsSetti
     )
   }
 
+  /**
+   * Google is the one multi-account provider: one app registration can
+   * authorize several mailboxes. Each row is an account rather than the
+   * provider, so a second Gmail sits beside the first instead of replacing it.
+   */
+  const renderGoogleAccounts = () => {
+    const accounts = c.providerAccounts['google'] ?? []
+    const primaryId = c.primaryAccountIds['google'] ?? null
+    const state = c.providerStates['google'] || { isConnected: false, isLoading: true, isConnecting: false }
+
+    if (state.isLoading) {
+      return (
+        <div className="flex items-center gap-2.5 rounded-md px-3 py-2">
+          <GoogleIcon className="size-5 shrink-0" />
+          <span className="text-xs text-muted-foreground">Checking...</span>
+        </div>
+      )
+    }
+
+    // Nothing connected yet — keep the familiar single Connect row.
+    if (accounts.length === 0) {
+      return renderOAuthProvider('google', 'Google', <GoogleIcon className="size-5" />, 'Sync emails and calendar')
+    }
+
+    return (
+      <div className="flex flex-col">
+        {accounts.map((account) => {
+          const isPrimary = account.id === primaryId
+          return (
+            <div
+              key={account.id}
+              className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <GoogleIcon className="size-5 shrink-0" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-medium truncate">{account.email ?? account.id}</span>
+                  {account.error ? (
+                    <span className="text-xs text-amber-600">Needs reconnect</span>
+                  ) : isPrimary ? (
+                    // Say what primary *does* — otherwise it reads as an
+                    // arbitrary star rather than a routing decision.
+                    <span className="text-xs text-muted-foreground">Connected · used for Calendar, Docs and notes</span>
+                  ) : (
+                    <span className="text-xs text-emerald-600">Connected</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                {!isPrimary && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { void c.handleSetPrimaryAccount('google', account.id) }}
+                  >
+                    Make primary
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { void c.handleDisconnect('google', account.id) }}
+                >
+                  Disconnect
+                </Button>
+              </div>
+            </div>
+          )
+        })}
+        <div className="px-3 py-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={state.isConnecting}
+            onClick={() => { void c.handleConnect('google') }}
+          >
+            {state.isConnecting ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            Add account
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (c.providersLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -185,7 +269,7 @@ export function ConnectedAccountsSettings({ dialogOpen }: ConnectedAccountsSetti
                 </div>
               </div>
             ) : (
-              c.providers.includes('google') && renderOAuthProvider('google', 'Google', <GoogleIcon className="size-5" />, 'Sync emails and calendar')
+              c.providers.includes('google') && renderGoogleAccounts()
             )}
             {c.useComposioForGoogleCalendar && (
               <div className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-accent/50 transition-colors">

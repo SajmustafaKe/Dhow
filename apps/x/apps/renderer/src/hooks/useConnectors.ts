@@ -12,6 +12,13 @@ export interface ProviderStatus {
   error?: string
 }
 
+export interface ProviderAccount {
+  id: string
+  email: string | null
+  connected: boolean
+  error: string | null
+}
+
 type KnowledgeSourceConfig = {
   id: string
   provider: 'gmail' | 'meeting' | 'voice_memo' | 'slack' | 'github' | 'linear'
@@ -69,6 +76,10 @@ export function useConnectors(active: boolean) {
   const [providersLoading, setProvidersLoading] = useState(true)
   const [providerStates, setProviderStates] = useState<Record<string, ProviderState>>({})
   const [providerStatus, setProviderStatus] = useState<Record<string, ProviderStatus>>({})
+  // Per-provider account lists. Only Google is multi-account today; other
+  // providers report a single entry and render through the simple row.
+  const [providerAccounts, setProviderAccounts] = useState<Record<string, ProviderAccount[]>>({})
+  const [primaryAccountIds, setPrimaryAccountIds] = useState<Record<string, string | null>>({})
   const [googleClientIdOpen, setGoogleClientIdOpen] = useState(false)
   const [googleClientIdDescription, setGoogleClientIdDescription] = useState<string | undefined>(undefined)
 
@@ -625,17 +636,38 @@ export function useConnectors(active: boolean) {
     await startConnect(provider)
   }, [startConnect, providerStates])
 
-  const handleDisconnect = useCallback(async (provider: string) => {
+  const loadAccounts = useCallback(async (provider: string) => {
+    try {
+      const res = await window.ipc.invoke('oauth:list-accounts', { provider })
+      setProviderAccounts(prev => ({ ...prev, [provider]: res.accounts }))
+      setPrimaryAccountIds(prev => ({ ...prev, [provider]: res.primaryAccountId }))
+    } catch {
+      setProviderAccounts(prev => ({ ...prev, [provider]: [] }))
+    }
+  }, [])
+
+  const handleSetPrimaryAccount = useCallback(async (provider: string, accountId: string) => {
+    try {
+      await window.ipc.invoke('oauth:set-primary', { provider, accountId })
+      await loadAccounts(provider)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not change the primary account')
+    }
+  }, [loadAccounts])
+
+  const handleDisconnect = useCallback(async (provider: string, accountId?: string) => {
     setProviderStates(prev => ({
       ...prev,
       [provider]: { ...prev[provider], isLoading: true }
     }))
 
     try {
-      const result = await window.ipc.invoke('oauth:disconnect', { provider })
+      const result = await window.ipc.invoke('oauth:disconnect', { provider, accountId })
 
       if (result.success) {
-        if (provider === 'google') {
+        // Only a full provider disconnect invalidates the cached credentials;
+        // removing one mailbox leaves the others (and the app registration).
+        if (provider === 'google' && !accountId) {
           clearGoogleCredentials()
         }
         const displayName = provider === 'fireflies-ai' ? 'Fireflies' : provider.charAt(0).toUpperCase() + provider.slice(1)
@@ -688,6 +720,8 @@ export function useConnectors(active: boolean) {
       const result = await window.ipc.invoke('oauth:getState', null)
       const config = result.config || {}
       const statusMap: Record<string, ProviderStatus> = {}
+      const accountsMap: Record<string, ProviderAccount[]> = {}
+      const primaryMap: Record<string, string | null> = {}
 
       for (const provider of providers) {
         const providerConfig = config[provider]
@@ -699,9 +733,15 @@ export function useConnectors(active: boolean) {
         if (providerConfig?.error) {
           statusMap[provider] = { error: providerConfig.error }
         }
+        // getClientFacingConfig already carries the account list, so the
+        // Connections panel renders without a second round trip.
+        accountsMap[provider] = providerConfig?.accounts ?? []
+        primaryMap[provider] = providerConfig?.primaryAccountId ?? null
       }
 
       setProviderStatus(statusMap)
+      setProviderAccounts(accountsMap)
+      setPrimaryAccountIds(primaryMap)
     } catch (error) {
       console.error('Failed to check connection statuses:', error)
       for (const provider of providers) {
@@ -810,6 +850,10 @@ export function useConnectors(active: boolean) {
     providersLoading,
     providerStates,
     providerStatus,
+    providerAccounts,
+    primaryAccountIds,
+    loadAccounts,
+    handleSetPrimaryAccount,
     hasProviderError,
     handleConnect,
     handleReconnect,

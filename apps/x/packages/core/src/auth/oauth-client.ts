@@ -168,14 +168,23 @@ export function buildAuthorizationUrl(
 }
 
 /**
- * Exchange authorization code for tokens
+ * Identity of the account that just granted access.
+ *
+ * `sub` is the provider's stable subject id — it survives an address change,
+ * which `email` does not, so it is what an account should be keyed by. Both
+ * are optional: not every provider returns an id_token.
  */
+export interface GrantIdentity {
+  sub?: string;
+  email?: string;
+}
+
 export async function exchangeCodeForTokens(
   config: client.Configuration,
   callbackUrl: URL,
   codeVerifier: string,
   expectedState: string
-): Promise<OAuthTokens> {
+): Promise<{ tokens: OAuthTokens; identity: GrantIdentity }> {
   console.log(`[OAuth] Exchanging authorization code for tokens...`);
 
   const response = await client.authorizationCodeGrant(config, callbackUrl, {
@@ -183,8 +192,17 @@ export async function exchangeCodeForTokens(
     expectedState,
   });
 
+  // Present whenever the provider issued an id_token (Google always does for
+  // the openid scope). Absent for plain OAuth2 providers, whose callers fall
+  // back to a default account id.
+  const claims = response.claims();
+  const identity: GrantIdentity = {
+    sub: typeof claims?.sub === 'string' ? claims.sub : undefined,
+    email: typeof claims?.email === 'string' ? claims.email : undefined,
+  };
+
   console.log(`[OAuth] Token exchange successful`);
-  return toOAuthTokens(response);
+  return { tokens: toOAuthTokens(response), identity };
 }
 
 /**

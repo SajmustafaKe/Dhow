@@ -1084,8 +1084,8 @@ export function setupIpcHandlers() {
     'gmail:getEverythingElse': async (_event, args) => {
       return listEverythingElseThreads({ cursor: args.cursor, limit: args.limit, category: args.category });
     },
-    'gmail:triggerSync': async () => {
-      triggerGmailSync();
+    'gmail:triggerSync': async (_event, args) => {
+      triggerGmailSync(args?.accountId);
       return {};
     },
     'gmail:sendReply': async (_event, args) => {
@@ -1096,7 +1096,7 @@ export function setupIpcHandlers() {
       return saveThreadDraft(args);
     },
     'gmail:deleteDraft': async (_event, args) => {
-      return deleteThreadDraft(args.draftId);
+      return deleteThreadDraft(args.accountId, args.draftId);
     },
     'gmail:getDrafts': async () => {
       return listDraftThreads();
@@ -1107,22 +1107,22 @@ export function setupIpcHandlers() {
     'gmail:getConnectionStatus': async () => {
       return getGmailConnectionStatus();
     },
-    'gmail:getAccountEmail': async () => {
-      return { email: await getAccountEmail() };
+    'gmail:getAccountEmail': async (_event, args) => {
+      return { email: await getAccountEmail(args?.accountId) };
     },
-    'gmail:getAccountName': async () => {
-      return { name: await getAccountName() };
+    'gmail:getAccountName': async (_event, args) => {
+      return { name: await getAccountName(args?.accountId) };
     },
     'gmail:setImportance': async (_event, args) => {
-      const result = setThreadImportance(args.threadId, args.importance);
+      const result = setThreadImportance(args.accountId, args.threadId, args.importance);
       return { ok: result.success, previous: result.previous, error: result.error };
     },
     'gmail:setCategory': async (_event, args) => {
-      const result = setThreadCategory(args.threadId, args.category);
+      const result = setThreadCategory(args.accountId, args.threadId, args.category);
       return { ok: result.success, error: result.error };
     },
     'gmail:archiveCategory': async (_event, args) => {
-      return archiveCategoryThreads(args.category);
+      return archiveCategoryThreads(args.accountId, args.category);
     },
     'gmail:getEmailInstructions': async () => {
       return { instructions: loadEmailInstructions() };
@@ -1145,19 +1145,19 @@ export function setupIpcHandlers() {
       return { labels: getEmailLabels().map(({ id, name, kind }) => ({ id, name, kind })) };
     },
     'gmail:archiveThread': async (_event, args) => {
-      return archiveThread(args.threadId);
+      return archiveThread(args.accountId, args.threadId);
     },
     'gmail:trashThread': async (_event, args) => {
-      return trashThread(args.threadId);
+      return trashThread(args.accountId, args.threadId);
     },
     'gmail:markThreadRead': async (_event, args) => {
-      return markThreadRead(args.threadId, args.read);
+      return markThreadRead(args.accountId, args.threadId, args.read);
     },
     'gmail:downloadAttachment': async (_event, args) => {
       return downloadAttachment(args);
     },
     'gmail:saveMessageHeight': async (_event, args) => {
-      saveMessageBodyHeight(args.threadId, args.messageId, args.height);
+      saveMessageBodyHeight(args.accountId, args.threadId, args.messageId, args.height);
       return {};
     },
     'gmail:searchContacts': async (_event, args) => {
@@ -1402,7 +1402,26 @@ export function setupIpcHandlers() {
       return await connectProvider(args.provider, credentials);
     },
     'oauth:disconnect': async (_event, args) => {
-      return await disconnectProvider(args.provider);
+      return await disconnectProvider(args.provider, args.accountId);
+    },
+    'oauth:list-accounts': async (_event, args) => {
+      const repo = container.resolve<IOAuthRepo>('oauthRepo');
+      const config = await repo.getClientFacingConfig();
+      const entry = config[args.provider];
+      return {
+        accounts: (entry?.accounts ?? []).map((a) => ({
+          id: a.id,
+          email: a.email ?? null,
+          connected: a.connected,
+          error: a.error ?? null,
+        })),
+        primaryAccountId: entry?.primaryAccountId ?? null,
+      };
+    },
+    'oauth:set-primary': async (_event, args) => {
+      const repo = container.resolve<IOAuthRepo>('oauthRepo');
+      await repo.setPrimaryAccountId(args.provider, args.accountId);
+      return { success: true };
     },
     'oauth:list-providers': async () => {
       return listProviders();
@@ -1410,7 +1429,19 @@ export function setupIpcHandlers() {
     'oauth:getState': async () => {
       const repo = container.resolve<IOAuthRepo>('oauthRepo');
       const config = await repo.getClientFacingConfig();
-      return { config };
+      // The store types email/error as optional; the channel declares them
+      // required-nullable. Normalize once here rather than at every reader.
+      return {
+        config: Object.fromEntries(Object.entries(config).map(([provider, entry]) => [provider, {
+          ...entry,
+          accounts: entry.accounts.map((a) => ({
+            id: a.id,
+            email: a.email ?? null,
+            connected: a.connected,
+            error: a.error ?? null,
+          })),
+        }])),
+      };
     },
     'chatgpt:getStatus': async () => {
       return await getChatGPTStatus();

@@ -404,14 +404,14 @@ function buildEmailDocument(
 </head><body>${html}</body></html>`
 }
 
-function MessageBody({ message, threadId }: { message: GmailThreadMessage; threadId: string }) {
+function MessageBody({ message, accountId, threadId }: { message: GmailThreadMessage; accountId: string; threadId: string }) {
   const isPlainText = !(message.bodyHtml && message.bodyHtml.trim())
   return isPlainText
-    ? <PlainTextBody message={message} />
-    : <HtmlMessageBody message={message} threadId={threadId} />
+    ? <PlainTextBody message={message} accountId={accountId} />
+    : <HtmlMessageBody message={message} accountId={accountId} threadId={threadId} />
 }
 
-function PlainTextBody({ message }: { message: GmailThreadMessage }) {
+function PlainTextBody({ message, accountId }: { message: GmailThreadMessage; accountId: string }) {
   const text = (message.body || '(No message body)').trim()
   const { visible, quoted } = splitPlainTextQuote(text)
   const [showQuote, setShowQuote] = useState(false)
@@ -433,13 +433,13 @@ function PlainTextBody({ message }: { message: GmailThreadMessage }) {
         </button>
       )}
       {message.attachments && message.attachments.length > 0 && (
-        <MessageAttachments attachments={message.attachments} />
+        <MessageAttachments attachments={message.attachments} accountId={accountId} />
       )}
     </>
   )
 }
 
-function HtmlMessageBody({ message, threadId }: { message: GmailThreadMessage; threadId: string }) {
+function HtmlMessageBody({ message, accountId, threadId }: { message: GmailThreadMessage; accountId: string; threadId: string }) {
   const { resolvedTheme } = useTheme()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const observerRef = useRef<ResizeObserver | null>(null)
@@ -489,6 +489,7 @@ function HtmlMessageBody({ message, threadId }: { message: GmailThreadMessage; t
       saveTimerRef.current = setTimeout(() => {
         lastSavedHeightRef.current = next
         void window.ipc.invoke('gmail:saveMessageHeight', {
+          accountId,
           threadId,
           messageId: message.id!,
           height: next,
@@ -501,7 +502,7 @@ function HtmlMessageBody({ message, threadId }: { message: GmailThreadMessage; t
       observerRef.current = new ResizeObserver(measure)
       observerRef.current.observe(doc.body)
     }
-  }, [message.id, threadId])
+  }, [message.id, accountId, threadId])
 
   const toggleQuotes = useCallback(() => {
     setShowQuotes((prev) => {
@@ -540,7 +541,7 @@ function HtmlMessageBody({ message, threadId }: { message: GmailThreadMessage; t
         </button>
       )}
       {message.attachments && message.attachments.length > 0 && (
-        <MessageAttachments attachments={message.attachments} />
+        <MessageAttachments attachments={message.attachments} accountId={accountId} />
       )}
     </>
   )
@@ -553,7 +554,7 @@ function formatAttachmentSize(bytes?: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function MessageAttachments({ attachments }: { attachments: NonNullable<GmailThreadMessage['attachments']> }) {
+function MessageAttachments({ attachments, accountId }: { attachments: NonNullable<GmailThreadMessage['attachments']>; accountId: string }) {
   const openAttachment = async (att: NonNullable<GmailThreadMessage['attachments']>[number]) => {
     try {
       // Ensure the file is on disk before handing off to the OS opener. Inbox
@@ -565,6 +566,7 @@ function MessageAttachments({ attachments }: { attachments: NonNullable<GmailThr
       // doesn't exist, so the old open-then-download fallback never fired).
       if (att.messageId) {
         const dl = await window.ipc.invoke('gmail:downloadAttachment', {
+          accountId,
           messageId: att.messageId,
           savedPath: att.savedPath,
           attachmentId: att.attachmentId,
@@ -1100,6 +1102,8 @@ const DRAFT_AUTOSAVE_MS = 1500
 // Shape of the gmail:saveDraft request, kept here so we can stash a snapshot in
 // a ref for the close/unmount flush without re-reading a torn-down editor.
 type DraftPayload = {
+  /** Mailbox the draft belongs to. */
+  accountId: string
   draftId?: string
   threadId?: string
   to?: string
@@ -1119,9 +1123,12 @@ type DraftPayload = {
 const ComposeBox = memo(function ComposeBox({
   mode,
   thread,
+  accountId,
   selfEmail = '',
   onClose,
 }: {
+  /** Mailbox this message is sent from. A new email has no thread to infer it from. */
+  accountId: string
   mode: ComposeMode
   thread?: GmailThread
   selfEmail?: string
@@ -1453,6 +1460,7 @@ const ComposeBox = memo(function ComposeBox({
     const html = editor.getHTML()
     const { threadId, inReplyTo, references } = threadingHeaders(mode, thread)
     return {
+      accountId,
       draftId: draftIdRef.current,
       threadId,
       to: toList.join(', '),
@@ -1482,7 +1490,7 @@ const ComposeBox = memo(function ComposeBox({
         // delete the autosaved draft rather than leaving its stale content.
         const id = draftIdRef.current
         if (id && dirtyRef.current) {
-          await window.ipc.invoke('gmail:deleteDraft', { draftId: id })
+          await window.ipc.invoke('gmail:deleteDraft', { accountId, draftId: id })
           // Only forget the id once the delete succeeded (404/410 count as
           // success server-side); a thrown failure keeps it for a retry.
           if (draftIdRef.current === id) draftIdRef.current = undefined
@@ -1550,7 +1558,7 @@ const ComposeBox = memo(function ComposeBox({
       if (!payload) {
         // Edited down to empty, then torn down — drop the stale draft.
         if (draftIdRef.current) {
-          void window.ipc.invoke('gmail:deleteDraft', { draftId: draftIdRef.current }).catch(() => {})
+          void window.ipc.invoke('gmail:deleteDraft', { accountId, draftId: draftIdRef.current }).catch(() => {})
         }
         return
       }
@@ -1573,7 +1581,7 @@ const ComposeBox = memo(function ComposeBox({
       } else if (draftIdRef.current) {
         // Closed with the body edited down to empty — mirror Gmail and drop
         // the autosaved draft instead of keeping its stale content.
-        void window.ipc.invoke('gmail:deleteDraft', { draftId: draftIdRef.current }).catch(() => {})
+        void window.ipc.invoke('gmail:deleteDraft', { accountId, draftId: draftIdRef.current }).catch(() => {})
       }
     }
     onClose()
@@ -1587,7 +1595,7 @@ const ComposeBox = memo(function ComposeBox({
     void (async () => {
       await waitForSaveIdle()
       const id = draftIdRef.current
-      if (id) await window.ipc.invoke('gmail:deleteDraft', { draftId: id }).catch(() => {})
+      if (id) await window.ipc.invoke('gmail:deleteDraft', { accountId, draftId: id }).catch(() => {})
     })()
     onClose()
   }, [onClose, waitForSaveIdle])
@@ -1617,6 +1625,7 @@ const ComposeBox = memo(function ComposeBox({
     await waitForSaveIdle()
     try {
       const result = await window.ipc.invoke('gmail:sendReply', {
+        accountId,
         threadId,
         to: toList.join(', '),
         cc: ccList.length ? ccList.join(', ') : undefined,
@@ -1640,7 +1649,7 @@ const ComposeBox = memo(function ComposeBox({
       const leftover = draftIdRef.current
       if (leftover) {
         draftIdRef.current = undefined
-        void window.ipc.invoke('gmail:deleteDraft', { draftId: leftover }).catch(() => {})
+        void window.ipc.invoke('gmail:deleteDraft', { accountId, draftId: leftover }).catch(() => {})
       }
       toast('Sent.', 'success')
       closedRef.current = true
@@ -2008,7 +2017,7 @@ function ThreadDetail({
   /** Reports whether the inline composer is open, so list shortcuts pause. */
   onComposingChange?: (composing: boolean) => void
   /** Present for inbox threads only — search results aren't in the cache the correction writes to. */
-  onSetCategory?: (threadId: string, category: EmailCategory) => Promise<void>
+  onSetCategory?: (accountId: string, threadId: string, category: EmailCategory) => Promise<void>
   /** The label registry (built-ins + user-defined) for the chip and correction dropdown. */
   labels?: EmailLabelInfo[]
 }) {
@@ -2107,7 +2116,7 @@ function ThreadDetail({
               {labels.map((l) => (
                 <DropdownMenuItem
                   key={l.id}
-                  onSelect={() => { void onSetCategory(thread.threadId, l.id) }}
+                  onSelect={() => { void onSetCategory(thread.accountId, thread.threadId, l.id) }}
                   className={cn(l.id === thread.category && 'font-semibold')}
                 >
                   {l.name}
@@ -2162,7 +2171,7 @@ function ThreadDetail({
                     )}
                   </button>
                   {isExpanded && (
-                    <MessageBody message={message} threadId={thread.threadId} />
+                    <MessageBody message={message} accountId={thread.accountId} threadId={thread.threadId} />
                   )}
                 </div>
               </div>
@@ -2187,6 +2196,7 @@ function ThreadDetail({
             key={composeMode}
             mode={composeMode}
             thread={thread}
+            accountId={thread.accountId}
             selfEmail={selfEmail}
             onClose={() => setComposeMode(null)}
           />
@@ -2232,14 +2242,14 @@ const ThreadRow = memo(function ThreadRow({
   /** Status pill after the subject — "Reply ready" or waiting age ("Waiting 3d"). The category chip renders automatically from thread.category. */
   chip?: string | null
   chipWaiting?: boolean
-  onSetCategory?: (threadId: string, category: EmailCategory) => Promise<void>
+  onSetCategory?: (accountId: string, threadId: string, category: EmailCategory) => Promise<void>
   /** Label registry — stable reference from EmailView state (this row is memoized). */
   labels: EmailLabelInfo[]
   onToggle: (thread: GmailThread) => void
-  onMarkRead: (threadId: string, read?: boolean) => Promise<void>
-  onArchive: (threadId: string) => Promise<void>
-  onTrash: (threadId: string) => Promise<void>
-  onSetImportance: (threadId: string, importance: 'important' | 'other') => Promise<void>
+  onMarkRead: (accountId: string, threadId: string, read?: boolean) => Promise<void>
+  onArchive: (accountId: string, threadId: string) => Promise<void>
+  onTrash: (accountId: string, threadId: string) => Promise<void>
+  onSetImportance: (accountId: string, threadId: string, importance: 'important' | 'other') => Promise<void>
   onHoverIn: (thread: GmailThread) => void
   onHoverOut: () => void
   onCloseThread: () => void
@@ -2288,7 +2298,7 @@ const ThreadRow = memo(function ThreadRow({
               className="gmail-row-action"
               title={section === 'important' ? 'Not important — teach the classifier' : 'Important — teach the classifier'}
               aria-label={section === 'important' ? 'Mark as not important' : 'Mark as important'}
-              onClick={(e) => { stop(e); void onSetImportance(thread.threadId, section === 'important' ? 'other' : 'important') }}
+              onClick={(e) => { stop(e); void onSetImportance(thread.accountId, thread.threadId, section === 'important' ? 'other' : 'important') }}
             >
               {section === 'important' ? <StarOff size={15} /> : <Star size={15} />}
             </button>
@@ -2298,7 +2308,7 @@ const ThreadRow = memo(function ThreadRow({
             className="gmail-row-action"
             title={isUnread ? 'Mark as read' : 'Mark as unread'}
             aria-label={isUnread ? 'Mark as read' : 'Mark as unread'}
-            onClick={(e) => { stop(e); void onMarkRead(thread.threadId, isUnread) }}
+            onClick={(e) => { stop(e); void onMarkRead(thread.accountId, thread.threadId, isUnread) }}
           >
             {isUnread ? <CheckCheck size={15} /> : <Mail size={15} />}
           </button>
@@ -2307,7 +2317,7 @@ const ThreadRow = memo(function ThreadRow({
             className="gmail-row-action"
             title="Archive"
             aria-label="Archive"
-            onClick={(e) => { stop(e); void onArchive(thread.threadId) }}
+            onClick={(e) => { stop(e); void onArchive(thread.accountId, thread.threadId) }}
           >
             <Archive size={15} />
           </button>
@@ -2316,7 +2326,7 @@ const ThreadRow = memo(function ThreadRow({
             className="gmail-row-action gmail-row-action-danger"
             title="Delete"
             aria-label="Delete"
-            onClick={(e) => { stop(e); void onTrash(thread.threadId) }}
+            onClick={(e) => { stop(e); void onTrash(thread.accountId, thread.threadId) }}
           >
             <Trash2 size={15} />
           </button>
@@ -2591,6 +2601,9 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
   const searchEpoch = useRef(0)
   // Gmail sync uses the native Google OAuth connection.
   const [emailConnection, setEmailConnection] = useState<GmailConnectionStatus | null>(null)
+  // Which mailbox a brand-new message is sent from. A reply inherits its
+  // thread's account; a new message has no thread, so it uses the primary.
+  const [defaultAccountId, setDefaultAccountId] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   // Label registry (built-ins + user-defined). Fetched on mount and again
@@ -2685,7 +2698,7 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     setDrafts((prev) => prev.filter((d) => d.draftId !== id))
     markLeaving(id, false)
     try {
-      await window.ipc.invoke('gmail:deleteDraft', { draftId: id })
+      await window.ipc.invoke('gmail:deleteDraft', { accountId: thread.accountId, draftId: id })
     } catch (err) {
       toast(`Could not delete draft: ${err instanceof Error ? err.message : String(err)}`, 'error')
       void loadDrafts()
@@ -2754,27 +2767,27 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     setOpenedThreadIds((prev) => prev.filter((id) => id !== threadId))
   }, [])
 
-  const markThreadReadAction = useCallback(async (threadId: string, read: boolean = true) => {
+  const markThreadReadAction = useCallback(async (accountId: string, threadId: string, read: boolean = true) => {
     updateThreadInState(threadId, (t) => ({
       ...t,
       unread: !read,
       messages: t.messages.map((m) => ({ ...m, unread: !read })),
     }))
     try {
-      const result = await window.ipc.invoke('gmail:markThreadRead', { threadId, read })
+      const result = await window.ipc.invoke('gmail:markThreadRead', { accountId, threadId, read })
       if (!result.ok && result.error) console.warn('[Gmail] mark-read failed:', result.error)
     } catch (err) {
       console.warn('[Gmail] mark-read failed:', err)
     }
   }, [updateThreadInState])
 
-  const archiveThreadAction = useCallback(async (threadId: string) => {
+  const archiveThreadAction = useCallback(async (accountId: string, threadId: string) => {
     // Start the slide-out right away; the row is removed once both the IPC
     // and the animation have finished. A failure clears the flag → snap back.
     markLeaving(threadId, true)
     try {
       const [result] = await Promise.all([
-        window.ipc.invoke('gmail:archiveThread', { threadId }),
+        window.ipc.invoke('gmail:archiveThread', { accountId, threadId }),
         new Promise((resolve) => window.setTimeout(resolve, ROW_LEAVE_MS)),
       ])
       if (result.ok) {
@@ -2792,12 +2805,12 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
   // User flips a thread's verdict: sticky on the thread + recorded as a
   // correction the importance classifier learns from. The row slides out of
   // its current section and lands on top of the other one.
-  const setImportanceAction = useCallback(async (threadId: string, importance: 'important' | 'other') => {
+  const setImportanceAction = useCallback(async (accountId: string, threadId: string, importance: 'important' | 'other') => {
     const source = [...important.threads, ...other.threads].find((t) => t.threadId === threadId)
     markLeaving(threadId, true)
     try {
       const [result] = await Promise.all([
-        window.ipc.invoke('gmail:setImportance', { threadId, importance }),
+        window.ipc.invoke('gmail:setImportance', { accountId, threadId, importance }),
         new Promise((resolve) => window.setTimeout(resolve, ROW_LEAVE_MS)),
       ])
       if (result.ok) {
@@ -2822,9 +2835,9 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
 
   // User corrects a thread's category: sticky on the thread + recorded as a
   // correction the classifier learns from (few-shot).
-  const setCategoryAction = useCallback(async (threadId: string, category: EmailCategory) => {
+  const setCategoryAction = useCallback(async (accountId: string, threadId: string, category: EmailCategory) => {
     try {
-      const result = await window.ipc.invoke('gmail:setCategory', { threadId, category })
+      const result = await window.ipc.invoke('gmail:setCategory', { accountId, threadId, category })
       if (result.ok) {
         updateThreadInState(threadId, (t) => ({ ...t, category }))
         setCategoryCounts((prev) => {
@@ -2847,11 +2860,11 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     }
   }, [updateThreadInState, important.threads, other.threads, emailLabels])
 
-  const trashThreadAction = useCallback(async (threadId: string) => {
+  const trashThreadAction = useCallback(async (accountId: string, threadId: string) => {
     markLeaving(threadId, true)
     try {
       const [result] = await Promise.all([
-        window.ipc.invoke('gmail:trashThread', { threadId }),
+        window.ipc.invoke('gmail:trashThread', { accountId, threadId }),
         new Promise((resolve) => window.setTimeout(resolve, ROW_LEAVE_MS)),
       ])
       if (result.ok) {
@@ -2876,7 +2889,7 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
           return [...without, next].slice(-MAX_KEPT_OPEN)
         })
         if (thread.unread) {
-          void markThreadReadAction(thread.threadId)
+          void markThreadReadAction(thread.accountId, thread.threadId)
         }
       }
       return next
@@ -3007,7 +3020,21 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
   const archiveCategoryAction = useCallback(async (category: string) => {
     setBulkArchiving(true)
     try {
-      const result = await window.ipc.invoke('gmail:archiveCategory', { category })
+      // The pill filters a merged list, so the sweep runs per mailbox that
+      // actually has threads in this category.
+      const accountIds = [...new Set(
+        [...important.threads, ...other.threads]
+          .filter((t) => (t.category ?? 'unclassified') === category)
+          .map((t) => t.accountId),
+      )]
+      const results = await Promise.all(
+        accountIds.map((accountId) => window.ipc.invoke('gmail:archiveCategory', { accountId, category })),
+      )
+      const result = {
+        archived: results.reduce((sum, r) => sum + (r.archived ?? 0), 0),
+        failed: results.reduce((sum, r) => sum + (r.failed ?? 0), 0),
+        error: results.find((r) => r.error)?.error,
+      }
       if (result.error) {
         toast(`Bulk archive failed: ${result.error}`, 'error')
       } else {
@@ -3163,6 +3190,17 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
   // Split "Important" into what still needs the user vs. what they've already
   // answered and are waiting on. Derived per render from the messages — thread
   // state, unlike a label, can't be allowed to go stale.
+  useEffect(() => {
+    let cancelled = false
+    void window.ipc.invoke('oauth:list-accounts', { provider: 'google' })
+      .then((res) => {
+        if (cancelled) return
+        setDefaultAccountId(res.primaryAccountId ?? res.accounts[0]?.id ?? null)
+      })
+      .catch(() => { /* composer falls back to disabled until accounts load */ })
+    return () => { cancelled = true }
+  }, [])
+
   const selfEmail = emailConnection?.email ?? null
   const visibleNeedsYou = useMemo(
     () => visibleImportant.filter((t) => !isAwaitingThem(t, selfEmail)),
@@ -3406,13 +3444,13 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
           const target = targetId ? visibleList.find((t) => t.threadId === targetId) : undefined
           if (!target) return
           e.preventDefault()
-          if (e.key === 'u') void markThreadReadAction(target.threadId, target.unread === true)
-          else if (e.key === 'e') void archiveThreadAction(target.threadId)
+          if (e.key === 'u') void markThreadReadAction(target.accountId, target.threadId, target.unread === true)
+          else if (e.key === 'e') void archiveThreadAction(target.accountId, target.threadId)
           else if (e.key === 'i') {
             const isImportant = important.threads.some((t) => t.threadId === target.threadId)
-            void setImportanceAction(target.threadId, isImportant ? 'other' : 'important')
+            void setImportanceAction(target.accountId, target.threadId, isImportant ? 'other' : 'important')
           }
-          else void trashThreadAction(target.threadId)
+          else void trashThreadAction(target.accountId, target.threadId)
           return
         }
       }
@@ -3725,11 +3763,14 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
           </div>
         )}
       </div>
-      {composeOpen && <ComposeBox mode="new" onClose={closeCompose} />}
+      {composeOpen && defaultAccountId && (
+        <ComposeBox mode="new" accountId={defaultAccountId} onClose={closeCompose} />
+      )}
       {editingDraft && (
         <ComposeBox
           mode="draft"
           thread={editingDraft}
+          accountId={editingDraft.accountId}
           selfEmail={emailConnection?.email ?? ''}
           onClose={closeDraftEditor}
         />
