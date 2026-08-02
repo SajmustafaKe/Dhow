@@ -1,24 +1,24 @@
-# Rowboat Python SDK
+# Dhow Python SDK
 
-A Python SDK for interacting with the Rowboat API.
+A Python SDK for interacting with the Dhow API.
 
 ## Installation
 
 You can install the package using pip:
 
 ```bash
-pip install rowboat
+pip install dhow
 ```
 
 ## Usage
 
 ### Basic Usage
 
-The main way to interact with Rowboat is using the `Client` class, which provides a stateless chat API. You can manage conversation state using the `conversationId` returned in each response.
+The main way to interact with Dhow is using the `Client` class, which provides a stateless chat API. You can manage conversation state using the `conversationId` returned in each response.
 
 ```python
-from rowboat.client import Client
-from rowboat.schema import UserMessage
+from dhow.client import Client
+from dhow.schema import UserMessage
 
 # Initialize the client
 client = Client(
@@ -65,7 +65,7 @@ print(result.turn.output[-1].content)
 
 ### Message Types
 
-You can use different message types as defined in `rowboat.schema`, such as `UserMessage`, `SystemMessage`, etc. See `schema.py` for all available message types.
+You can use different message types as defined in `dhow.schema`, such as `UserMessage`, `SystemMessage`, etc. See `schema.py` for all available message types.
 
 ### Error Handling
 

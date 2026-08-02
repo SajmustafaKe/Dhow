@@ -64,5 +64,5 @@ ENV PORT=3000
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
-CMD echo "Starting server $CHAT_WIDGET_HOST, $ROWBOAT_HOST" && node server.js
+CMD echo "Starting server $CHAT_WIDGET_HOST, $DHOW_HOST" && node server.js
 #CMD ["node", "server.js"]

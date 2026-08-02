@@ -1,8 +1,8 @@
 {
     "$schema": "https://mintlify.com/docs.json",
     "theme": "maple",
-    "name": "Rowboat",
-    "description": "Rowboat is an open-source platform for building multi-agent systems. It helps you orchestrate tools, RAG, memory, and deployable agents with ease.",
+    "name": "Dhow",
+    "description": "Dhow is a local-first, open-source AI coworker. It turns your email, meetings and notes into a knowledge graph on your own machine, and acts on it.",
     "favicon": "/favicon.ico",
     "colors": {
       "primary": "#6366F1",
@@ -37,15 +37,13 @@
     "navbar": {
       "primary": {
         "type": "button",
-        "label": "Try Rowboat",
-        "href": "https://app.rowboatlabs.com"
+        "label": "Try Dhow",
+        "href": "https://github.com/SajmustafaKe/Dhow"
       }
     },
     "footer": {
       "socials": {
-        "github": "https://github.com/rowboatlabs/rowboat",
-        "linkedin": "https://www.linkedin.com/company/rowboat-labs",
-        "discord": "https://discord.gg/rxB8pzHxaS"
+        "github": "https://github.com/SajmustafaKe/Dhow"
       }
     },
     "contextual": {

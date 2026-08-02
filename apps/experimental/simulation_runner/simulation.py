@@ -8,17 +8,17 @@ from openai import OpenAI
 from scenario_types import TestSimulation, TestResult, AggregateResults, TestScenario
 
 from db import write_test_result, get_scenario_by_id
-from rowboat import Client, StatefulChat
+from dhow import Client, StatefulChat
 
 openai_client = OpenAI()
 MODEL_NAME = "gpt-4.1"
-ROWBOAT_API_HOST = os.environ.get("ROWBOAT_API_HOST", "http://127.0.0.1:3000").strip()
+DHOW_API_HOST = os.environ.get("DHOW_API_HOST", "http://127.0.0.1:3000").strip()
 
 async def simulate_simulation(
     scenario: TestScenario,
     profile_id: str,
     pass_criteria: str,
-    rowboat_client: Client,
+    dhow_client: Client,
     workflow_id: str,
     max_iterations: int = 5
 ) -> tuple[str, str, str]:
@@ -33,7 +33,7 @@ async def simulate_simulation(
 
     # Todo: add profile_id
     support_chat = StatefulChat(
-        rowboat_client,
+        dhow_client,
         workflow_id=workflow_id,
         test_profile_id=profile_id
     )
@@ -65,13 +65,13 @@ async def simulate_simulation(
 
         simulated_content = simulated_user_response.choices[0].message.content.strip()
         messages.append({"role": "assistant", "content": simulated_content})
-        # Run Rowboat chat in a thread if it's synchronous
-        rowboat_response = await loop.run_in_executor(
+        # Run Dhow chat in a thread if it's synchronous
+        dhow_response = await loop.run_in_executor(
             None,
             lambda: support_chat.run(simulated_content)
         )
 
-        messages.append({"role": "user", "content": rowboat_response})
+        messages.append({"role": "user", "content": dhow_response})
 
     # -------------------------
     # (2) EVALUATION STEP
@@ -154,7 +154,7 @@ async def simulate_simulations(
     project_id = simulations[0].projectId
 
     client = Client(
-        host=ROWBOAT_API_HOST,
+        host=DHOW_API_HOST,
         project_id=project_id,
         api_key=api_key
     )
@@ -167,7 +167,7 @@ async def simulate_simulations(
             scenario=get_scenario_by_id(simulation.scenarioId),
             profile_id=simulation.profileId,
             pass_criteria=simulation.passCriteria,
-            rowboat_client=client,
+            dhow_client=client,
             workflow_id=workflow_id,
             max_iterations=max_iterations
         )
