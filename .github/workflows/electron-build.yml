@@ -10,6 +10,8 @@ permissions:
 jobs:
   build-macos:
     runs-on: macos-latest
+    env:
+      APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
 
     steps:
       - name: Checkout code
@@ -54,6 +56,9 @@ jobs:
           "
 
       - name: Import Code Signing Certificate
+        # Skipped when no Apple certificate is configured — the build then
+        # produces an unsigned .dmg/.zip instead of failing outright.
+        if: env.APPLE_CERTIFICATE != ''
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -93,6 +98,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DHOW_SKIP_CODE_SIGNING: ${{ secrets.APPLE_CERTIFICATE == '' && '1' || '0' }}
         run: npx electron-forge publish --arch=arm64,x64 --platform=darwin
         working-directory: apps/x/apps/main
 
@@ -190,6 +196,8 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
 
     steps:
       - name: Checkout code
@@ -240,6 +248,8 @@ jobs:
         working-directory: apps/x
 
       - name: Setup Azure Trusted Signing
+        # Skipped without Azure credentials — produces an unsigned installer.
+        if: env.AZURE_TENANT_ID != ''
         shell: pwsh
         run: |
           # Stage everything under a path WITHOUT spaces: @electron/windows-sign
