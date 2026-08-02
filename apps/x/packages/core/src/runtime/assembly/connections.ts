@@ -36,8 +36,10 @@ export async function isSlackAvailable(): Promise<boolean> {
 export async function isGoogleConnected(): Promise<boolean> {
     try {
         const repo = await lazyResolve<import("../../auth/repo.js").IOAuthRepo>("oauthRepo");
+        // Connected when any account holds a grant, not just the primary — the
+        // agent's Google capability is available as long as one mailbox is live.
         const connection = await repo.read("google");
-        return !!connection.tokens;
+        return Object.values(connection.accounts).some((account) => !!account.tokens);
     } catch {
         return false;
     }

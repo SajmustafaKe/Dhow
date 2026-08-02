@@ -19,65 +19,104 @@ import { OAuthTokens } from '../auth/types.js';
  */
 export class GoogleClientFactory {
     private static readonly PROVIDER_NAME = 'google';
-    private static cache: {
-        config: Configuration | null;
-        client: OAuth2Client | null;
-        tokens: OAuthTokens | null;
-        clientId: string | null;
-        clientSecret: string | null;
-    } = {
-        config: null,
-        client: null,
-        tokens: null,
-        clientId: null,
-        clientSecret: null,
-    };
 
     /**
-     * Promise singleton so concurrent getClient() callers share a single
+     * Provider-wide state. The discovered OIDC Configuration and the BYOK app
+     * registration are shared by every account — one Google Cloud app
+     * authorizes many mailboxes — so re-discovering them per account would be
+     * pure waste.
+     */
+    private static shared: {
+        config: Configuration | null;
+        clientId: string | null;
+        clientSecret: string | null;
+    } = { config: null, clientId: null, clientSecret: null };
+
+    /**
+     * Per-account state. Accounts refresh independently: one expired grant
+     * must not invalidate another account's live client.
+     */
+    private static accounts = new Map<string, { client: OAuth2Client | null; tokens: OAuthTokens | null }>();
+
+    /**
+     * Promise singletons so concurrent getClient() callers share a single
      * pass through the read/refresh/build pipeline rather than fanning
      * out parallel refreshes. The check-and-assign must be atomic (no
      * `await` between them) so two callers in the same tick can't both
      * pass the null check before either assigns — that's why getClient()
      * is a thin synchronous wrapper around getClientInner().
+     *
+     * Keyed by account: two callers for the SAME account coalesce, while two
+     * different accounts proceed in parallel.
      */
-    private static inFlightClient: Promise<OAuth2Client | null> | null = null;
+    private static inFlightClient = new Map<string, Promise<OAuth2Client | null>>();
+
+    private static accountState(accountId: string): { client: OAuth2Client | null; tokens: OAuthTokens | null } {
+        let state = this.accounts.get(accountId);
+        if (!state) {
+            state = { client: null, tokens: null };
+            this.accounts.set(accountId, state);
+        }
+        return state;
+    }
+
+    /** Account ids with a grant under this provider. */
+    static async listAccountIds(): Promise<string[]> {
+        const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
+        return oauthRepo.listAccounts(this.PROVIDER_NAME);
+    }
+
+    /**
+     * Resolve an explicit account, or the primary when none is named.
+     * Calendar, Docs and agent notes are single-identity surfaces and rely on
+     * this defaulting to keep working unchanged.
+     */
+    private static async resolveAccountId(accountId?: string): Promise<string | null> {
+        if (accountId) return accountId;
+        const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
+        return oauthRepo.getPrimaryAccountId(this.PROVIDER_NAME);
+    }
 
     private static async resolveByokCredentials(): Promise<{ clientId: string; clientSecret?: string }> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
         const connection = await oauthRepo.read(this.PROVIDER_NAME);
         if (!connection.clientId) {
-            await oauthRepo.upsert(this.PROVIDER_NAME, { error: 'Google client ID missing. Please reconnect.' });
             throw new Error('Google client ID missing. Please reconnect.');
         }
         return { clientId: connection.clientId, clientSecret: connection.clientSecret ?? undefined };
     }
 
     /**
-     * Get or create OAuth2Client, reusing the cached instance when possible.
+     * Get or create OAuth2Client for one account, reusing the cached instance
+     * when possible. Omit `accountId` to use the primary account.
      *
      * The check-and-assign of `inFlightClient` is synchronous so concurrent
      * callers in the same tick coalesce onto a single pipeline run. The actual
      * work lives in getClientInner(); this wrapper exists purely to guarantee
      * the dedup invariant.
      */
-    static async getClient(): Promise<OAuth2Client | null> {
-        if (this.inFlightClient) {
-            return this.inFlightClient;
+    static async getClient(accountId?: string): Promise<OAuth2Client | null> {
+        const resolved = await this.resolveAccountId(accountId);
+        if (!resolved) return null;
+
+        const existing = this.inFlightClient.get(resolved);
+        if (existing) {
+            return existing;
         }
-        this.inFlightClient = this.getClientInner().finally(() => {
-            this.inFlightClient = null;
+        const pending = this.getClientInner(resolved).finally(() => {
+            this.inFlightClient.delete(resolved);
         });
-        return this.inFlightClient;
+        this.inFlightClient.set(resolved, pending);
+        return pending;
     }
 
-    private static async getClientInner(): Promise<OAuth2Client | null> {
+    private static async getClientInner(accountId: string): Promise<OAuth2Client | null> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
-        const connection = await oauthRepo.read(this.PROVIDER_NAME);
-        const tokens = connection.tokens ?? null;
+        const account = await oauthRepo.readAccount(this.PROVIDER_NAME, accountId);
+        const tokens = account.tokens ?? null;
 
         if (!tokens) {
-            this.clearCache();
+            this.clearCache(accountId);
             return null;
         }
 
@@ -86,10 +125,10 @@ export class GoogleClientFactory {
             await this.initializeConfigCache();
         } catch (error) {
             console.error('[OAuth] Failed to initialize Google OAuth configuration:', error);
-            this.clearCache();
+            this.clearCache(accountId);
             return null;
         }
-        if (!this.cache.config) {
+        if (!this.shared.config) {
             return null;
         }
 
@@ -98,45 +137,46 @@ export class GoogleClientFactory {
         // expiry — keeps long-running calls from racing the boundary.
         if (oauthClient.isTokenExpired(tokens)) {
             if (!tokens.refresh_token) {
-                console.log('[OAuth] Google token expired and no refresh token available.');
-                await oauthRepo.upsert(this.PROVIDER_NAME, { error: 'Missing refresh token. Please reconnect.' });
-                this.clearCache();
+                console.log(`[OAuth] Google token expired for ${accountId} and no refresh token available.`);
+                await oauthRepo.upsertAccount(this.PROVIDER_NAME, accountId, { error: 'Missing refresh token. Please reconnect.' });
+                this.clearCache(accountId);
                 return null;
             }
-            return this.refreshAndBuild(tokens);
+            return this.refreshAndBuild(accountId, tokens);
         }
 
         // Reuse client if tokens haven't changed
-        if (this.cache.client && this.cache.tokens && this.cache.tokens.access_token === tokens.access_token) {
-            return this.cache.client;
+        const state = this.accountState(accountId);
+        if (state.client && state.tokens && state.tokens.access_token === tokens.access_token) {
+            return state.client;
         }
 
         // Build a fresh client for current tokens
-        return this.buildAndCacheClient(tokens);
+        return this.buildAndCacheClient(accountId, tokens);
     }
 
-    private static async refreshAndBuild(tokens: OAuthTokens): Promise<OAuth2Client | null> {
+    private static async refreshAndBuild(accountId: string, tokens: OAuthTokens): Promise<OAuth2Client | null> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
 
         try {
             const secsSinceExpiry = Math.floor(Date.now() / 1000) - tokens.expires_at;
-            console.log(`[OAuth] Google token expired ${secsSinceExpiry}s ago, refreshing...`);
+            console.log(`[OAuth] Google token for ${accountId} expired ${secsSinceExpiry}s ago, refreshing...`);
             const existingScopes = tokens.scopes;
 
-            if (!this.cache.config) {
+            if (!this.shared.config) {
                 // Should not happen — initializeConfigCache ran above.
                 throw new Error('Google OAuth config not initialized');
             }
-            const refreshedTokens = await oauthClient.refreshTokens(this.cache.config, tokens.refresh_token!, existingScopes);
+            const refreshedTokens = await oauthClient.refreshTokens(this.shared.config, tokens.refresh_token!, existingScopes);
 
-            await oauthRepo.upsert(this.PROVIDER_NAME, { tokens: refreshedTokens, error: null });
+            await oauthRepo.upsertAccount(this.PROVIDER_NAME, accountId, { tokens: refreshedTokens, error: null });
             const ttl = refreshedTokens.expires_at - Math.floor(Date.now() / 1000);
-            console.log(`[OAuth] Google token refreshed successfully (new expires_at=${refreshedTokens.expires_at}, ttl=${ttl}s)`);
-            return this.buildAndCacheClient(refreshedTokens);
+            console.log(`[OAuth] Google token refreshed successfully for ${accountId} (new expires_at=${refreshedTokens.expires_at}, ttl=${ttl}s)`);
+            return this.buildAndCacheClient(accountId, refreshedTokens);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to refresh token for Google';
-            await oauthRepo.upsert(this.PROVIDER_NAME, { error: message });
-            console.error('[OAuth] Failed to refresh token for Google:', error);
+            await oauthRepo.upsertAccount(this.PROVIDER_NAME, accountId, { error: message });
+            console.error(`[OAuth] Failed to refresh token for Google account ${accountId}:`, error);
             // Walk cause chain so a specific failure isn't hidden under a
             // generic `fetch failed` outer error.
             let cause: unknown = error;
@@ -144,40 +184,47 @@ export class GoogleClientFactory {
                 cause = (cause as { cause?: unknown }).cause;
                 if (cause != null) console.error('[OAuth] Caused by:', cause);
             }
-            this.clearCache();
+            // Scoped to this account: a revoked grant on one mailbox must not
+            // drop the discovered config or the other accounts' live clients.
+            this.clearCache(accountId);
             return null;
         }
     }
 
-    private static async buildAndCacheClient(tokens: OAuthTokens): Promise<OAuth2Client> {
-        if (!this.cache.clientId) {
+    private static async buildAndCacheClient(accountId: string, tokens: OAuthTokens): Promise<OAuth2Client> {
+        if (!this.shared.clientId) {
             const creds = await this.resolveByokCredentials();
-            this.cache.clientId = creds.clientId;
-            this.cache.clientSecret = creds.clientSecret ?? null;
+            this.shared.clientId = creds.clientId;
+            this.shared.clientSecret = creds.clientSecret ?? null;
         }
 
-        const client = this.createByokClient(tokens, this.cache.clientId!, this.cache.clientSecret ?? undefined);
+        const client = this.createByokClient(tokens, this.shared.clientId!, this.shared.clientSecret ?? undefined);
 
-        this.cache.tokens = tokens;
-        this.cache.client = client;
+        const state = this.accountState(accountId);
+        state.tokens = tokens;
+        state.client = client;
         return client;
     }
 
     /**
-     * Check if credentials are available and have required scopes
+     * Check if credentials are available and have required scopes.
+     * Omit `accountId` to check the primary account.
      */
-    static async hasValidCredentials(requiredScopes: string | string[]): Promise<boolean> {
-        const status = await this.getCredentialStatus(requiredScopes);
+    static async hasValidCredentials(requiredScopes: string | string[], accountId?: string): Promise<boolean> {
+        const status = await this.getCredentialStatus(requiredScopes, accountId);
         return status.hasRequiredScopes;
     }
 
-    static async getCredentialStatus(requiredScopes: string | string[]): Promise<{
+    static async getCredentialStatus(requiredScopes: string | string[], accountId?: string): Promise<{
         connected: boolean;
         hasRequiredScopes: boolean;
         missingScopes: string[];
     }> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
-        const { tokens } = await oauthRepo.read(this.PROVIDER_NAME);
+        const resolved = await this.resolveAccountId(accountId);
+        const tokens = resolved
+            ? (await oauthRepo.readAccount(this.PROVIDER_NAME, resolved)).tokens ?? null
+            : null;
         if (!tokens) {
             const scopesArray = Array.isArray(requiredScopes) ? requiredScopes : [requiredScopes];
             return {
@@ -205,15 +252,21 @@ export class GoogleClientFactory {
     }
 
     /**
-     * Clear cache (useful for testing or when credentials are revoked)
+     * Clear cached clients. Omit `accountId` to clear every account plus the
+     * provider-wide config and credentials; pass one to evict just that
+     * account, leaving other mailboxes connected.
      */
-    static clearCache(): void {
+    static clearCache(accountId?: string): void {
+        if (accountId) {
+            console.log(`[OAuth] Clearing Google auth cache for ${accountId}`);
+            this.accounts.delete(accountId);
+            return;
+        }
         console.log('[OAuth] Clearing Google auth cache');
-        this.cache.config = null;
-        this.cache.client = null;
-        this.cache.tokens = null;
-        this.cache.clientId = null;
-        this.cache.clientSecret = null;
+        this.accounts.clear();
+        this.shared.config = null;
+        this.shared.clientId = null;
+        this.shared.clientSecret = null;
     }
 
     /**
@@ -222,11 +275,11 @@ export class GoogleClientFactory {
     private static async initializeConfigCache(): Promise<void> {
         const { clientId, clientSecret } = await this.resolveByokCredentials();
 
-        if (this.cache.config && this.cache.clientId === clientId && this.cache.clientSecret === (clientSecret ?? null)) {
+        if (this.shared.config && this.shared.clientId === clientId && this.shared.clientSecret === (clientSecret ?? null)) {
             return; // Already initialized for these credentials
         }
 
-        if (this.cache.clientId && (this.cache.clientId !== clientId || this.cache.clientSecret !== (clientSecret ?? null))) {
+        if (this.shared.clientId && (this.shared.clientId !== clientId || this.shared.clientSecret !== (clientSecret ?? null))) {
             this.clearCache();
         }
 
@@ -237,7 +290,7 @@ export class GoogleClientFactory {
             if (providerConfig.client.mode === 'static') {
                 // Discover endpoints, use static client ID
                 console.log('[OAuth] Discovery mode: issuer with static client ID');
-                this.cache.config = await oauthClient.discoverConfiguration(
+                this.shared.config = await oauthClient.discoverConfiguration(
                     providerConfig.discovery.issuer,
                     clientId,
                     clientSecret
@@ -252,7 +305,7 @@ export class GoogleClientFactory {
                     throw new Error('Google client not registered. Please connect account first.');
                 }
 
-                this.cache.config = await oauthClient.discoverConfiguration(
+                this.shared.config = await oauthClient.discoverConfiguration(
                     providerConfig.discovery.issuer,
                     existingRegistration.client_id
                 );
@@ -264,7 +317,7 @@ export class GoogleClientFactory {
             }
 
             console.log('[OAuth] Using static endpoints (no discovery)');
-            this.cache.config = oauthClient.createStaticConfiguration(
+            this.shared.config = oauthClient.createStaticConfiguration(
                 providerConfig.discovery.authorizationEndpoint,
                 providerConfig.discovery.tokenEndpoint,
                 clientId,
@@ -273,8 +326,8 @@ export class GoogleClientFactory {
             );
         }
 
-        this.cache.clientId = clientId;
-        this.cache.clientSecret = clientSecret ?? null;
+        this.shared.clientId = clientId;
+        this.shared.clientSecret = clientSecret ?? null;
         console.log('[OAuth] Google OAuth configuration initialized');
     }
 

@@ -1,7 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import container from '../di/container.js';
-import { IOAuthRepo } from '../auth/repo.js';
+import { IOAuthRepo, LEGACY_ACCOUNT_ID } from '../auth/repo.js';
 import { IClientRegistrationRepo } from '../auth/client-repo.js';
 import { getProviderConfig } from '../auth/providers.js';
 import * as oauthClient from '../auth/oauth-client.js';
@@ -26,12 +26,21 @@ export class FirefliesClientFactory {
         tokens: null,
     };
 
+
+    /**
+     * Fireflies is a single-account provider. It rides on the provider's
+     * primary account, creating it under the legacy id the first time.
+     */
+    private static async accountId(oauthRepo: IOAuthRepo): Promise<string> {
+        return (await oauthRepo.getPrimaryAccountId(this.PROVIDER_NAME)) ?? LEGACY_ACCOUNT_ID;
+    }
+
     /**
      * Get or create MCP Client for Fireflies, reusing cached instance when possible
      */
     static async getClient(): Promise<Client | null> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
-        const { tokens } = await oauthRepo.read(this.PROVIDER_NAME);
+        const { tokens } = await oauthRepo.readAccount(this.PROVIDER_NAME, await this.accountId(oauthRepo));
 
         if (!tokens) {
             this.clearCache();
@@ -49,7 +58,7 @@ export class FirefliesClientFactory {
             // Token expired, try to refresh
             if (!tokens.refresh_token) {
                 console.log("[Fireflies] Token expired and no refresh token available.");
-                await oauthRepo.upsert(this.PROVIDER_NAME, { error: 'Missing refresh token. Please reconnect.' });
+                await oauthRepo.upsertAccount(this.PROVIDER_NAME, await this.accountId(oauthRepo), { error: 'Missing refresh token. Please reconnect.' });
                 this.clearCache();
                 return null;
             }
@@ -62,7 +71,7 @@ export class FirefliesClientFactory {
                     tokens.refresh_token,
                     existingScopes
                 );
-                await oauthRepo.upsert(this.PROVIDER_NAME, { tokens: refreshedTokens });
+                await oauthRepo.upsertAccount(this.PROVIDER_NAME, await this.accountId(oauthRepo), { tokens: refreshedTokens });
 
                 // Update cached tokens and recreate client
                 this.cache.tokens = refreshedTokens;
@@ -77,7 +86,7 @@ export class FirefliesClientFactory {
                 return this.cache.client;
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Failed to refresh token for Fireflies';
-                await oauthRepo.upsert(this.PROVIDER_NAME, { error: message });
+                await oauthRepo.upsertAccount(this.PROVIDER_NAME, await this.accountId(oauthRepo), { error: message });
                 console.error("[Fireflies] Failed to refresh token:", error);
                 this.clearCache();
                 return null;
@@ -107,7 +116,7 @@ export class FirefliesClientFactory {
      */
     static async hasValidCredentials(): Promise<boolean> {
         const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
-        const { tokens } = await oauthRepo.read(this.PROVIDER_NAME);
+        const { tokens } = await oauthRepo.readAccount(this.PROVIDER_NAME, await this.accountId(oauthRepo));
         return tokens !== null;
     }
 
