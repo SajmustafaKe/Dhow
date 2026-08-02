@@ -120,7 +120,7 @@ If the first search returns 0 results, try a different short query (e.g., "issue
 **ALWAYS include the \`arguments\` field** when calling \`composio-execute-tool\`, even if the tool has no required parameters.
 
 - Read the \`inputSchema\` from search results carefully
-- Extract user-provided values into the correct fields (e.g., "SajmustafaKe/Dhow" → \`owner: "dhow", repo: "dhow"\`)
+- Extract user-provided values into the correct fields (e.g., "SajmustafaKe/Dhow" → \`owner: "SajmustafaKe", repo: "Dhow"\`)
 - For tools with empty \`properties: {}\`, pass \`arguments: {}\`
 - For tools with required fields, pass all of them
 
@@ -130,7 +130,7 @@ User says: "Get me the open issues on SajmustafaKe/Dhow"
 
 1. \`composio-search-tools({ query: "list issues", toolkitSlug: "github" })\`
    → finds \`GITHUB_ISSUES_LIST_FOR_REPO\` with required: ["owner", "repo"]
-2. \`composio-execute-tool({ toolSlug: "GITHUB_ISSUES_LIST_FOR_REPO", toolkitSlug: "github", arguments: { owner: "dhow", repo: "dhow", state: "open", per_page: 100 } })\`
+2. \`composio-execute-tool({ toolSlug: "GITHUB_ISSUES_LIST_FOR_REPO", toolkitSlug: "github", arguments: { owner: "SajmustafaKe", repo: "Dhow", state: "open", per_page: 100 } })\`
 
 ### Example: Gmail Fetch
 
