@@ -20,6 +20,7 @@ import { ZListToolkitsResponse } from './composio.js';
 import { AppSummarySchema, RegistryRecordSchema, DhowAppManifestSchema } from './dhow-app.js';
 import { BrowserStateSchema, DisplayMediaRequestSchema, HttpAuthRequestSchema } from './browser-control.js';
 import { EmailBlockSchema, GmailThreadSchema } from './blocks.js';
+import { AssignmentSchema, AssignmentStatus, CouncilMemberSchema, CouncilSessionSchema } from './council.js';
 import { PermissionDecision, ApprovalPolicy, CodingAgent, type CodeRunFeedEvent } from './code-mode.js';
 import { NotificationSettingsSchema } from './notification-settings.js';
 import { TurnLimitsSettingsSchema } from './turn-limits.js';
@@ -811,6 +812,63 @@ const ipcSchemas = {
     res: z.object({
       success: z.boolean(),
     }),
+  },
+  // --- Council ---
+  // A standing group of advisors. Members answer one question in parallel and
+  // in isolation; a synthesiser then writes a memo that must name dissent.
+  'council:listMembers': {
+    req: z.null(),
+    res: z.object({ members: z.array(CouncilMemberSchema) }),
+  },
+  'council:saveMember': {
+    req: z.object({ member: CouncilMemberSchema }),
+    res: z.object({ ok: z.boolean() }),
+  },
+  'council:deleteMember': {
+    req: z.object({ id: z.string() }),
+    res: z.object({ ok: z.boolean() }),
+  },
+  'council:convene': {
+    // Omit memberIds to ask every enabled member.
+    req: z.object({ question: z.string().min(1), memberIds: z.array(z.string()).optional() }),
+    res: z.object({ session: CouncilSessionSchema.nullable(), error: z.string().optional() }),
+  },
+  'council:listSessions': {
+    req: z.null(),
+    res: z.object({ sessions: z.array(CouncilSessionSchema) }),
+  },
+  'council:getSession': {
+    req: z.object({ id: z.string() }),
+    res: z.object({ session: CouncilSessionSchema.nullable() }),
+  },
+  'council:listAssignments': {
+    req: z.null(),
+    res: z.object({ assignments: z.array(AssignmentSchema) }),
+  },
+  'council:createAssignment': {
+    req: z.object({
+      title: z.string().min(1),
+      detail: z.string().optional(),
+      assigneeId: z.string().nullable().optional(),
+      parentId: z.string().nullable().optional(),
+      sessionId: z.string().nullable().optional(),
+    }),
+    res: z.object({ assignment: AssignmentSchema.nullable(), error: z.string().optional() }),
+  },
+  'council:updateAssignment': {
+    req: z.object({
+      id: z.string(),
+      title: z.string().optional(),
+      detail: z.string().optional(),
+      assigneeId: z.string().nullable().optional(),
+      status: AssignmentStatus.optional(),
+      blockedReason: z.string().nullable().optional(),
+    }),
+    res: z.object({ assignment: AssignmentSchema.nullable(), error: z.string().optional() }),
+  },
+  'council:deleteAssignment': {
+    req: z.object({ id: z.string() }),
+    res: z.object({ removed: z.array(z.string()) }),
   },
   'oauth:list-accounts': {
     req: z.object({ provider: z.string() }),

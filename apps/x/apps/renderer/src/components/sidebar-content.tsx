@@ -29,6 +29,7 @@ import {
   Settings,
   Square,
   Video,
+  Landmark,
 } from "lucide-react"
 import {
   AlertDialog,
@@ -180,6 +181,7 @@ type SidebarContentPanelProps = {
   knowledgeActions: KnowledgeActions
   bgTaskSummaries?: TaskSummary[]
   onOpenMeetings?: () => void
+  onOpenCouncil?: () => void
   onOpenCode?: () => void
   onOpenBgTasks?: () => void
   onOpenApps?: () => void
@@ -201,7 +203,7 @@ type SidebarContentPanelProps = {
   /** Starts the mascot-guided product tour. */
   onStartTour?: () => void
   /** Which primary destination is currently active, for nav highlighting. */
-  activeNav?: 'home' | 'email' | 'meetings' | 'code' | 'knowledge' | 'agents' | 'apps' | 'workspaces' | null
+  activeNav?: 'home' | 'email' | 'meetings' | 'code' | 'knowledge' | 'agents' | 'apps' | 'workspaces' | 'council' | null
   /** Live meeting recording state, so the recording row can show its indicator/stop. */
   meetingRecordingState?: 'idle' | 'connecting' | 'recording' | 'stopping'
   recordingMeetingSource?: string | null
@@ -438,6 +440,7 @@ export function SidebarContentPanel({
   knowledgeActions,
   bgTaskSummaries = [],
   onOpenMeetings,
+  onOpenCouncil,
   onOpenCode,
   onOpenBgTasks,
   onOpenApps,
@@ -809,6 +812,16 @@ export function SidebarContentPanel({
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  data-tour-id="nav-council"
+                  isActive={activeNav === 'council'}
+                  onClick={onOpenCouncil}
+                >
+                  <Landmark className="size-4 shrink-0" />
+                  <span className="flex-1 truncate">Council</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   data-tour-id="nav-meetings"

@@ -1,4 +1,18 @@
 import { ipcMain, BrowserWindow, shell, dialog, systemPreferences, desktopCapturer, app, screen, powerSaveBlocker } from 'electron';
+import { convene } from "@x/core/dist/council/convene.js";
+import {
+  listMembers as listCouncilMembers,
+  saveMember as saveCouncilMember,
+  deleteMember as deleteCouncilMember,
+  listSessions as listCouncilSessions,
+  getSession as getCouncilSession,
+} from "@x/core/dist/council/store.js";
+import {
+  listAssignments,
+  createAssignment,
+  updateAssignment,
+  deleteAssignmentTree,
+} from "@x/core/dist/council/assignments.js";
 import { ipc } from '@x/shared';
 import path from 'node:path';
 import os from 'node:os';
@@ -1403,6 +1417,55 @@ export function setupIpcHandlers() {
     },
     'oauth:disconnect': async (_event, args) => {
       return await disconnectProvider(args.provider, args.accountId);
+    },
+    // --- Council ---
+    'council:listMembers': async () => {
+      return { members: listCouncilMembers() };
+    },
+    'council:saveMember': async (_event, args) => {
+      saveCouncilMember(args.member);
+      return { ok: true };
+    },
+    'council:deleteMember': async (_event, args) => {
+      deleteCouncilMember(args.id);
+      return { ok: true };
+    },
+    'council:convene': async (_event, args) => {
+      try {
+        const session = await convene({ question: args.question, memberIds: args.memberIds });
+        return { session };
+      } catch (err) {
+        // Surfaced to the UI rather than thrown: a failed council should show
+        // why on the page, not vanish into a rejected invoke.
+        return { session: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    'council:listSessions': async () => {
+      return { sessions: listCouncilSessions() };
+    },
+    'council:getSession': async (_event, args) => {
+      return { session: getCouncilSession(args.id) };
+    },
+    'council:listAssignments': async () => {
+      return { assignments: listAssignments() };
+    },
+    'council:createAssignment': async (_event, args) => {
+      try {
+        return { assignment: createAssignment(args) };
+      } catch (err) {
+        return { assignment: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    'council:updateAssignment': async (_event, args) => {
+      try {
+        const { id, ...patch } = args;
+        return { assignment: updateAssignment(id, patch) };
+      } catch (err) {
+        return { assignment: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    'council:deleteAssignment': async (_event, args) => {
+      return { removed: deleteAssignmentTree(args.id) };
     },
     'oauth:list-accounts': async (_event, args) => {
       const repo = container.resolve<IOAuthRepo>('oauthRepo');

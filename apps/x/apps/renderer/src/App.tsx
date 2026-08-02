@@ -39,6 +39,7 @@ import { ChatHistoryView } from '@/components/chat-history-view';
 import { GoogleDocPickerDialog } from '@/components/google-doc-picker-dialog';
 import { HomeView } from '@/components/home-view';
 import { MeetingsView } from '@/components/meetings-view';
+import { CouncilView } from '@/components/council-view';
 import { CodeView, type ActiveCodeSession } from '@/components/code/code-view';
 import { CodeChat } from '@/components/code/code-chat';
 import { ResizableRightPane } from '@/components/code/resizable-right-pane';
@@ -873,6 +874,7 @@ function App() {
   const [isBrowserOpen, setIsBrowserOpen] = useState(false)
   const [isSuggestedTopicsOpen, setIsSuggestedTopicsOpen] = useState(false)
   const [isMeetingsOpen, setIsMeetingsOpen] = useState(false)
+  const [isCouncilOpen, setIsCouncilOpen] = useState(false)
   const [isLiveNotesOpen, setIsLiveNotesOpen] = useState(false)
   const [isBgTasksOpen, setIsBgTasksOpen] = useState(false)
   const [isAppsOpen, setIsAppsOpen] = useState(false)
@@ -4006,7 +4008,7 @@ function App() {
       setActiveFileTabId(existingTab.id)
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
-      setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+      setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
       setSelectedPath(path)
       return
     }
@@ -4015,7 +4017,7 @@ function App() {
     setActiveFileTabId(id)
     setIsGraphOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
     setSelectedPath(path)
   }, [fileTabs, dismissBrowserOverlay])
 
@@ -4034,14 +4036,14 @@ function App() {
       setSelectedPath(null)
       setIsGraphOpen(true)
       setIsSuggestedTopicsOpen(false)
-      setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+      setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
       return
     }
     if (isSuggestedTopicsTabPath(tab.path)) {
       setSelectedPath(null)
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(true)
-      setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+      setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
       return
     }
     if (isLiveNotesTabPath(tab.path)) {
@@ -4049,6 +4051,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsBgTasksOpen(false)
       setIsEmailOpen(false)
       setIsWorkspaceOpen(false)
@@ -4063,6 +4066,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsLiveNotesOpen(false)
       setIsEmailOpen(false)
       setIsWorkspaceOpen(false)
@@ -4077,6 +4081,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsLiveNotesOpen(false)
       setIsBgTasksOpen(false)
       setIsEmailOpen(false)
@@ -4106,6 +4111,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsLiveNotesOpen(false)
       setIsBgTasksOpen(false)
       setIsWorkspaceOpen(false)
@@ -4120,6 +4126,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsLiveNotesOpen(false)
       setIsBgTasksOpen(false)
       setIsEmailOpen(false)
@@ -4134,6 +4141,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsLiveNotesOpen(false)
       setIsBgTasksOpen(false)
       setIsEmailOpen(false)
@@ -4148,6 +4156,7 @@ function App() {
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
       setIsMeetingsOpen(false)
+      setIsCouncilOpen(false)
       setIsLiveNotesOpen(false)
       setIsBgTasksOpen(false)
       setIsEmailOpen(false)
@@ -4160,7 +4169,7 @@ function App() {
       setSelectedPath(null)
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
-      setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false)
+      setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false)
       setIsHomeOpen(true); setIsAppsOpen(false)
       return
     }
@@ -4169,12 +4178,12 @@ function App() {
       setSelectedPath(null)
       setIsGraphOpen(false)
       setIsSuggestedTopicsOpen(false)
-      setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+      setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
       return
     }
     setIsGraphOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
     setSelectedPath(tab.path)
   }, [fileTabs, isRightPaneMaximized, dismissBrowserOverlay])
 
@@ -4203,7 +4212,7 @@ function App() {
         setSelectedPath(null)
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
           return []
       }
       const idx = prev.findIndex(t => t.id === tabId)
@@ -4217,12 +4226,12 @@ function App() {
           setSelectedPath(null)
           setIsGraphOpen(true)
           setIsSuggestedTopicsOpen(false)
-          setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+          setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         } else if (isSuggestedTopicsTabPath(newActiveTab.path)) {
           setSelectedPath(null)
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(true)
-          setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+          setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         } else if (isMeetingsTabPath(newActiveTab.path)) {
           setSelectedPath(null)
           setIsGraphOpen(false)
@@ -4240,6 +4249,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsBgTasksOpen(false)
           setIsEmailOpen(false)
           setIsWorkspaceOpen(false)
@@ -4252,6 +4262,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsLiveNotesOpen(false)
           setIsBgTasksOpen(true)
           setIsEmailOpen(false)
@@ -4264,6 +4275,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsLiveNotesOpen(false)
           setIsBgTasksOpen(false)
           setIsEmailOpen(false)
@@ -4277,6 +4289,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsLiveNotesOpen(false)
           setIsBgTasksOpen(false)
           setIsWorkspaceOpen(false)
@@ -4289,6 +4302,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsLiveNotesOpen(false)
           setIsBgTasksOpen(false)
           setIsEmailOpen(false)
@@ -4301,6 +4315,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsLiveNotesOpen(false)
           setIsBgTasksOpen(false)
           setIsEmailOpen(false)
@@ -4313,6 +4328,7 @@ function App() {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
           setIsMeetingsOpen(false)
+          setIsCouncilOpen(false)
           setIsLiveNotesOpen(false)
           setIsBgTasksOpen(false)
           setIsEmailOpen(false)
@@ -4323,12 +4339,12 @@ function App() {
           setSelectedPath(null)
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
-          setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false)
+          setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false)
           setIsHomeOpen(true); setIsAppsOpen(false)
         } else {
           setIsGraphOpen(false)
           setIsSuggestedTopicsOpen(false)
-          setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+          setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
               setSelectedPath(newActiveTab.path)
         }
       }
@@ -4367,7 +4383,7 @@ function App() {
     setSelectedPath(null)
     setIsGraphOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
   }, [dismissBrowserOverlay, handleNewChat, selectedPath, isGraphOpen, isSuggestedTopicsOpen, isMeetingsOpen, isLiveNotesOpen, isBgTasksOpen, isAppsOpen, isEmailOpen, isWorkspaceOpen, isKnowledgeViewOpen, isChatHistoryOpen, isHomeOpen])
 
   // Sidebar variant: reset the chat in place without leaving file/graph context.
@@ -4530,7 +4546,7 @@ function App() {
     setSelectedPath(null)
     setIsGraphOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
   }, [selectedPath, isGraphOpen, isSuggestedTopicsOpen, isMeetingsOpen, isLiveNotesOpen, isBgTasksOpen, isAppsOpen, isEmailOpen, isWorkspaceOpen, isKnowledgeViewOpen, isChatHistoryOpen, dismissBrowserOverlay])
 
   const handleCloseFullScreenChat = useCallback((): boolean => {
@@ -4540,11 +4556,11 @@ function App() {
       if (expandedFrom.graph) {
         setIsGraphOpen(true)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
       } else if (expandedFrom.suggestedTopics) {
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(true)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
       } else if (expandedFrom.meetings) {
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(false)
@@ -4556,6 +4572,7 @@ function App() {
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(false)
         setIsLiveNotesOpen(true)
@@ -4563,6 +4580,7 @@ function App() {
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(true)
         setIsEmailOpen(false)
@@ -4570,13 +4588,14 @@ function App() {
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(true)
       } else if (expandedFrom.path) {
         setIsGraphOpen(false)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         setSelectedPath(expandedFrom.path)
       } else {
         // expandedFrom was captured from a view this restorer doesn't track
@@ -4784,6 +4803,7 @@ function App() {
     setIsBrowserOpen(false)
     setIsSuggestedTopicsOpen(false)
     setIsMeetingsOpen(false)
+    setIsCouncilOpen(false)
     setIsLiveNotesOpen(false)
     setIsBgTasksOpen(false)
     setIsWorkspaceOpen(false)
@@ -4809,7 +4829,7 @@ function App() {
     setIsGraphOpen(false)
     setIsBrowserOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
     setSelectedBackgroundTask(null)
     setExpandedFrom(null)
     setIsRightPaneMaximized(false)
@@ -4822,13 +4842,32 @@ function App() {
     setIsGraphOpen(false)
     setIsBrowserOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false)
     setSelectedBackgroundTask(null)
     setExpandedFrom(null)
     setIsRightPaneMaximized(false)
     setIsAppsOpen(true)
     ensureAppsFileTab()
   }, [ensureAppsFileTab])
+
+  const openCouncilView = useCallback(() => {
+    setSelectedPath(null)
+    setIsGraphOpen(false)
+    setIsBrowserOpen(false)
+    setIsSuggestedTopicsOpen(false)
+    setIsMeetingsOpen(false)
+    setIsCouncilOpen(true)
+    setIsLiveNotesOpen(false)
+    setIsBgTasksOpen(false)
+    setIsEmailOpen(false)
+    setIsWorkspaceOpen(false)
+    setIsKnowledgeViewOpen(false)
+    setIsChatHistoryOpen(false)
+    setIsHomeOpen(false); setIsAppsOpen(false)
+    setSelectedBackgroundTask(null)
+    setExpandedFrom(null)
+    setIsRightPaneMaximized(false)
+  }, [])
 
   const openMeetingsView = useCallback(() => {
     setSelectedPath(null)
@@ -4854,7 +4893,7 @@ function App() {
     setIsGraphOpen(false)
     setIsBrowserOpen(false)
     setIsSuggestedTopicsOpen(false)
-    setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+    setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
     setSelectedBackgroundTask(null)
     setExpandedFrom(null)
     setIsRightPaneMaximized(false)
@@ -4870,7 +4909,7 @@ function App() {
         // visible in the middle pane.
         setIsBrowserOpen(false)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         setExpandedFrom(null)
         // Preserve split vs knowledge-max mode when navigating knowledge files.
         // Only exit chat-only maximize, because that would hide the selected file.
@@ -4885,7 +4924,7 @@ function App() {
         setSelectedPath(null)
         setIsBrowserOpen(false)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         setExpandedFrom(null)
         setIsGraphOpen(true)
         ensureGraphFileTab()
@@ -4898,7 +4937,7 @@ function App() {
         setIsGraphOpen(false)
         setIsBrowserOpen(false)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         setExpandedFrom(null)
         setIsRightPaneMaximized(false)
         setSelectedBackgroundTask(view.name)
@@ -4911,7 +4950,7 @@ function App() {
         setIsRightPaneMaximized(false)
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(true)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         ensureSuggestedTopicsFileTab()
         return
       case 'meetings':
@@ -4941,6 +4980,7 @@ function App() {
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(false)
         setIsWorkspaceOpen(false)
@@ -4959,6 +4999,7 @@ function App() {
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(true)
@@ -4991,6 +5032,7 @@ function App() {
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(false)
@@ -5010,6 +5052,7 @@ function App() {
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(false)
@@ -5030,6 +5073,7 @@ function App() {
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(false)
@@ -5047,6 +5091,7 @@ function App() {
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
         setIsMeetingsOpen(false)
+        setIsCouncilOpen(false)
         setIsLiveNotesOpen(false)
         setIsBgTasksOpen(false)
         setIsEmailOpen(false)
@@ -5064,7 +5109,7 @@ function App() {
         setIsRightPaneMaximized(false)
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         ensureCodeFileTab()
         return
       case 'bg-tasks':
@@ -5075,7 +5120,7 @@ function App() {
         setIsRightPaneMaximized(false)
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         setIsBgTasksOpen(true)
         ensureBgTasksFileTab()
         return
@@ -5087,7 +5132,7 @@ function App() {
         setIsRightPaneMaximized(false)
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false)
         setIsAppsOpen(true)
         ensureAppsFileTab()
         return
@@ -5099,7 +5144,7 @@ function App() {
         setIsRightPaneMaximized(false)
         setSelectedBackgroundTask(null)
         setIsSuggestedTopicsOpen(false)
-        setIsMeetingsOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
+        setIsMeetingsOpen(false); setIsCouncilOpen(false); setIsLiveNotesOpen(false); setIsBgTasksOpen(false); setIsEmailOpen(false); setIsWorkspaceOpen(false); setIsKnowledgeViewOpen(false); setIsChatHistoryOpen(false); setIsHomeOpen(false); setIsAppsOpen(false)
         if (view.runId) {
           const targetRunId = view.runId
           // Bind the loaded run to a chat tab so its title (derived from
@@ -6791,6 +6836,7 @@ function App() {
                 isHomeOpen ? 'home'
                 : isEmailOpen ? 'email'
                 : isMeetingsOpen ? 'meetings'
+                : isCouncilOpen ? 'council'
                 : isCodeOpen ? 'code'
                 : (isKnowledgeViewOpen || isGraphOpen || (selectedPath != null && selectedPath.startsWith('knowledge/'))) ? 'knowledge'
                 : isBgTasksOpen ? 'agents'
@@ -6799,6 +6845,7 @@ function App() {
                 : null
               }
               onOpenMeetings={openMeetingsView}
+              onOpenCouncil={openCouncilView}
               onOpenCode={openCodeView}
               onOpenBgTasks={() => { setBgTaskInitialSlug(null); setBgTaskSlugVersion((v) => v + 1); openBgTasksView() }}
               onOpenAgent={(slug) => { setBgTaskInitialSlug(slug); setBgTaskSlugVersion((v) => v + 1); openBgTasksView() }}
@@ -7010,6 +7057,10 @@ function App() {
                       submitFromPalette(prompt, null)
                     }}
                   />
+                </div>
+              ) : isCouncilOpen ? (
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                  <CouncilView />
                 </div>
               ) : isMeetingsOpen ? (
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
