@@ -88,7 +88,7 @@ const tabs: TabConfig[] = [
     id: "code-mode",
     label: "Code Mode",
     icon: Terminal,
-    description: "Delegate coding tasks to Claude Code or Codex",
+    description: "Delegate coding tasks to Claude Code, Codex or Oh My Pi",
   },
   {
     id: "appearance",
@@ -1323,21 +1323,24 @@ function CodeModeSettings({ dialogOpen }: { dialogOpen: boolean }) {
       <div className="space-y-2 text-sm text-muted-foreground leading-relaxed">
         <p>
           <strong className="text-foreground">Code mode</strong> lets the assistant delegate coding tasks
-          to <strong className="text-foreground">Claude Code</strong> or <strong className="text-foreground">Codex</strong> running
+          to <strong className="text-foreground">Claude Code</strong>, <strong className="text-foreground">Codex</strong>{' '}
+          or <strong className="text-foreground">Oh My Pi</strong> running
           on your machine. Pick the agent inline from the composer; the assistant runs it on-device
           and streams its work — tool calls, file diffs, and approvals — back into chat.
         </p>
         <p>
-          Requires an active <strong className="text-foreground">Claude Code</strong> subscription or
-          a <strong className="text-foreground">ChatGPT/Codex</strong> subscription. You can have one or both.
-        </p>
-        <p>
-          For each agent you want to use, you must have it{' '}
-          <strong className="text-foreground">installed and logged in</strong> on this machine: click{' '}
-          <strong className="text-foreground">Enable</strong> below to download its engine, and sign in by
-          running <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">claude login</code>{' '}
+          Claude Code and Codex need an active <strong className="text-foreground">Claude</strong> or{' '}
+          <strong className="text-foreground">ChatGPT/Codex</strong> subscription. Click{' '}
+          <strong className="text-foreground">Enable</strong> below to download the engine, then sign in with{' '}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">claude login</code>{' '}
           or <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">codex login</code>{' '}
           in your terminal. Code mode uses that saved login.
+        </p>
+        <p>
+          <strong className="text-foreground">Oh My Pi</strong> works differently: you install it yourself and it
+          brings its own model credentials from{' '}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">~/.omp</code>, so there is
+          nothing to download or sign into here — Dhow just detects the binary on your PATH.
         </p>
       </div>
 
