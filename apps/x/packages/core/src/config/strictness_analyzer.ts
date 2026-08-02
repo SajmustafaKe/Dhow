@@ -7,7 +7,47 @@ import {
     isStrictnessConfigured,
 } from './note_creation_config.js';
 
-const GMAIL_SYNC_DIR = path.join(WorkDir, 'gmail_sync');
+/**
+ * Thread mirrors across every connected mailbox. Mail is namespaced per
+ * account, so a single directory no longer describes the corpus — reading one
+ * would silently analyse a fraction of the user's email (or, post-migration,
+ * none of it).
+ */
+function mailThreadDirs(): string[] {
+    const dirs: string[] = [];
+    const root = path.join(WorkDir, 'mail');
+    let providers: string[];
+    try {
+        providers = fs.readdirSync(root, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name);
+    } catch {
+        return dirs;
+    }
+    for (const provider of providers) {
+        let accounts: string[];
+        try {
+            accounts = fs.readdirSync(path.join(root, provider), { withFileTypes: true })
+                .filter(d => d.isDirectory()).map(d => d.name);
+        } catch {
+            continue;
+        }
+        for (const account of accounts) {
+            const threads = path.join(root, provider, account, 'threads');
+            if (fs.existsSync(threads)) dirs.push(threads);
+        }
+    }
+    return dirs;
+}
+
+/** Every `.md` thread mirror, paired with its directory. */
+function mailThreadFiles(): string[] {
+    return mailThreadDirs().flatMap(dir => {
+        try {
+            return fs.readdirSync(dir).filter(f => f.endsWith('.md')).map(f => path.join(dir, f));
+        } catch {
+            return [];
+        }
+    });
+}
 
 interface EmailInfo {
     threadId: string;
@@ -316,16 +356,15 @@ function inferUserDomain(emails: EmailInfo[]): string {
 export function analyzeEmailsAndRecommend(): AnalysisResult {
     const emails: EmailInfo[] = [];
 
-    // Read all email files from gmail_sync
-    if (fs.existsSync(GMAIL_SYNC_DIR)) {
-        const files = fs.readdirSync(GMAIL_SYNC_DIR).filter(f => f.endsWith('.md'));
+    // Read email files across every connected mailbox
+    {
+        const files = mailThreadFiles();
 
         // Filter to last 30 days
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        for (const file of files) {
-            const filePath = path.join(GMAIL_SYNC_DIR, file);
+        for (const filePath of files) {
             const email = parseEmailFile(filePath);
             if (email) {
                 // Include if date is within 30 days or if we can't parse the date
@@ -442,12 +481,7 @@ export function autoConfigureStrictnessIfNeeded(): boolean {
     }
 
     // Check if there are any emails to analyze
-    if (!fs.existsSync(GMAIL_SYNC_DIR)) {
-        console.log('[StrictnessAnalyzer] No gmail_sync directory found, skipping auto-configuration');
-        return false;
-    }
-
-    const emailFiles = fs.readdirSync(GMAIL_SYNC_DIR).filter(f => f.endsWith('.md'));
+    const emailFiles = mailThreadFiles();
     if (emailFiles.length === 0) {
         console.log('[StrictnessAnalyzer] No emails found to analyze, skipping auto-configuration');
         return false;

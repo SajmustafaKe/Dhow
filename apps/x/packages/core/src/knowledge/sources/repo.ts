@@ -82,8 +82,20 @@ function ensureConfigDir(): void {
     fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
 }
 
+/**
+ * The pre-multi-account mail source: a single entry pointing at the flat
+ * `gmail_sync` directory. It persists in every existing install's config and
+ * would keep that directory alive — and keep the graph reading a location
+ * nothing writes to any more — so it is retired on load.
+ */
+function isLegacyMailSource(source: KnowledgeSourceConfig): boolean {
+    return source.id === 'gmail' && source.artifactDir === 'gmail_sync';
+}
+
 function mergeBuiltinSources(config: KnowledgeSourcesFileType): KnowledgeSourcesFileType {
-    const byId = new Map(config.sources.map(source => [source.id, source]));
+    const byId = new Map(
+        config.sources.filter(source => !isLegacyMailSource(source)).map(source => [source.id, source]),
+    );
     // Derived mail sources are merged the same way as static builtins: only
     // added when absent, so a source the user disabled stays disabled.
     for (const builtin of [...BUILTIN_SOURCES, ...deriveMailSources()]) {

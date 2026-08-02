@@ -19,7 +19,9 @@ import {
 const SYNC_INTERVAL_MS = 10 * 1000; // 10 seconds (for testing)
 const EMAIL_BATCH_SIZE = 5;
 const RUNS_BATCH_SIZE = 5;
-const GMAIL_SYNC_DIR = path.join(WorkDir, 'gmail_sync');
+// Mail is namespaced per account; a single directory would cover at most one
+// mailbox, so the scan walks every connected account's thread mirrors.
+const MAIL_DIR = path.join(WorkDir, 'mail');
 const RUNS_DIR = path.join(WorkDir, 'runs');
 const AGENT_NOTES_DIR = path.join(WorkDir, 'knowledge', 'Agent Notes');
 const INBOX_FILE = path.join(AGENT_NOTES_DIR, 'inbox.md');
@@ -40,7 +42,7 @@ function findUserSentEmails(
     userEmail: string,
     limit: number,
 ): string[] {
-    if (!fs.existsSync(GMAIL_SYNC_DIR)) {
+    if (!fs.existsSync(MAIL_DIR)) {
         return [];
     }
 
@@ -75,7 +77,7 @@ function findUserSentEmails(
         }
     }
 
-    traverse(GMAIL_SYNC_DIR);
+    traverse(MAIL_DIR);
 
     results.sort((a, b) => b.mtime - a.mtime);
     return results.slice(0, limit).map(r => r.path);

@@ -19,8 +19,7 @@ export type WorkspaceChangeCallback = (event: z.infer<typeof WorkspaceChangeEven
 const WATCHED_DIR_ROOTS = [
   'knowledge',
   'bases',
-  'inbox_lists',
-  'gmail_sync',
+  'mail',
   'calendar_sync',
   'bg-tasks',
 ];

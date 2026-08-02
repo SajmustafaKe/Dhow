@@ -30,6 +30,9 @@ function cacheDirFor(accountId: string): string { return mailPaths(PROVIDER, acc
 // don't prune it (the user wants a durable local index).
 function searchDirFor(accountId: string): string { return mailPaths(PROVIDER, accountId).searchIndex; }
 function attachmentsDirFor(accountId: string): string { return mailPaths(PROVIDER, accountId).attachments; }
+// Attachment paths are persisted in snapshots and resolved against WorkDir by
+// the download handler, so they must be stored relative, not absolute.
+function attachmentsRelDirFor(accountId: string): string { return path.relative(WorkDir, attachmentsDirFor(accountId)); }
 function stateFileFor(accountId: string): string { return path.join(mailPaths(PROVIDER, accountId).root, 'sync_state.json'); }
 
 /** Accounts with a Google grant. Empty when nothing is connected. */
@@ -524,7 +527,7 @@ interface ExtractedAttachment {
  * saveAttachment / processThread, so the renderer can hand them to
  * shell.openPath via the existing IPC.
  */
-function extractAttachments(msgId: string, payload: gmail.Schema$MessagePart, html?: string): ExtractedAttachment[] {
+function extractAttachments(accountId: string, msgId: string, payload: gmail.Schema$MessagePart, html?: string): ExtractedAttachment[] {
     const out: ExtractedAttachment[] = [];
     const walk = (part: gmail.Schema$MessagePart): void => {
         const filename = part.filename;
@@ -548,7 +551,7 @@ function extractAttachments(msgId: string, payload: gmail.Schema$MessagePart, ht
                     filename,
                     mimeType: part.mimeType ?? undefined,
                     sizeBytes: typeof part.body?.size === 'number' ? part.body.size : undefined,
-                    savedPath: `gmail_sync/attachments/${safeName}`,
+                    savedPath: path.join(attachmentsRelDirFor(accountId), safeName),
                     messageId: msgId,
                     attachmentId: attId,
                 });
@@ -1182,7 +1185,7 @@ async function parseThreadSnapshot(
             }
         }
         const isDraft = msg.labelIds?.includes('DRAFT') ?? false;
-        const attachments = msg.payload && msg.id ? extractAttachments(msg.id, msg.payload, parts.html) : [];
+        const attachments = msg.payload && msg.id ? extractAttachments(accountId, msg.id, msg.payload, parts.html) : [];
         return {
             id: msg.id || undefined,
             from: headerValue(headers, 'From') || 'Unknown',
