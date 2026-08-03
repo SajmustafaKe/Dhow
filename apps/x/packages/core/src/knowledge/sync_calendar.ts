@@ -8,7 +8,7 @@ import { GoogleClientFactory } from './google-client-factory.js';
 import { serviceLogger } from '../services/service_logger.js';
 import { limitEventItems } from './limit_event_items.js';
 import { createEvent } from '../events/producer.js';
-import { isOutlookCalendarFile, isReservedCalendarFile } from './calendar_files.js';
+import { isForeignCalendarFile, isReservedCalendarFile } from './calendar_files.js';
 
 const MAX_EVENTS_IN_DIGEST = 50;
 const MAX_DESCRIPTION_CHARS = 500;
@@ -186,9 +186,9 @@ export function cleanUpOldFiles(currentEventIds: Set<string>, syncDir: string): 
     const deleted: string[] = [];
     for (const filename of files) {
         if (isReservedCalendarFile(filename)) continue;
-        // Outlook writes into this same directory. Without this guard the
-        // Google window would delete every Outlook event on each pass.
-        if (isOutlookCalendarFile(filename)) continue;
+        // Outlook and invite-derived events share this directory. Without
+        // this guard the Google window would delete them on every pass.
+        if (isForeignCalendarFile(filename)) continue;
 
         // We expect files like:
         // {eventId}.json

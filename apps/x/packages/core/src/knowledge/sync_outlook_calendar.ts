@@ -60,6 +60,8 @@ export interface GraphEvent {
     onlineMeeting?: { joinUrl?: string };
     onlineMeetingUrl?: string;
     webLink?: string;
+    /** Graph's spelling of the iCalendar UID — the cross-source dedupe key. */
+    iCalUId?: string;
     lastModifiedDateTime?: string;
     seriesMasterId?: string;
     showAs?: string;
@@ -190,6 +192,9 @@ export function toGoogleEvent(
         };
     }
     if (event.webLink) normalized.htmlLink = event.webLink;
+    // Lets invite parsing recognise a meeting Graph already covers, and stand
+    // down rather than writing a second, staler copy of it.
+    if (event.iCalUId) normalized.iCalUID = event.iCalUId;
     if (event.lastModifiedDateTime) normalized.updated = event.lastModifiedDateTime;
     if (event.seriesMasterId) normalized.recurringEventId = outlookEventId(accountId, event.seriesMasterId);
 
@@ -233,7 +238,7 @@ export function cleanUpOutlookEvents(currentIds: Set<string>): string[] {
 const SELECT = [
     'id', 'subject', 'bodyPreview', 'body', 'start', 'end', 'isAllDay',
     'isCancelled', 'location', 'attendees', 'organizer', 'onlineMeeting',
-    'webLink', 'lastModifiedDateTime', 'seriesMasterId', 'showAs',
+    'webLink', 'iCalUId', 'lastModifiedDateTime', 'seriesMasterId', 'showAs',
 ].join(',');
 
 /** Ask Graph for UTC so `toIsoUtc` is appending a truthful `Z`. */

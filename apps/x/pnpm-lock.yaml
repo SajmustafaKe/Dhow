@@ -505,6 +505,9 @@ importers:
       googleapis:
         specifier: ^169.0.0
         version: 169.0.0
+      ical.js:
+        specifier: ^2.2.1
+        version: 2.2.1
       imapflow:
         specifier: ^1.6.5
         version: 1.6.5
@@ -6187,6 +6190,9 @@ packages:
 
   hysnappy@1.1.1:
     resolution: {integrity: sha512-/V9XcN2NtRyWjR4LYMfvnvasVVF8jbT/ej0eofBQjZel91E3D813FQ3mQC6gDSMMTCq/FJh28XHeyqr3I/oBRw==}
+
+  ical.js@2.2.1:
+    resolution: {integrity: sha512-yK/UlPbEs316igb/tjRgbFA8ZV75rCsBJp/hWOatpyaPNlgw0dGDmU+FoicOcwX4xXkeXOkYiOmCqNPFpNPkQg==}
 
   iconv-lite@0.4.24:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
@@ -16177,6 +16183,8 @@ snapshots:
   hyphen@1.14.1: {}
 
   hysnappy@1.1.1: {}
+
+  ical.js@2.2.1: {}
 
   iconv-lite@0.4.24:
     dependencies:

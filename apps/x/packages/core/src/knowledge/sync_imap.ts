@@ -1,5 +1,6 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser, type ParsedMail } from 'mailparser';
+import { calendarParts, ingestCalendarParts } from './calendar_invites.js';
 import { PrefixLogger } from '@x/shared';
 import container from '../di/container.js';
 import type { IImapRepo, ImapAccount } from '../auth/imap-repo.js';
@@ -120,6 +121,7 @@ async function syncAccount(account: ImapAccount): Promise<void> {
             let fetched = 0;
             let highestUid = lastUid;
             const byThread = new Map<string, { uid: number; parsed: ParsedMail; seen: boolean }[]>();
+            const invitations: { contentType?: string; filename?: string; content?: Buffer | string }[] = [];
 
             for await (const message of client.fetch(range, { uid: true, source: true, flags: true }, { uid: true })) {
                 if (!message.source) continue;
@@ -130,6 +132,10 @@ async function syncAccount(account: ImapAccount): Promise<void> {
                 highestUid = Math.max(highestUid, message.uid);
 
                 const parsed = await simpleParser(message.source);
+                // Collected here because this is the only point where the full
+                // MIME tree exists; the normalized thread keeps attachment
+                // metadata but drops the bytes.
+                invitations.push(...calendarParts(parsed.attachments));
                 const key = threadKeyFor(parsed);
                 const seen = message.flags?.has('\\Seen') ?? false;
                 const list = byThread.get(key);
@@ -177,6 +183,17 @@ async function syncAccount(account: ImapAccount): Promise<void> {
                 await repo().setError(account.id, message);
                 log.log(`${account.id}: ${message}`);
                 return;
+            }
+
+            if (invitations.length > 0) {
+                // An IMAP account has no calendar API, so the invitation in
+                // the mailbox is the only record of the meeting.
+                const emails = [account.email, account.username].filter((e): e is string => !!e);
+                const { written } = ingestCalendarParts(
+                    invitations as { content: Buffer | string }[],
+                    emails,
+                );
+                if (written > 0) log.log(`${written} calendar invitation(s) stored for ${account.id}`);
             }
 
             await repo().setError(account.id, null);
