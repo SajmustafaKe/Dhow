@@ -119,3 +119,46 @@ describe("composio key validation", { timeout: TIMEOUT }, () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("api error messages", { timeout: TIMEOUT }, () => {
+  it("extracts Composio's nested error.message and suggested fix", async () => {
+    const { describeApiError } = await import("./client.js");
+
+    // The exact body the live API returns for a bad key.
+    const body = JSON.stringify({
+      error: {
+        message: "Invalid API key: ck_**BW5f",
+        code: 801,
+        slug: "APIKey_InvalidAPIKey",
+        status: 401,
+        suggested_fix: "Please check you are using a valid key.",
+      },
+    });
+
+    const msg = describeApiError(401, "Unauthorized", body);
+
+    // Nested under an object, which the previous string-only check dropped.
+    expect(msg).toContain("Invalid API key");
+    expect(msg).toContain("Please check you are using a valid key.");
+  });
+
+  it("still handles error as a plain string", async () => {
+    const { describeApiError } = await import("./client.js");
+    expect(describeApiError(400, "Bad Request", JSON.stringify({ error: "bad slug" })))
+      .toContain("bad slug");
+  });
+
+  it("names the fix for a 401 with no parseable body", async () => {
+    const { describeApiError } = await import("./client.js");
+    const msg = describeApiError(401, "Unauthorized", "<html>nope</html>");
+    // A bare status line leaves the user with nothing to do.
+    expect(msg).toContain("Settings");
+  });
+
+  it("falls back to the status line for other unparseable errors", async () => {
+    const { describeApiError } = await import("./client.js");
+    const msg = describeApiError(503, "Service Unavailable", "");
+    expect(msg).toContain("503");
+    expect(msg).toContain("Service Unavailable");
+  });
+});

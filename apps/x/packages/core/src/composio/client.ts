@@ -138,6 +138,38 @@ export async function validateApiKey(apiKey: string): Promise<{ ok: boolean; err
 /**
  * Make an API call to Composio
  */
+/**
+ * Turn an error body into something the user can act on.
+ *
+ * Composio nests the reason as `error.message` on an object. The previous
+ * extraction only handled `error` as a *string*, so the detail was always
+ * dropped and every failure surfaced as a bare "401 Unauthorized" — which is
+ * how an invalid key ended up presenting as "Failed to load toolkits".
+ */
+export function describeApiError(status: number, statusText: string, rawText: string): string {
+    let detail = '';
+    try {
+        const body = JSON.parse(rawText);
+        const err = body?.error;
+        if (typeof err === 'string') {
+            detail = err;
+        } else if (err && typeof err === 'object') {
+            const message = typeof err.message === 'string' ? err.message : '';
+            const fix = typeof err.suggested_fix === 'string' ? err.suggested_fix : '';
+            detail = [message, fix].filter(Boolean).join(' ');
+        } else if (typeof body?.message === 'string') {
+            detail = body.message;
+        }
+    } catch {
+        // Body isn't JSON; the status line is all we have.
+    }
+    // 401 is the overwhelmingly common case and has one fix, so name it.
+    if (!detail && status === 401) {
+        detail = 'Composio rejected the API key. Re-enter it in Settings → Connections.';
+    }
+    return `Composio API error: ${status} ${statusText}${detail ? `: ${detail}` : ''}`;
+}
+
 export async function composioApiCall<T extends z.ZodTypeAny>(
     schema: T,
     path: string,
@@ -179,15 +211,7 @@ export async function composioApiCall<T extends z.ZodTypeAny>(
         }
 
         if (!response.ok) {
-            // Try to extract a human-readable message from the JSON body
-            let detail = '';
-            try {
-                const body = JSON.parse(rawText);
-                if (typeof body?.error === 'string') detail = body.error;
-                else if (typeof body?.message === 'string') detail = body.message;
-            } catch { /* body isn't JSON or has no message field */ }
-            const suffix = detail ? `: ${detail}` : '';
-            throw new Error(`Composio API error: ${response.status} ${response.statusText}${suffix}`);
+            throw new Error(describeApiError(response.status, response.statusText, rawText));
         }
 
         if (!contentType.includes('application/json')) {

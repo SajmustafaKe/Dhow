@@ -482,6 +482,7 @@ function ToolsLibrarySettings({ dialogOpen, dhowConnected }: { dialogOpen: boole
   // Toolkit browsing state
   const [toolkits, setToolkits] = useState<ToolkitInfo[]>([])
   const [toolkitsLoading, setToolkitsLoading] = useState(false)
+  const [toolkitsError, setToolkitsError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
 
   // Connection state
@@ -514,11 +515,17 @@ function ToolsLibrarySettings({ dialogOpen, dhowConnected }: { dialogOpen: boole
   // Load toolkits
   const loadToolkits = useCallback(async () => {
     setToolkitsLoading(true)
+    setToolkitsError(null)
     try {
       const result = await window.ipc.invoke("composio:list-toolkits", {})
       setToolkits(result.items)
-    } catch {
-      toast.error("Failed to load toolkits")
+    } catch (err) {
+      // Kept on the panel rather than only in a toast: an invalid key fails
+      // every time this runs, and a message that vanishes leaves the user
+      // with an empty list and no reason for it.
+      const message = err instanceof Error ? err.message : String(err)
+      setToolkitsError(message)
+      toast.error(message)
     } finally {
       setToolkitsLoading(false)
     }
@@ -699,6 +706,15 @@ function ToolsLibrarySettings({ dialogOpen, dhowConnected }: { dialogOpen: boole
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
               <Loader2 className="size-4 animate-spin mr-2" />
               Loading toolkits...
+            </div>
+          ) : toolkitsError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-3 text-sm text-destructive">
+              <div className="font-medium">Could not load toolkits</div>
+              <div className="mt-1 text-xs">{toolkitsError}</div>
+              <div className="mt-2 flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => { void loadToolkits() }}>Retry</Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowApiKeyInput(true)}>Change API key</Button>
+              </div>
             </div>
           ) : (
             <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
