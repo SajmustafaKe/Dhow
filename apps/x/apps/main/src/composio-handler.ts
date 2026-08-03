@@ -39,11 +39,20 @@ export async function isConfigured(): Promise<{ configured: boolean }> {
 }
 
 /**
- * Set the Composio API key
+ * Set the Composio API key, after checking it works.
+ *
+ * Validation is not optional here: an unvalidated key still satisfies
+ * `isConfigured()`, so the integration reports healthy while every call
+ * returns 401 — the user sees "the tools don't load" with nothing to act on.
+ * Failing at the point of entry puts Composio's own message in front of them.
  */
-export function setApiKey(apiKey: string): { success: boolean; error?: string } {
+export async function setApiKey(apiKey: string): Promise<{ success: boolean; error?: string }> {
     try {
-        composioClient.setApiKey(apiKey);
+        const check = await composioClient.validateApiKey(apiKey);
+        if (!check.ok) {
+            return { success: false, error: check.error ?? 'Composio rejected this API key.' };
+        }
+        composioClient.setApiKey(apiKey.trim());
         invalidateCopilotInstructionsCache();
         return { success: true };
     } catch (error) {

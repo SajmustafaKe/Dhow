@@ -2041,7 +2041,7 @@ export function setupIpcHandlers() {
       return composioHandler.isConfigured();
     },
     'composio:set-api-key': async (_event, args) => {
-      return composioHandler.setApiKey(args.apiKey);
+      return await composioHandler.setApiKey(args.apiKey);
     },
     'composio:initiate-connection': async (_event, args) => {
       return composioHandler.initiateConnection(args.toolkitSlug);

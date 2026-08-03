@@ -575,13 +575,20 @@ export function useConnectors(active: boolean) {
   // Composio API key
   const handleComposioApiKeySubmit = useCallback(async (apiKey: string) => {
     try {
-      await window.ipc.invoke('composio:set-api-key', { apiKey })
+      const result = await window.ipc.invoke('composio:set-api-key', { apiKey })
+      // The result was previously discarded, so a rejected key still reported
+      // "saved" and closed the dialog — the reason the failure only ever
+      // surfaced later as "the tools don't load".
+      if (!result.success) {
+        toast.error(result.error ?? 'Composio rejected this API key.')
+        return
+      }
       setComposioApiKeyOpen(false)
       toast.success('Composio API key saved')
       await startGmailConnect()
     } catch (error) {
       console.error('Failed to save Composio API key:', error)
-      toast.error('Failed to save API key')
+      toast.error(error instanceof Error ? error.message : 'Failed to save API key')
     }
   }, [startGmailConnect])
 

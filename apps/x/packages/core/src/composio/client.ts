@@ -88,10 +88,51 @@ export function setApiKey(apiKey: string): void {
 }
 
 /**
- * Check if Composio is configured
+ * Check if Composio is configured.
+ *
+ * Presence only — deliberately not a network call, because this gates skill
+ * visibility and prompt composition on every turn. Validity is checked once,
+ * when the key is entered, by `validateApiKey`.
  */
 export async function isConfigured(): Promise<boolean> {
     return !!getApiKey();
+}
+
+/**
+ * Ask Composio whether a key actually works.
+ *
+ * Saving an unvalidated key is what turns a typo into "the tools don't load":
+ * `isConfigured` reports true, the skill loads, the agent believes it can
+ * reach Composio, and every call fails with a 401 the user never sees. The
+ * server's own message is returned so the reason is legible at the point of
+ * entry rather than buried in a log.
+ */
+export async function validateApiKey(apiKey: string): Promise<{ ok: boolean; error?: string }> {
+    const key = apiKey.trim();
+    if (!key) return { ok: false, error: 'Enter an API key.' };
+    try {
+        const res = await fetch(`${await getBaseUrl()}/toolkits?limit=1`, {
+            headers: { 'x-api-key': key },
+            signal: AbortSignal.timeout(15_000),
+        });
+        if (res.ok) return { ok: true };
+
+        let detail = `${res.status}`;
+        try {
+            const body = await res.json() as { error?: { message?: string; suggested_fix?: string } };
+            const message = body?.error?.message;
+            const fix = body?.error?.suggested_fix;
+            if (message) detail = fix ? `${message} ${fix}` : message;
+        } catch {
+            // Non-JSON error body; the status alone will have to do.
+        }
+        return { ok: false, error: detail };
+    } catch (err) {
+        return {
+            ok: false,
+            error: err instanceof Error ? err.message : 'Could not reach Composio.',
+        };
+    }
 }
 
 /**
