@@ -23,6 +23,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import {
+  buildCredentialOverride,
   connectProvider,
   disconnectProvider,
   listProviders,
@@ -1415,10 +1416,10 @@ export function setupIpcHandlers() {
       return { success: true };
     },
     'oauth:connect': async (_event, args) => {
-      const credentials = args.clientId && args.clientSecret
-        ? { clientId: args.clientId.trim(), clientSecret: args.clientSecret.trim() }
-        : undefined;
-      return await connectProvider(args.provider, credentials);
+      return await connectProvider(
+        args.provider,
+        buildCredentialOverride(args.clientId, args.clientSecret),
+      );
     },
     'oauth:disconnect': async (_event, args) => {
       return await disconnectProvider(args.provider, args.accountId);

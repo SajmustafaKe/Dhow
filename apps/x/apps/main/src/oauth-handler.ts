@@ -14,6 +14,8 @@ import { triggerSync as triggerGmailSync } from '@x/core/dist/knowledge/sync_gma
 import { triggerSync as triggerCalendarSync } from '@x/core/dist/knowledge/sync_calendar.js';
 import { triggerSync as triggerFirefliesSync } from '@x/core/dist/knowledge/sync_fireflies.js';
 import { emitOAuthEvent } from './ipc.js';
+import { buildCredentialOverride } from '@x/core/dist/auth/credentials.js';
+export { buildCredentialOverride };
 
 function buildRedirectUri(port: number): string {
   return `http://localhost:${port}/oauth/callback`;
@@ -121,7 +123,7 @@ function getClientRegistrationRepo(): IClientRegistrationRepo {
 async function getProviderConfiguration(
   provider: string,
   redirectUri: string = buildRedirectUri(DEFAULT_CALLBACK_PORT),
-  credentialsOverride?: { clientId: string; clientSecret: string },
+  credentialsOverride?: { clientId: string; clientSecret?: string },
 ): Promise<Configuration> {
   const config = await getProviderConfig(provider);
   const resolveClientCredentials = async (): Promise<{ clientId: string; clientSecret?: string }> => {
@@ -260,7 +262,7 @@ function resolveAccountIdentity(identity: { sub?: string; email?: string }): { a
   }
 }
 
-export async function connectProvider(provider: string, credentials?: { clientId: string; clientSecret: string }): Promise<{ success: boolean; error?: string }> {
+export async function connectProvider(provider: string, credentials?: { clientId: string; clientSecret?: string }): Promise<{ success: boolean; error?: string }> {
   try {
     console.log(`[OAuth] Starting connection flow for ${provider}...`);
 
