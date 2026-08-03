@@ -197,3 +197,80 @@ describe("IMAP thread derivation", { timeout: TIMEOUT }, () => {
     expect(threadKeyFor({ date: new Date(0) } as never)).toContain("no-id-");
   });
 });
+
+describe("cross-provider inbox", { timeout: TIMEOUT }, () => {
+  /** Write a snapshot the inbox reader will pick up. */
+  function seedSnapshot(provider: string, accountId: string, threadId: string, subject: string, dateMs: number) {
+    const dir = path.join(tmpDir, "mail", provider, accountId, "cache");
+    fsSync.mkdirSync(dir, { recursive: true });
+    fsSync.writeFileSync(
+      path.join(dir, `${encodeURIComponent(threadId)}.json`),
+      JSON.stringify({
+        historyId: "1",
+        fetchedAt: new Date().toISOString(),
+        parserVersion: 3,
+        snapshot: {
+          accountId,
+          provider,
+          threadId,
+          threadUrl: "",
+          subject,
+          date: new Date(dateMs).toISOString(),
+          importance: "important",
+          messages: [],
+        },
+      }),
+    );
+  }
+
+  // The gap this closes: scanning only `mail/google` left a connected Outlook
+  // account syncing to disk while the inbox showed nothing.
+  it("lists threads from every provider, not just Gmail", async () => {
+    seedSnapshot("google", "acct-g", "t-gmail", "From Gmail", 3_000);
+    seedSnapshot("microsoft", "acct-m", "t-outlook", "From Outlook", 2_000);
+    seedSnapshot("imap", "acct-i", "t-imap", "From IMAP", 1_000);
+
+    const { listImportantThreads } = await import("./sync_gmail.js");
+    const subjects = listImportantThreads().threads.map((t) => t.subject);
+
+    expect(subjects).toEqual(["From Gmail", "From Outlook", "From IMAP"]);
+  });
+
+  it("keeps identical thread ids from different providers apart", async () => {
+    // Gmail and Outlook can both produce a thread called "shared"; keying on
+    // the id alone would collapse them into one row.
+    seedSnapshot("google", "acct", "shared", "Gmail copy", 2_000);
+    seedSnapshot("microsoft", "acct", "shared", "Outlook copy", 1_000);
+
+    const { listImportantThreads } = await import("./sync_gmail.js");
+    const threads = listImportantThreads().threads;
+
+    expect(threads).toHaveLength(2);
+    expect(threads.map((t) => t.subject)).toEqual(["Gmail copy", "Outlook copy"]);
+  });
+
+  it("paginates a merged list without repeating or skipping", async () => {
+    for (let i = 0; i < 6; i++) {
+      seedSnapshot(i % 2 === 0 ? "google" : "microsoft", "acct", `t-${i}`, `Subject ${i}`, 1_000 + i);
+    }
+
+    const { listImportantThreads } = await import("./sync_gmail.js");
+    const first = listImportantThreads({ limit: 4 });
+    const second = listImportantThreads({ limit: 4, cursor: first.nextCursor ?? undefined });
+
+    const seen = [...first.threads, ...second.threads].map((t) => t.subject);
+    expect(seen).toHaveLength(6);
+    expect(new Set(seen).size).toBe(6);
+  });
+
+  it("refuses a Gmail-only action on an Outlook thread instead of calling Gmail", async () => {
+    seedSnapshot("microsoft", "acct-m", "t-outlook", "From Outlook", 1_000);
+
+    const { archiveThread } = await import("./sync_gmail.js");
+    const result = await archiveThread("acct-m", "t-outlook");
+
+    // Falling through would hit the Gmail API with an unknown account.
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/Outlook/);
+  });
+});

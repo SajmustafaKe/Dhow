@@ -21,6 +21,7 @@ const BODY = "# Pricing discussion\n\n**Thread ID:** t1\n\n---\n\n### From: Sara
 function snapshot(overrides: Partial<GmailThreadSnapshot> = {}): GmailThreadSnapshot {
     return {
         accountId: ACCOUNT_ID,
+        provider: "google" as const,
         threadId: "t1",
         threadUrl: "https://mail.google.com/mail/#inbox/t1",
         importance: "important",

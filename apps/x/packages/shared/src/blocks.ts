@@ -153,6 +153,13 @@ export const GmailThreadSchema = EmailBlockSchema.extend({
    * account, so every action on a thread must name its account.
    */
   accountId: z.string(),
+  /**
+   * Which mail provider owns this thread. Defaults to google so snapshots
+   * written before multi-provider support still parse; every mutation routes
+   * on this, because acting on an Outlook thread through the Gmail API would
+   * either fail confusingly or hit the wrong mailbox.
+   */
+  provider: z.enum(['google', 'microsoft', 'imap']).default('google'),
   threadId: z.string(),
   threadUrl: z.string().url(),
   unread: z.boolean().optional(),

@@ -146,6 +146,7 @@ async function syncAccount(account: ImapAccount): Promise<void> {
                 writeThreadMirror(PROVIDER, account.id, normalized);
                 writeSnapshot(PROVIDER, account.id, threadKey, normalized.changeKey ?? '', {
                     accountId: account.id,
+                    provider: 'imap',
                     threadId: threadKey,
                     threadUrl: '',
                     subject: normalized.subject,

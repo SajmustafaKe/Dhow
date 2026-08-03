@@ -143,6 +143,7 @@ async function syncAccount(accountId: string): Promise<void> {
         writeThreadMirror(PROVIDER, accountId, normalized);
         writeSnapshot(PROVIDER, accountId, conversationId, normalized.changeKey ?? '', {
             accountId,
+            provider: 'microsoft',
             threadId: conversationId,
             threadUrl: normalized.threadUrl ?? '',
             subject: normalized.subject,

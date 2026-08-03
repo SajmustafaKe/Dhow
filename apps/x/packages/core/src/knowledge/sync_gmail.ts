@@ -41,18 +41,45 @@ async function listAccountIds(): Promise<string[]> {
 }
 
 /**
- * Accounts that have synced at least once, read straight off disk.
+ * Every synced mailbox, across every provider, read straight off disk.
+ *
  * The inbox listing is synchronous and cannot await the credential store; a
  * directory under the mail root is the durable record of a synced mailbox.
+ *
+ * Reads all providers, not just Gmail: Outlook and IMAP write mirrors and
+ * snapshots in exactly the same shape, and scanning only `google` here is what
+ * would leave a connected Outlook account showing an empty inbox.
  */
-function listSyncedAccountIdsSync(): string[] {
+export interface SyncedMailbox {
+    provider: string;
+    accountId: string;
+}
+
+export function listSyncedMailboxes(): SyncedMailbox[] {
+    const out: SyncedMailbox[] = [];
+    let providers: string[];
     try {
-        return fs.readdirSync(path.join(MAIL_ROOT, PROVIDER), { withFileTypes: true })
+        providers = fs.readdirSync(MAIL_ROOT, { withFileTypes: true })
             .filter((d) => d.isDirectory())
             .map((d) => d.name);
     } catch {
-        return [];
+        return out;
     }
+    for (const provider of providers) {
+        try {
+            for (const entry of fs.readdirSync(path.join(MAIL_ROOT, provider), { withFileTypes: true })) {
+                if (entry.isDirectory()) out.push({ provider, accountId: entry.name });
+            }
+        } catch {
+            // A provider directory that cannot be read is skipped, not fatal.
+        }
+    }
+    return out;
+}
+
+/** Gmail-only accounts, for the sync loop and Gmail-specific operations. */
+function listSyncedAccountIdsSync(): string[] {
+    return listSyncedMailboxes().filter((m) => m.provider === PROVIDER).map((m) => m.accountId);
 }
 const SYNC_INTERVAL_MS = 30 * 1000; // Check every 30 seconds
 const REQUIRED_SCOPE = 'https://www.googleapis.com/auth/gmail.modify';
@@ -234,12 +261,42 @@ async function getGmailClientOrThrow(accountId: string) {
     return google.gmail({ version: 'v1', auth });
 }
 
+/**
+ * Refuse an operation that only Gmail implements.
+ *
+ * The inbox is merged across providers, so a thread reaching these functions
+ * may belong to Outlook or IMAP. Falling through would call the Gmail API with
+ * an account id it has never heard of — an error, but a confusing one, and on
+ * a coincidental id collision it would act on the wrong mailbox. Naming the
+ * provider makes the gap legible instead.
+ */
+function assertGmailThread(accountId: string, threadId: string, operation: string): string | null {
+    const owner = providerOfThread(accountId, threadId);
+    if (owner === 'google') return null;
+    return `${operation} is not supported yet for ${owner === 'microsoft' ? 'Outlook' : 'IMAP'} mail.`;
+}
+
+/** Which provider's mailbox holds this thread, by looking for its snapshot. */
+function providerOfThread(accountId: string, threadId: string): string {
+    for (const mailbox of listSyncedMailboxes()) {
+        if (mailbox.accountId !== accountId) continue;
+        if (fs.existsSync(path.join(mailPaths(mailbox.provider, accountId).cache, `${encodeURIComponent(threadId)}.json`))) {
+            return mailbox.provider;
+        }
+    }
+    // Unknown threads are treated as Gmail: that is the pre-existing behaviour
+    // and the only provider these operations have ever supported.
+    return PROVIDER;
+}
+
 export interface ThreadActionResult {
     ok: boolean;
     error?: string;
 }
 
 export async function archiveThread(accountId: string, threadId: string): Promise<ThreadActionResult> {
+    const unsupported = assertGmailThread(accountId, threadId, 'Archiving');
+    if (unsupported) return { ok: false, error: unsupported };
     try {
         const gmailClient = await getGmailClientOrThrow(accountId);
         await gmailClient.users.threads.modify({
@@ -255,6 +312,8 @@ export async function archiveThread(accountId: string, threadId: string): Promis
 }
 
 export async function trashThread(accountId: string, threadId: string): Promise<ThreadActionResult> {
+    const unsupported = assertGmailThread(accountId, threadId, 'Trashing');
+    if (unsupported) return { ok: false, error: unsupported };
     try {
         const gmailClient = await getGmailClientOrThrow(accountId);
         await gmailClient.users.threads.trash({ userId: 'me', id: threadId });
@@ -266,6 +325,8 @@ export async function trashThread(accountId: string, threadId: string): Promise<
 }
 
 export async function markThreadRead(accountId: string, threadId: string, read: boolean = true): Promise<ThreadActionResult> {
+    const unsupported = assertGmailThread(accountId, threadId, 'Marking as read');
+    if (unsupported) return { ok: false, error: unsupported };
     try {
         const gmailClient = await getGmailClientOrThrow(accountId);
         await gmailClient.users.threads.modify({
@@ -302,6 +363,8 @@ export interface GmailThreadSnapshot {
      * which mailbox to talk to.
      */
     accountId: string;
+    /** Mail provider that owns this thread; mutations route on it. */
+    provider: 'google' | 'microsoft' | 'imap';
     threadId: string;
     threadUrl: string;
     summary?: string;
@@ -756,6 +819,7 @@ export interface InboxPageResult {
 }
 
 interface IndexedEntry {
+    provider: string;
     accountId: string;
     threadId: string;
     dateMs: number;
@@ -767,8 +831,8 @@ interface IndexedEntry {
  * across mailboxes, so they alone cannot break ties — without the account the
  * sort is unstable and pagination can skip or repeat rows.
  */
-function entryKey(accountId: string, threadId: string): string {
-    return `${accountId}\u0000${threadId}`;
+function entryKey(accountId: string, threadId: string, provider = PROVIDER): string {
+    return `${provider}\u0000${accountId}\u0000${threadId}`;
 }
 
 function snapshotImportance(s: GmailThreadSnapshot): InboxSection {
@@ -825,16 +889,16 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
     const cursor = parseCursor(opts.cursor);
     const categoryCounts: Record<string, number> = {};
 
-    const accountIds = listSyncedAccountIdsSync();
-    if (accountIds.length === 0) {
+    const mailboxes = listSyncedMailboxes();
+    if (mailboxes.length === 0) {
         listCache.clear();
         return { threads: [], nextCursor: null, categoryCounts };
     }
 
     const seen = new Set<string>();
     const entries: IndexedEntry[] = [];
-    for (const accountId of accountIds) {
-        const dir = cacheDirFor(accountId);
+    for (const { provider, accountId } of mailboxes) {
+        const dir = mailPaths(provider, accountId).cache;
         let names: string[];
         try {
             names = fs.readdirSync(dir);
@@ -847,7 +911,7 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
         if (!name.endsWith('.json')) continue;
         // Cache key carries the account: the same thread id in two mailboxes
         // produces the same filename.
-        const cacheKey = entryKey(accountId, name);
+        const cacheKey = entryKey(accountId, name, provider);
         seen.add(cacheKey);
         const filePath = path.join(dir, name);
 
@@ -888,6 +952,7 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
         categoryCounts[cat] = (categoryCounts[cat] ?? 0) + 1;
         if (opts.category && cat !== opts.category) continue;
         entries.push({
+            provider,
             accountId,
             threadId: cached.snapshot.threadId,
             dateMs: cached.dateMs,
@@ -905,8 +970,8 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
     // across mailboxes and pagination cannot skip or repeat a row.
     entries.sort((a, b) => {
         if (b.dateMs !== a.dateMs) return b.dateMs - a.dateMs;
-        const ak = entryKey(a.accountId, a.threadId);
-        const bk = entryKey(b.accountId, b.threadId);
+        const ak = entryKey(a.accountId, a.threadId, a.provider);
+        const bk = entryKey(b.accountId, b.threadId, b.provider);
         return ak < bk ? -1 : ak > bk ? 1 : 0;
     });
 
@@ -914,7 +979,7 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
     if (cursor) {
         startIdx = entries.findIndex((e) => {
             if (e.dateMs < cursor.dateMs) return true;
-            if (e.dateMs === cursor.dateMs && entryKey(e.accountId, e.threadId) > cursor.key) return true;
+            if (e.dateMs === cursor.dateMs && entryKey(e.accountId, e.threadId, e.provider) > cursor.key) return true;
             return false;
         });
         if (startIdx < 0) startIdx = entries.length;
@@ -927,7 +992,7 @@ export function listInboxPage(opts: InboxPageOptions): InboxPageResult {
     return {
         threads: slice.map((e) => e.snapshot),
         nextCursor: hasMore && last
-            ? encodeCursor({ dateMs: last.dateMs, key: entryKey(last.accountId, last.threadId) })
+            ? encodeCursor({ dateMs: last.dateMs, key: entryKey(last.accountId, last.threadId, last.provider) })
             : null,
         categoryCounts,
     };
@@ -1230,6 +1295,7 @@ async function parseThreadSnapshot(
     return {
         threadId,
         accountId,
+        provider: 'google',
         threadUrl: `https://mail.google.com/mail/u/0/#all/${threadId}`,
         subject: latest.subject || visibleMessages[0]?.subject,
         from: latest.from,
@@ -2500,6 +2566,7 @@ async function buildDraftSnapshot(
     return {
         threadId,
         accountId,
+        provider: 'google',
         threadUrl: `https://mail.google.com/mail/u/0/#drafts?compose=${draftId}`,
         subject,
         from,
