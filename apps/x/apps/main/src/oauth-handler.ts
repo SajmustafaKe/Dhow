@@ -126,7 +126,12 @@ async function getProviderConfiguration(
   const config = await getProviderConfig(provider);
   const resolveClientCredentials = async (): Promise<{ clientId: string; clientSecret?: string }> => {
     if (config.client.mode === 'static' && config.client.clientId) {
-      return { clientId: config.client.clientId, clientSecret: credentialsOverride?.clientSecret };
+      // A build that ships its own registration still lets a user override it
+      // with their own — useful for a workspace with its own consent screen.
+      return {
+        clientId: config.client.clientId,
+        clientSecret: credentialsOverride?.clientSecret ?? config.client.clientSecret,
+      };
     }
     if (credentialsOverride) {
       return { clientId: credentialsOverride.clientId, clientSecret: credentialsOverride.clientSecret };

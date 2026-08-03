@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  GOOGLE_OAUTH_CLIENT_ID,
+  GOOGLE_OAUTH_CLIENT_SECRET,
+  MICROSOFT_OAUTH_CLIENT_ID,
+} from '../config/env.js';
 
 /**
  * Discovery configuration - how to get OAuth endpoints
@@ -22,7 +27,11 @@ const DiscoverySchema = z.discriminatedUnion('mode', [
 const ClientSchema = z.discriminatedUnion('mode', [
   z.object({
     mode: z.literal('static'),
+    // Absent -> the user supplies their own registration (see env.ts).
     clientId: z.string().min(1).optional(),
+    // Only meaningful alongside a shipped clientId, and only for providers
+    // whose token endpoint insists on one. Not a secret in a desktop build.
+    clientSecret: z.string().min(1).optional(),
   }),
   z.object({
     mode: z.literal('dcr'),
@@ -58,6 +67,8 @@ const providerConfigs: ProviderConfig = {
     },
     client: {
       mode: 'static',
+      clientId: GOOGLE_OAUTH_CLIENT_ID,
+      clientSecret: GOOGLE_OAUTH_CLIENT_SECRET,
     },
     scopes: [
       'https://www.googleapis.com/auth/gmail.modify',
@@ -79,6 +90,7 @@ const providerConfigs: ProviderConfig = {
     },
     client: {
       mode: 'static',
+      clientId: MICROSOFT_OAUTH_CLIENT_ID,
     },
     scopes: [
       // Entra only returns a refresh token when this is asked for explicitly —
