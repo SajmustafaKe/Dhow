@@ -164,28 +164,63 @@ Acceptance: mail and calendar both visible for the account; `~/.dhow/oauth.json`
 holds a refresh token; a restart resumes sync without re-consent; a recurring
 invitation with a moved occurrence round-trips without loss.
 
-### 2a. Make the shipped client ID reachable — the item that carries the Goal
+### 2a. Make the shipped client ID work at all — four independent blockers
 
-**This was previously sized at zero code and it is the plan's critical defect.**
-`handleConnect('microsoft')` opens the BYOK modal unconditionally
-(`useConnectors.ts:639-644`), and `repo.ts:316-317` exposes only the *stored*
-client ID, never the env one. Setting `DHOW_MICROSOFT_CLIENT_ID` alone changes
-nothing a user sees.
+**Originally sized at zero code. Review found the feature cannot function, for
+four separate reasons, any one of which is sufficient on its own.** Commit
+`bcee8ca2` shipped an env seam whose tests verify only that `env.ts` reaches
+`providers.ts`; every consumer downstream ignores it.
 
-Shape: compute the credential source in core (shipped / BYOK / managed), surface
-it on `getClientFacingConfig`, and branch on it at both connect call sites —
-`useConnectors.ts:622` and `use-onboarding-state.ts:419`. The precedent to mirror
-already exists at `useConnectors.ts:628-632`, the `isSignedIntoDhow` branch.
+| # | Blocker | Evidence | Effect |
+|---|---|---|---|
+| B1 | Never inlined at build time | `bundle.mjs:46-48` maps only `import.meta.url`; `process.env.DHOW_*` survives as a **runtime** read in `main.cjs` | A packaged GUI launch inherits no shell env, so the value is always `undefined` |
+| B2 | Never passed by CI | `.github/workflows/electron-build.yml` — zero `DHOW_*` in any of the three build steps | Release builds cannot ship a credential even after B1 |
+| B3 | Rejected for Google | `oauth-handler.ts:277-280` hard-returns unless the **caller** supplies clientId AND secret | `DHOW_GOOGLE_CLIENT_ID` can never take effect — dead by construction |
+| B4 | Never persisted, and refresh reads only the store | `oauth-handler.ts:339` persists only caller-supplied credentials; `graph-client-factory.ts:49` and `google-client-factory.ts:80-84` read the store and throw "client ID missing. Please reconnect." | Connect succeeds, then **the first refresh ~1h later fails permanently** — and 2a would have hidden the modal that fixes it |
 
-Preserve an override path: the modal is currently the only way to supply a
-personal registration, so hiding it must not remove that ability — move it behind
-a settings-level "use my own registration".
+Plus the reachability gap: `handleConnect('microsoft')` opens the BYOK modal
+unconditionally (`useConnectors.ts:639-644`), `repo.ts:301-304` iterates *stored*
+providers so a clean install returns `{}`, and `use-onboarding-state.ts:446` has
+no `microsoft` branch at all — onboarding connects with no client ID and surfaces
+the raw "microsoft client ID not configured" string.
+
+B4 is the dangerous one: it is invisible for an hour, so any manual QA that does
+not deliberately wait out a token expiry signs off on a broken build.
+
+**Shape.** One `packages/core/src/auth/client-credentials.ts` exposing a single
+`resolveProviderCredential` over a discriminated union of sources (shipped /
+stored / managed / dcr). Delete the three divergent copies at
+`oauth-handler.ts:131-149`, `google-client-factory.ts:80-87`, and
+`graph-client-factory.ts:46-54` — three implementations of "where does this
+client ID come from" with three different answers, only one of which knows about
+the env credential. That divergence *is* B4.
+
+This placement is not cleanliness. **`apps/main` has no test runner** — the root
+`npm test` covers shared, core and renderer only — and every line 2a touches is
+in `apps/main` today. Moving the decision into core is what makes the item
+testable at all. The codebase already uses this seam for `secret-cipher.ts`: core
+defines the logic, main injects Electron's `safeStorage`.
+
+Do **not** fix B4 by persisting the env value into `oauth.json`. That bakes a
+build-time value into user state and breaks the rollback requirement below.
+
+Also required:
+- Add `credentialSource` in core **and** in the shared zod schema. `ipc.ts:514`
+  `validateResponse` strips unknown keys, so adding it in core alone leaves core
+  tests green and production broken.
+- Inline the vars at build time (`bundle.mjs` define) or read them after
+  `initializeExecutionEnvironment()`, and pass them in the workflow.
+- Preserve an override path. The modal is currently the only way to supply a
+  personal registration; hiding it must not remove that ability. Move it behind a
+  settings-level "use my own registration".
 
 Rollback requirement: unsetting the env var must degrade to the modal, or users
 are stranded with no way to connect.
 
-Acceptance: a clean install connects Outlook with no client ID prompt; unsetting
-the env var restores the modal; a user-supplied ID still overrides a shipped one.
+Acceptance: a clean install connects Outlook with no client ID prompt; **the
+account is still syncing 90 minutes later**; unsetting the env var restores the
+modal; a user-supplied ID still overrides a shipped one; onboarding offers
+Microsoft; all of it covered by core unit tests rather than manual QA.
 
 ### 2b. Entra publisher verification — separable
 
@@ -390,3 +425,101 @@ Resolved during review:
 - **A test anchored on idempotency.** "Re-running produces identical files"
   covers item 7's acceptance criterion, the retained recurrence envelope, the
   `ics-` sweeper, and the equal-SEQUENCE tie-break in one assertion.
+---
+
+## GSTACK REVIEW REPORT
+
+Pipeline: `/autoplan` · Reviewed 2026-08-03 against `5f19b02` · Restore point:
+`~/.gstack/projects/SajmustafaKe-Dhow/main-autoplan-restore-20260803-171719.md`
+
+### Phases
+
+| Phase | Status | Output |
+|---|---|---|
+| CEO — strategy & scope | DONE_WITH_CONCERNS | 24 findings (1 critical, 5 high), 26 decisions, 4 premises + 3 user challenges |
+| Design — UX | DONE_WITH_CONCERNS | 13 findings, 12 decisions, 5 user challenges |
+| Eng — architecture & tests | DONE_WITH_CONCERNS | 9 arch + 7 quality + 3 perf findings, 51 test gaps across 62 paths, 22 tasks, 3 user challenges |
+| DX — developer surface | DONE_WITH_CONCERNS | 13 findings (2 P0), Azure setup doc spec, 3 unresolved |
+
+Scope detection: UI = YES (credential branch, CalDAV form, reconnect copy).
+DX = YES, narrowly (build-time env config, provider registry, setup docs).
+
+### Degradations — what did not run
+
+- **Outside voice / cross-model challenge: NOT RUN.** `codex` is not installed
+  (vendored binary throws ENOENT). Every judgement here is one model's opinion
+  with no independent challenge. This is the largest gap in the review.
+- **`designer` agent unusable** — pinned to `gemini-3-flash-preview`, retired
+  2026-07-15. The design phase ran on a substitute.
+- **Landscape check: NOT RUN** (no WebSearch in the review agents). Three claims
+  carry `[INFERENCE]` and must be re-verified before money is spent: Google
+  Testing-mode 7-day refresh expiry, Entra publisher-verification scope, CASA
+  Tier 2 pricing.
+- Prior-learnings and brain-context preflight, and the `~/.gstack` artifact
+  writes, could not run (no Bash in the review agents).
+
+### Confirmed defects in shipped code
+
+Each independently verified by the orchestrator against the tree, not taken on
+the reviewer's word.
+
+| Defect | Location | Status |
+|---|---|---|
+| Shipped client ID never inlined; runtime read in a GUI process with no env | `bundle.mjs:46-48` | in plan as 2a/B1 |
+| CI passes no `DHOW_*` var | `.github/workflows/electron-build.yml` | 2a/B2 |
+| Google connect rejects a shipped credential outright | `oauth-handler.ts:277-280` | 2a/B3 |
+| Shipped credential never persisted; refresh reads only the store | `oauth-handler.ts:339`, `graph-client-factory.ts:49` | 2a/B4 |
+| Credential source never reaches the renderer | `useConnectors.ts:639-644` | 2a |
+| Onboarding has no Microsoft branch | `use-onboarding-state.ts:446` | 2a |
+| **OAuth connect failures were silent** | `useConnectors.ts:855` | **FIXED — see git log** |
+| Nothing sweeps `ics-` files; unbounded growth | `calendar_invites.ts` | in plan, item 1 |
+| Recurrence envelope discarded at parse; only first VEVENT read | `calendar_invites.ts:100,163-166` | in plan, item 1 |
+| `clearConfigCache` keys the cache differently from the setter; zero callers | `oauth-client.ts:43` vs `:253` | in plan, item 1 |
+| Graph page cap truncates silently | `sync_outlook_calendar.ts:19` | in plan, item 1 |
+| Four consumers re-declare `CALENDAR_SYNC_DIR` | `meeting_prep_scheduler.ts:16` +3 | in plan, item 1 |
+
+### Plan changes applied
+
+- Item 2 split into **2a** (make the credential work — four blockers, was "zero
+  code") and **2b** (publisher verification, separable and policy-dependent).
+- Two hard blockers promoted out of the open-questions footnote: **0a** the
+  model-provider data flow, **0b** pick one of the three existing Google paths.
+- Two status-only items cut: Composio (user action), Gmail/Outlook invite wiring
+  (cost misstated tenfold → `TODOS.md`).
+- One-way-door fixes pulled into item 1's window: retain the recurrence envelope,
+  sweep `ics-` files, name the reconnect causes, delete the dead cache helpers,
+  log the page cap, import the shared directory constant.
+- Item 7 split: write side to item 1, read-side expansion stays.
+- `Sequence` split into **Dependencies** (hard ordering, including the previously
+  unstated 3 → 2b) and **Priority**.
+- Non-goal "no server sees user mail" corrected — it was false and would have
+  been a bad-faith Limited Use disclosure.
+- Goal restated: one click for Microsoft, guided setup for Google until CASA is
+  funded. The previous wording was contradicted by the plan's own recommendation.
+- Problem statement's bug evidence restated: 1 of 4 cited bugs was BYOK-caused.
+
+### Open for human decision
+
+Not auto-decided. Full context for each is in the phase transcripts.
+
+1. **P1 — the data-flow premise.** Does Dhow default to a local model with cloud
+   providers opt-in, or not? Decides whether the corrected non-goal is true, and
+   gates the privacy policy and therefore item 4 entirely.
+2. **C1 — Google option B abandons the Goal for the largest provider.** Keep B as
+   the funding decision, reject it as the product decision, and fix the two
+   things that make it honest (Production not Testing; the "once" copy).
+3. **C2 — three Google connect paths, no decision.** Native BYOK, managed
+   `mode: 'dhow'`, and Composio. Pick one, delete or park the others.
+4. **C3 — is Entra publisher verification a gate or a badge** for personal
+   Outlook.com consent? If a gate, 2a and 2b do not split. `[INFERENCE]` — verify.
+5. **Set N** for the item 4 trigger: revisit CASA at N connected Google accounts.
+6. **Does `apps/main` lack a test runner deliberately?** If a runner is planned,
+   2a's relocation to core is unnecessary churn.
+
+### Verdict
+
+**DONE_WITH_CONCERNS.** All four phases executed. The plan's strategy survived
+review; its critical defect was that the item carrying the entire Goal was sized
+at zero code and is in fact blocked four ways. That is now stated. Fix 2a's
+blockers before item 1 is attempted with a shipped credential, and re-verify the
+three `[INFERENCE]` policy claims before spending money.
