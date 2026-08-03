@@ -48,7 +48,7 @@ const SlackErrorKindSchema = z.enum([
 
 const KnowledgeSourceConfigSchema = z.object({
   id: z.string(),
-  provider: z.enum(['gmail', 'meeting', 'voice_memo', 'slack', 'github', 'linear']),
+  provider: z.enum(['gmail', 'outlook', 'imap', 'meeting', 'voice_memo', 'slack', 'github', 'linear']),
   enabled: z.boolean(),
   artifactDir: z.string(),
   syncMode: z.enum(['file', 'poll', 'event', 'manual']).default('file'),
@@ -889,6 +889,54 @@ const ipcSchemas = {
   'council:deleteAssignment': {
     req: z.object({ id: z.string() }),
     res: z.object({ removed: z.array(z.string()) }),
+  },
+  // --- IMAP (generic mail: Yahoo, Fastmail, self-hosted) ---
+  // Kept separate from oauth:* because IMAP is not OAuth — the credential is a
+  // host/port/username/password tuple for one mailbox, not an app grant.
+  'imap:list': {
+    req: z.null(),
+    res: z.object({
+      accounts: z.array(z.object({
+        id: z.string(),
+        host: z.string(),
+        port: z.number(),
+        secure: z.boolean(),
+        username: z.string(),
+        email: z.string().nullable(),
+        error: z.string().nullable(),
+        /** False when the stored password cannot be decrypted on this machine. */
+        credentialReadable: z.boolean(),
+      })),
+      /** Whether the OS keychain is available to encrypt new passwords. */
+      encryptionAvailable: z.boolean(),
+    }),
+  },
+  'imap:test': {
+    req: z.object({
+      host: z.string().min(1),
+      port: z.number(),
+      secure: z.boolean(),
+      username: z.string().min(1),
+      password: z.string().min(1),
+    }),
+    res: z.object({ ok: z.boolean(), error: z.string().optional() }),
+  },
+  'imap:save': {
+    req: z.object({
+      id: z.string().optional(),
+      host: z.string().min(1),
+      port: z.number(),
+      secure: z.boolean(),
+      username: z.string().min(1),
+      /** Omit to keep the stored password unchanged. */
+      password: z.string().optional(),
+      email: z.string().nullable().optional(),
+    }),
+    res: z.object({ id: z.string().nullable(), error: z.string().optional() }),
+  },
+  'imap:delete': {
+    req: z.object({ id: z.string() }),
+    res: z.object({ ok: z.boolean() }),
   },
   'oauth:list-accounts': {
     req: z.object({ provider: z.string() }),

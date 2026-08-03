@@ -1,4 +1,7 @@
 import { ipcMain, BrowserWindow, shell, dialog, systemPreferences, desktopCapturer, app, screen, powerSaveBlocker } from 'electron';
+import type { IImapRepo } from "@x/core/dist/auth/imap-repo.js";
+import { isEncryptionAvailable } from "@x/core/dist/auth/secret-cipher.js";
+import { testImapConnection, triggerSync as triggerImapSync } from "@x/core/dist/knowledge/sync_imap.js";
 import { convene } from "@x/core/dist/council/convene.js";
 import { readAttachments as readCouncilAttachments } from "@x/core/dist/council/attachments.js";
 import {
@@ -1483,6 +1486,62 @@ export function setupIpcHandlers() {
     },
     'council:deleteAssignment': async (_event, args) => {
       return { removed: deleteAssignmentTree(args.id) };
+    },
+    // --- IMAP ---
+    'imap:list': async () => {
+      const repo = container.resolve<IImapRepo>('imapRepo');
+      const accounts = await repo.list();
+      return {
+        accounts: accounts.map((a) => ({
+          id: a.id,
+          host: a.host,
+          port: a.port,
+          secure: a.secure,
+          username: a.username,
+          email: a.email,
+          error: a.error,
+          // null password means ciphertext this machine's keychain can't open.
+          credentialReadable: a.password !== null,
+        })),
+        encryptionAvailable: isEncryptionAvailable(),
+      };
+    },
+    'imap:test': async (_event, args) => {
+      return await testImapConnection(args);
+    },
+    'imap:save': async (_event, args) => {
+      try {
+        const repo = container.resolve<IImapRepo>('imapRepo');
+        // Verify before persisting, so a typo fails at the form rather than
+        // silently producing an account that never syncs.
+        if (args.password) {
+          const probe = await testImapConnection({
+            host: args.host, port: args.port, secure: args.secure,
+            username: args.username, password: args.password,
+          });
+          if (!probe.ok) return { id: null, error: probe.error ?? 'Could not connect.' };
+        }
+        const id = args.id ?? `${args.username}@${args.host}`.toLowerCase().replace(/[^a-z0-9._@-]+/g, '-');
+        await repo.upsert({
+          id,
+          host: args.host,
+          port: args.port,
+          secure: args.secure,
+          username: args.username,
+          password: args.password ?? null,
+          email: args.email ?? args.username,
+          error: null,
+        });
+        triggerImapSync(id);
+        return { id };
+      } catch (err) {
+        return { id: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    'imap:delete': async (_event, args) => {
+      const repo = container.resolve<IImapRepo>('imapRepo');
+      await repo.delete(args.id);
+      return { ok: true };
     },
     'oauth:list-accounts': async (_event, args) => {
       const repo = container.resolve<IOAuthRepo>('oauthRepo');

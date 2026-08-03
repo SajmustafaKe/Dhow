@@ -802,7 +802,7 @@ export async function processAllSources(): Promise<void> {
 
             // For mail, only process emails the classifier admitted: hold
             // files with no stamped verdict yet, permanently skip `knowledge: skip`.
-            if (source.provider === 'gmail') {
+            if (source.provider === 'gmail' || source.provider === 'outlook' || source.provider === 'imap') {
                 filesToProcess = filesToProcess.filter(filePath => {
                     try {
                         const content = fs.readFileSync(filePath, 'utf-8');

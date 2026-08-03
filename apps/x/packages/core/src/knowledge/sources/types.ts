@@ -1,7 +1,12 @@
 import { z } from 'zod';
 
 export const KnowledgeSourceProvider = z.enum([
+    // 'gmail' predates multi-provider mail and is kept as the generic mail
+    // kind so existing configs and the build_graph admission checks keep
+    // working; 'outlook' and 'imap' are distinguished for display only.
     'gmail',
+    'outlook',
+    'imap',
     'meeting',
     'voice_memo',
     'slack',

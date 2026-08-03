@@ -11,6 +11,7 @@ import { IBus, InMemoryBus } from "../application/lib/bus.js";
 import { IRunsLock, InMemoryRunsLock } from "../runtime/legacy/lock.js";
 import { IAgentRuntime, AgentRuntime } from "../runtime/legacy/engine.js";
 import { FSOAuthRepo, IOAuthRepo } from "../auth/repo.js";
+import { FSImapRepo, IImapRepo } from "../auth/imap-repo.js";
 import { FSClientRegistrationRepo, IClientRegistrationRepo } from "../auth/client-repo.js";
 import { FSGranolaConfigRepo, IGranolaConfigRepo } from "../knowledge/granola/repo.js";
 import { FSCodeModeConfigRepo, ICodeModeConfigRepo } from "../code-mode/repo.js";
@@ -89,6 +90,7 @@ container.register({
     agentsRepo: asClass<IAgentsRepo>(FSAgentsRepo).singleton(),
     runsRepo: asClass<IRunsRepo>(FSRunsRepo).singleton(),
     oauthRepo: asClass<IOAuthRepo>(FSOAuthRepo).singleton(),
+    imapRepo: asClass<IImapRepo>(FSImapRepo).singleton(),
     clientRegistrationRepo: asClass<IClientRegistrationRepo>(FSClientRegistrationRepo).singleton(),
     granolaConfigRepo: asClass<IGranolaConfigRepo>(FSGranolaConfigRepo).singleton(),
     codeModeConfigRepo: asClass<ICodeModeConfigRepo>(FSCodeModeConfigRepo).singleton(),

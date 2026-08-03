@@ -67,7 +67,10 @@ function deriveMailSources(): KnowledgeSourceConfig[] {
         for (const accountId of accountIds) {
             sources.push({
                 id: mailSourceId(provider, accountId),
-                provider: 'gmail',
+                // The vault directory names the provider; map it onto the
+                // source kind. 'gmail' remains the generic mail kind that
+                // build_graph's admission checks key off.
+                provider: provider === 'microsoft' ? 'outlook' : provider === 'imap' ? 'imap' : 'gmail',
                 enabled: true,
                 artifactDir: mailArtifactDir(provider, accountId),
                 syncMode: 'file',

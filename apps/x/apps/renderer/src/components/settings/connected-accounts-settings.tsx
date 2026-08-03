@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { GoogleClientIdModal } from "@/components/google-client-id-modal"
+import { ImapAccountForm } from "@/components/settings/imap-account-form"
+import { Mail, Server } from "lucide-react"
 import { ComposioApiKeyModal } from "@/components/composio-api-key-modal"
 import { useConnectors, actionableSlackError } from "@/hooks/useConnectors"
 
@@ -28,6 +30,7 @@ function relativeTime(iso?: string): string {
 }
 
 export function ConnectedAccountsSettings({ dialogOpen }: ConnectedAccountsSettingsProps) {
+  const [imapFormOpen, setImapFormOpen] = React.useState(false)
   const c = useConnectors(dialogOpen)
   // Windows exclusively locks Slack's Cookies DB while it runs, so we offer a
   // "quit Slack first" one-click import there. mac/Linux import with Slack open.
@@ -98,6 +101,62 @@ export function ConnectedAccountsSettings({ dialogOpen }: ConnectedAccountsSetti
             </Button>
           )}
         </div>
+      </div>
+    )
+  }
+
+  /**
+   * IMAP cannot reuse renderOAuthProvider: there is no connect/disconnect
+   * round trip to a browser, only a credential form.
+   */
+  const renderImapAccounts = () => {
+    const accounts = c.imapAccounts ?? []
+    return (
+      <div className="flex flex-col">
+        {accounts.map((account) => (
+          <div
+            key={account.id}
+            className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Server className="size-5 shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium truncate">{account.email ?? account.username}</span>
+                {!account.credentialReadable ? (
+                  // Ciphertext this machine's keychain cannot open — the only
+                  // fix is re-entering it, so say that rather than "error".
+                  <span className="text-xs text-amber-600">Password unreadable on this machine — reconnect</span>
+                ) : account.error ? (
+                  <span className="text-xs text-amber-600 truncate">{account.error}</span>
+                ) : (
+                  <span className="text-xs text-emerald-600">Connected · {account.host}</span>
+                )}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => { void c.deleteImapAccount(account.id) }}>
+              Disconnect
+            </Button>
+          </div>
+        ))}
+        {imapFormOpen ? (
+          <div className="px-3 py-2">
+            <ImapAccountForm
+              encryptionAvailable={c.imapEncryptionAvailable}
+              onCancel={() => setImapFormOpen(false)}
+              onSave={async (input) => {
+                const res = await c.saveImapAccount(input)
+                if (res.ok) setImapFormOpen(false)
+                return res
+              }}
+            />
+          </div>
+        ) : (
+          <div className="px-3 py-2">
+            <Button variant="outline" size="sm" onClick={() => setImapFormOpen(true)}>
+              Add IMAP account
+            </Button>
+          </div>
+        )}
       </div>
     )
   }
@@ -271,6 +330,13 @@ export function ConnectedAccountsSettings({ dialogOpen }: ConnectedAccountsSetti
             ) : (
               c.providers.includes('google') && renderGoogleAccounts()
             )}
+            {c.providers.includes('microsoft') && renderOAuthProvider(
+              'microsoft',
+              'Outlook',
+              <Mail className="size-5" />,
+              'Sync Outlook, Hotmail or Microsoft 365 mail',
+            )}
+            {renderImapAccounts()}
             {c.useComposioForGoogleCalendar && (
               <div className="flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-2.5 min-w-0">

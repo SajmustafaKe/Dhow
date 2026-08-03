@@ -68,6 +68,29 @@ const providerConfigs: ProviderConfig = {
       'https://www.googleapis.com/auth/drive.file',
     ],
   },
+  microsoft: {
+    discovery: {
+      mode: 'issuer',
+      // The multi-tenant endpoint: covers personal Outlook/Hotmail/Live
+      // accounts and work or school Microsoft 365 tenants with one
+      // registration. A single-tenant app would swap `common` for its
+      // tenant id.
+      issuer: 'https://login.microsoftonline.com/common/v2.0',
+    },
+    client: {
+      mode: 'static',
+    },
+    scopes: [
+      // Entra only returns a refresh token when this is asked for explicitly —
+      // unlike Google, where offline access is a separate parameter.
+      'offline_access',
+      'openid',
+      'profile',
+      'email',
+      'https://graph.microsoft.com/Mail.ReadWrite',
+      'https://graph.microsoft.com/Mail.Send',
+    ],
+  },
   'fireflies-ai': {
     discovery: {
       mode: 'issuer',

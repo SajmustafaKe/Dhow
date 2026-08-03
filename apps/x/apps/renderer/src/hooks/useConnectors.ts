@@ -12,6 +12,18 @@ export interface ProviderStatus {
   error?: string
 }
 
+export interface ImapAccountSummary {
+  id: string
+  host: string
+  port: number
+  secure: boolean
+  username: string
+  email: string | null
+  error: string | null
+  /** False when the stored password cannot be decrypted on this machine. */
+  credentialReadable: boolean
+}
+
 export interface ProviderAccount {
   id: string
   email: string | null
@@ -79,6 +91,9 @@ export function useConnectors(active: boolean) {
   // Per-provider account lists. Only Google is multi-account today; other
   // providers report a single entry and render through the simple row.
   const [providerAccounts, setProviderAccounts] = useState<Record<string, ProviderAccount[]>>({})
+  // IMAP is not OAuth, so it has its own store and its own list.
+  const [imapAccounts, setImapAccounts] = useState<ImapAccountSummary[]>([])
+  const [imapEncryptionAvailable, setImapEncryptionAvailable] = useState(true)
   const [primaryAccountIds, setPrimaryAccountIds] = useState<Record<string, string | null>>({})
   const [googleClientIdOpen, setGoogleClientIdOpen] = useState(false)
   const [googleClientIdDescription, setGoogleClientIdDescription] = useState<string | undefined>(undefined)
@@ -636,6 +651,42 @@ export function useConnectors(active: boolean) {
     await startConnect(provider)
   }, [startConnect, providerStates])
 
+  const loadImapAccounts = useCallback(async () => {
+    try {
+      const res = await window.ipc.invoke('imap:list', null)
+      setImapAccounts(res.accounts)
+      setImapEncryptionAvailable(res.encryptionAvailable)
+    } catch {
+      setImapAccounts([])
+    }
+  }, [])
+
+  const saveImapAccount = useCallback(async (input: {
+    id?: string
+    host: string
+    port: number
+    secure: boolean
+    username: string
+    password?: string
+    email?: string | null
+  }): Promise<{ ok: boolean; error?: string }> => {
+    const res = await window.ipc.invoke('imap:save', input)
+    if (res.error) return { ok: false, error: res.error }
+    await loadImapAccounts()
+    return { ok: true }
+  }, [loadImapAccounts])
+
+  const deleteImapAccount = useCallback(async (id: string) => {
+    await window.ipc.invoke('imap:delete', { id })
+    await loadImapAccounts()
+  }, [loadImapAccounts])
+
+  // IMAP lives outside the OAuth store, so it loads alongside the providers
+  // rather than falling out of getClientFacingConfig.
+  useEffect(() => {
+    void loadImapAccounts()
+  }, [loadImapAccounts])
+
   const loadAccounts = useCallback(async (provider: string) => {
     try {
       const res = await window.ipc.invoke('oauth:list-accounts', { provider })
@@ -851,6 +902,11 @@ export function useConnectors(active: boolean) {
     providerStates,
     providerStatus,
     providerAccounts,
+    imapAccounts,
+    imapEncryptionAvailable,
+    loadImapAccounts,
+    saveImapAccount,
+    deleteImapAccount,
     primaryAccountIds,
     loadAccounts,
     handleSetPrimaryAccount,
