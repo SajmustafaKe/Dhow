@@ -102,6 +102,10 @@ async function syncAccount(account: ImapAccount): Promise<void> {
             const mailbox = client.mailbox;
             if (!mailbox || typeof mailbox === 'boolean') throw new Error('INBOX unavailable');
 
+            // How many messages the server says are there. Without this a
+            // sync that fetches nothing is indistinguishable from a sync that
+            // found an empty mailbox — the difference matters when debugging.
+            const existsCount = typeof mailbox.exists === 'number' ? mailbox.exists : 0;
             const state = loadSyncState(PROVIDER, account.id);
             const uidValidity = Number(mailbox.uidValidity);
             // The trapdoor: a changed UIDVALIDITY invalidates every stored UID.
@@ -162,9 +166,21 @@ async function syncAccount(account: ImapAccount): Promise<void> {
                 ...state,
                 uidValidity,
                 changeToken: String(highestUid),
+                mailboxMessageCount: existsCount,
+                lastFetched: fetched,
             });
+
+            // A server reporting mail that we did not retrieve is a bug on our
+            // side, not an empty mailbox — say so rather than logging success.
+            if (existsCount > 0 && fetched === 0 && lastUid === 0) {
+                const message = `INBOX reports ${existsCount} message(s) but none were fetched.`;
+                await repo().setError(account.id, message);
+                log.log(`${account.id}: ${message}`);
+                return;
+            }
+
             await repo().setError(account.id, null);
-            log.log(`Synced ${fetched} message(s) across ${byThread.size} thread(s) for ${account.id}`);
+            log.log(`Synced ${fetched} of ${existsCount} message(s) across ${byThread.size} thread(s) for ${account.id}`);
         } finally {
             lock.release();
         }

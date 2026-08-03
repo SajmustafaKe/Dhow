@@ -162,6 +162,10 @@ export interface MailSyncState {
     changeToken?: string;
     /** IMAP only: a change here means every UID must be treated as new. */
     uidValidity?: number;
+    /** What the server reported the folder holds, for diagnosing empty syncs. */
+    mailboxMessageCount?: number;
+    /** How many messages the last run actually retrieved. */
+    lastFetched?: number;
     lastSync?: string;
 }
 

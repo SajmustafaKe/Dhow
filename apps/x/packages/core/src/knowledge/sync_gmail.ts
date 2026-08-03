@@ -7,6 +7,9 @@ import { WorkDir } from '../config/config.js';
 import { mailPaths, MAIL_ROOT } from './mail_paths.js';
 import { getMaxEmails } from '../config/gmail_sync_config.js';
 import { GoogleClientFactory } from './google-client-factory.js';
+import container from '../di/container.js';
+import type { IOAuthRepo } from '../auth/repo.js';
+import type { IImapRepo } from '../auth/imap-repo.js';
 import { serviceLogger, type ServiceRunContext } from '../services/service_logger.js';
 import { limitEventItems } from './limit_event_items.js';
 import { createEvent } from '../events/producer.js';
@@ -2236,22 +2239,75 @@ export async function getAccountName(accountId?: string): Promise<string | null>
     }
 }
 
+/**
+ * Whether *any* mail account is connected.
+ *
+ * Deliberately not Gmail-only: the Email view gates its "connect your email"
+ * prompt on this, so asking Google alone left a connected Outlook or IMAP
+ * account staring at a connect screen while its mail synced in the background.
+ *
+ * `hasRequiredScope` remains a Google concept — scopes are an OAuth idea and
+ * IMAP has none — so a non-Google account reports true rather than inventing
+ * a missing-permission warning it can never resolve.
+ */
 export async function getConnectionStatus(): Promise<GmailConnectionStatus> {
     const status = await GoogleClientFactory.getCredentialStatus(REQUIRED_SCOPE);
-    let email: string | null = null;
     if (status.connected) {
+        let email: string | null = null;
         try {
             email = await getAccountEmail();
         } catch {
             email = null;
         }
+        return {
+            connected: true,
+            hasRequiredScope: status.hasRequiredScopes,
+            missingScopes: status.missingScopes,
+            email,
+        };
     }
+
+    // No Google grant — fall through to the other providers before telling the
+    // user they have no email connected.
+    const other = await listNonGoogleMailAccounts();
+    if (other.length > 0) {
+        return {
+            connected: true,
+            hasRequiredScope: true,
+            missingScopes: [],
+            email: other[0].email,
+        };
+    }
+
     return {
-        connected: status.connected,
+        connected: false,
         hasRequiredScope: status.hasRequiredScopes,
         missingScopes: status.missingScopes,
-        email,
+        email: null,
     };
+}
+
+/** Outlook and IMAP accounts, for connection reporting. */
+async function listNonGoogleMailAccounts(): Promise<{ provider: string; email: string | null }[]> {
+    const out: { provider: string; email: string | null }[] = [];
+    try {
+        const oauthRepo = container.resolve<IOAuthRepo>('oauthRepo');
+        const microsoft = await oauthRepo.read('microsoft');
+        for (const [id, account] of Object.entries(microsoft.accounts)) {
+            if (account.tokens) out.push({ provider: 'microsoft', email: account.email ?? id });
+        }
+    } catch {
+        // Provider not configured.
+    }
+    try {
+        const imapRepo = container.resolve<IImapRepo>('imapRepo');
+        for (const account of await imapRepo.list()) {
+            out.push({ provider: 'imap', email: account.email ?? account.username });
+        }
+    } catch {
+        // No IMAP store yet.
+    }
+    return out;
 }
 
 function requireSafeHeaderValue(name: string, value: string): string {

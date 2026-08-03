@@ -274,3 +274,82 @@ describe("cross-provider inbox", { timeout: TIMEOUT }, () => {
     expect(result.error).toMatch(/Outlook/);
   });
 });
+
+describe("connection status", { timeout: TIMEOUT }, () => {
+  /**
+   * The Email view gates its "connect your email" prompt on this. Asking
+   * Google alone left a connected IMAP account looking at a connect screen
+   * while its mail synced in the background.
+   */
+  async function loadStatus(opts: {
+    googleConnected?: boolean;
+    imapAccounts?: { email: string | null; username: string }[];
+    microsoftAccounts?: Record<string, { tokens?: unknown; email?: string }>;
+  }) {
+    vi.doMock("./google-client-factory.js", () => ({
+      GoogleClientFactory: {
+        getCredentialStatus: vi.fn(async () => ({
+          connected: opts.googleConnected ?? false,
+          hasRequiredScopes: opts.googleConnected ?? false,
+          missingScopes: [],
+        })),
+        listAccountIds: vi.fn(async () => (opts.googleConnected ? ["g"] : [])),
+        getClient: vi.fn(async () => null),
+        clearCache: vi.fn(),
+      },
+    }));
+    vi.doMock("../di/container.js", () => ({
+      default: {
+        resolve: (key: string) => {
+          if (key === "imapRepo") return { list: async () => opts.imapAccounts ?? [] };
+          if (key === "oauthRepo") {
+            return { read: async () => ({ accounts: opts.microsoftAccounts ?? {} }) };
+          }
+          throw new Error(`unexpected resolve: ${key}`);
+        },
+      },
+    }));
+    const { getConnectionStatus } = await import("./sync_gmail.js");
+    return getConnectionStatus();
+  }
+
+  it("reports connected for an IMAP-only setup", async () => {
+    const status = await loadStatus({
+      imapAccounts: [{ email: "contact@dhow.io", username: "contact@dhow.io" }],
+    });
+
+    expect(status.connected).toBe(true);
+    expect(status.email).toBe("contact@dhow.io");
+    // Scopes are an OAuth concept; IMAP has none, so this must not surface a
+    // missing-permission warning the user can never resolve.
+    expect(status.hasRequiredScope).toBe(true);
+    expect(status.missingScopes).toEqual([]);
+  });
+
+  it("reports connected for an Outlook-only setup", async () => {
+    const status = await loadStatus({
+      microsoftAccounts: { "sub-1": { tokens: { access_token: "t" }, email: "me@outlook.com" } },
+    });
+
+    expect(status.connected).toBe(true);
+    expect(status.email).toBe("me@outlook.com");
+  });
+
+  it("ignores a Microsoft account that holds no grant", async () => {
+    const status = await loadStatus({ microsoftAccounts: { "sub-1": { email: "me@outlook.com" } } });
+
+    // Registered but never authorized is not connected.
+    expect(status.connected).toBe(false);
+  });
+
+  it("still reports disconnected when nothing is set up", async () => {
+    expect((await loadStatus({})).connected).toBe(false);
+  });
+
+  it("keeps Google's scope reporting when Google is the connected account", async () => {
+    const status = await loadStatus({ googleConnected: true });
+
+    expect(status.connected).toBe(true);
+    expect(status.hasRequiredScope).toBe(true);
+  });
+});
