@@ -60,16 +60,16 @@ describe("composio key validation", { timeout: TIMEOUT }, () => {
     fetchMock.mockResolvedValue(ok());
     const { validateApiKey } = await import("./client.js");
 
-    expect(await validateApiKey("ck_valid")).toEqual({ ok: true });
+    expect(await validateApiKey("ak_valid")).toEqual({ ok: true });
     // Sent as the header Composio expects, not a bearer token.
-    expect(fetchMock.mock.calls[0][1].headers["x-api-key"]).toBe("ck_valid");
+    expect(fetchMock.mock.calls[0][1].headers["x-api-key"]).toBe("ak_valid");
   });
 
   it("surfaces the server's own reason for rejecting a key", async () => {
     fetchMock.mockResolvedValue(invalidKey());
     const { validateApiKey } = await import("./client.js");
 
-    const result = await validateApiKey("ck_bad");
+    const result = await validateApiKey("ak_bad");
 
     expect(result.ok).toBe(false);
     // The message must be actionable, not "request failed".
@@ -81,7 +81,7 @@ describe("composio key validation", { timeout: TIMEOUT }, () => {
     fetchMock.mockRejectedValue(new Error("getaddrinfo ENOTFOUND"));
     const { validateApiKey } = await import("./client.js");
 
-    const result = await validateApiKey("ck_whatever");
+    const result = await validateApiKey("ak_whatever");
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("ENOTFOUND");
@@ -102,7 +102,7 @@ describe("composio key validation", { timeout: TIMEOUT }, () => {
     });
     const { validateApiKey } = await import("./client.js");
 
-    const result = await validateApiKey("ck_x");
+    const result = await validateApiKey("ak_x");
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("502");
@@ -160,5 +160,48 @@ describe("api error messages", { timeout: TIMEOUT }, () => {
     const msg = describeApiError(503, "Service Unavailable", "");
     expect(msg).toContain("503");
     expect(msg).toContain("Service Unavailable");
+  });
+});
+
+/**
+ * The bug behind "I got a real key and it still says invalid": a Connect
+ * consumer key is valid — for a product this client does not talk to.
+ */
+describe("key surface mismatch", { timeout: TIMEOUT }, () => {
+  it("names Connect as the wrong surface for a ck_ key", async () => {
+    const { explainKeyFormat } = await import("./client.js");
+    const msg = explainKeyFormat("ck_JwhateverBW5f");
+
+    expect(msg).toContain("Connect");
+    expect(msg).toContain("ak_");
+    // Must say where to go, not just what is wrong.
+    expect(msg).toContain("platform.composio.dev");
+  });
+
+  it("passes an ak_ platform key through to the network check", async () => {
+    const { explainKeyFormat } = await import("./client.js");
+    expect(explainKeyFormat("ak_realplatformkey")).toBeNull();
+  });
+
+  it("rejects a ck_ key without a pointless round trip", async () => {
+    const { validateApiKey } = await import("./client.js");
+
+    const result = await validateApiKey("ck_JwhateverBW5f");
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("ak_");
+    // No request: regenerating a Connect key can never change this answer.
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("points at the dashboard when a well-formed key is refused", async () => {
+    fetchMock.mockResolvedValue(invalidKey());
+    const { validateApiKey } = await import("./client.js");
+
+    const result = await validateApiKey("ak_revoked");
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain("Invalid API key");
+    expect(result.error).toContain("revoked");
   });
 });

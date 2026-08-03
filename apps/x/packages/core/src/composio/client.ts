@@ -107,9 +107,33 @@ export async function isConfigured(): Promise<boolean> {
  * server's own message is returned so the reason is legible at the point of
  * entry rather than buried in a log.
  */
+/**
+ * Composio ships two unrelated surfaces, each with its own key format:
+ *
+ *   ak_  Platform (developer) — backend.composio.dev/api/v3, `x-api-key`
+ *   ck_  Connect ("For You")  — connect.composio.dev/mcp,   `x-consumer-api-key`
+ *
+ * We are a Platform client, so a `ck_` key is not a bad key — it is a key for
+ * a different product, and it can never work here no matter how many times it
+ * is regenerated. The API just says "Invalid API key", which sends people off
+ * rotating a perfectly good credential. Name the actual mismatch instead.
+ *
+ * Ref: github.com/ComposioHQ/composio/issues/3485 (maintainer, 2026-07-21).
+ */
+export function explainKeyFormat(apiKey: string): string | null {
+    const key = apiKey.trim();
+    if (key.startsWith('ck_')) {
+        return 'This is a Composio Connect ("For You") consumer key. Dhow uses the Composio Platform API, which needs a project key beginning "ak_" — get one at platform.composio.dev → Settings → Project Settings → API Keys.';
+    }
+    if (key.startsWith('ak_')) return null;
+    return 'Composio project API keys begin with "ak_". Copy one from platform.composio.dev → Settings → Project Settings → API Keys.';
+}
+
 export async function validateApiKey(apiKey: string): Promise<{ ok: boolean; error?: string }> {
     const key = apiKey.trim();
     if (!key) return { ok: false, error: 'Enter an API key.' };
+    const formatProblem = explainKeyFormat(key);
+    if (formatProblem) return { ok: false, error: formatProblem };
     try {
         const res = await fetch(`${await getBaseUrl()}/toolkits?limit=1`, {
             headers: { 'x-api-key': key },
@@ -125,6 +149,9 @@ export async function validateApiKey(apiKey: string): Promise<{ ok: boolean; err
             if (message) detail = fix ? `${message} ${fix}` : message;
         } catch {
             // Non-JSON error body; the status alone will have to do.
+        }
+        if (res.status === 401) {
+            detail += ' Check the key is from platform.composio.dev → Settings → Project Settings → API Keys, and has not been revoked.';
         }
         return { ok: false, error: detail };
     } catch (err) {
