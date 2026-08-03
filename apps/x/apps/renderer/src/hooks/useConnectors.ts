@@ -852,7 +852,7 @@ export function useConnectors(active: boolean) {
   // Listen for OAuth events
   useEffect(() => {
     const cleanup = window.ipc.on('oauth:didConnect', async (event) => {
-      const { provider, success } = event
+      const { provider, success, error } = event
 
       setProviderStates(prev => ({
         ...prev,
@@ -877,6 +877,19 @@ export function useConnectors(active: boolean) {
         }
 
         refreshAllStatuses()
+      } else {
+        // The main process has always sent `error` on a failed exchange and on
+        // a cancelled or timed-out flow; nothing read it. A connect that failed
+        // silently flipped the row back to disconnected, so the provider's own
+        // reason — a redirect-URI mismatch, a rejected account type, a denied
+        // consent — never reached the person who could act on it.
+        const displayName = provider === 'fireflies-ai'
+          ? 'Fireflies'
+          : provider.charAt(0).toUpperCase() + provider.slice(1)
+        toast.error(`Could not connect to ${displayName}`, {
+          description: error || 'The sign-in flow did not complete.',
+          duration: 12000,
+        })
       }
     })
 
