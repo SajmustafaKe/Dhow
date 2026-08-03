@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import type { Assignment, CouncilAttachment, CouncilMember, CouncilSession } from "@x/shared/dist/council.js"
 import { ChatInputWithMentions, type StagedAttachment } from "@/components/chat-input-with-mentions"
 import type { FileMention, PromptInputMessage } from "@/components/ai-elements/prompt-input"
+import { MessageResponse } from "@/components/ai-elements/message"
 
 /**
  * Council — put one question to a standing group of advisors.
@@ -151,11 +152,9 @@ export function CouncilView({ knowledgeFiles, recentFiles, visibleFiles }: Counc
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-8">
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
         {tab === "ask" && (
           <AskTab
-            convening={convening}
-            onAsk={ask}
             error={error}
             active={active}
             sessions={sessions}
@@ -166,9 +165,6 @@ export function CouncilView({ knowledgeFiles, recentFiles, visibleFiles }: Counc
             setSelected={setSelected}
             discuss={discuss}
             setDiscuss={setDiscuss}
-            knowledgeFiles={knowledgeFiles}
-            recentFiles={recentFiles}
-            visibleFiles={visibleFiles}
           />
         )}
         {tab === "assignments" && (
@@ -180,17 +176,29 @@ export function CouncilView({ knowledgeFiles, recentFiles, visibleFiles }: Counc
         )}
         {tab === "members" && <MembersTab members={members} />}
       </div>
+
+      {/* Docked, not scrolled with the transcript — the same shape as chat and
+          the email composer, so the input stays put as sessions grow. */}
+      {tab === "ask" && (
+        <div className="shrink-0 border-t px-6 py-3">
+          <ChatInputWithMentions
+            knowledgeFiles={knowledgeFiles}
+            recentFiles={recentFiles}
+            visibleFiles={visibleFiles}
+            onSubmit={ask}
+            isProcessing={convening}
+            isActive={selected.length > 0}
+          />
+        </div>
+      )}
     </div>
   )
 }
 
 function AskTab({
-  convening, onAsk, error, active, sessions, onSelect, memberTitle,
+  error, active, sessions, onSelect, memberTitle,
   members, selected, setSelected, discuss, setDiscuss,
-  knowledgeFiles, recentFiles, visibleFiles,
 }: {
-  convening: boolean
-  onAsk: (message: PromptInputMessage, mentions?: FileMention[], staged?: StagedAttachment[]) => void
   error: string | null
   active: CouncilSession | null
   sessions: CouncilSession[]
@@ -201,9 +209,6 @@ function AskTab({
   setSelected: (v: string[]) => void
   discuss: boolean
   setDiscuss: (v: boolean) => void
-  knowledgeFiles: string[]
-  recentFiles: string[]
-  visibleFiles: string[]
 }) {
   const enabled = members.filter((m) => m.enabled)
   const core = enabled.filter((m) => m.group === "core")
@@ -287,15 +292,6 @@ function AskTab({
             : `${selected.length} member${selected.length === 1 ? "" : "s"} answer independently · attach or @-mention documents for them to review`}
         </div>
       </div>
-
-      <ChatInputWithMentions
-        knowledgeFiles={knowledgeFiles}
-        recentFiles={recentFiles}
-        visibleFiles={visibleFiles}
-        onSubmit={onAsk}
-        isProcessing={convening}
-        isActive={selected.length > 0}
-      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -595,8 +591,12 @@ function AssignmentsTab({
                       <summary className="cursor-pointer text-xs text-muted-foreground">
                         Result from {members.find((m) => m.id === a.assigneeId)?.title ?? a.assigneeId}
                       </summary>
-                      {/* Returned, not accepted — only the principal marks it done. */}
-                      <pre className="mt-1.5 whitespace-pre-wrap rounded-md bg-muted/60 p-2 text-xs font-sans">{a.result}</pre>
+                      {/* Returned, not accepted — only the principal marks it done.
+                          Rendered with the same markdown component as chat, so a
+                          member handing back a table or code block reads as one. */}
+                      <div className="mt-1.5 rounded-md bg-muted/60 p-3 text-sm">
+                        <MessageResponse>{a.result}</MessageResponse>
+                      </div>
                     </details>
                   )}
                 </div>
