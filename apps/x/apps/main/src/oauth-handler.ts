@@ -14,6 +14,7 @@ import { triggerSync as triggerGmailSync } from '@x/core/dist/knowledge/sync_gma
 import { triggerSync as triggerCalendarSync } from '@x/core/dist/knowledge/sync_calendar.js';
 import { triggerSync as triggerFirefliesSync } from '@x/core/dist/knowledge/sync_fireflies.js';
 import { triggerSync as triggerOutlookSync } from '@x/core/dist/knowledge/sync_outlook.js';
+import { triggerSync as triggerOutlookCalendarSync } from '@x/core/dist/knowledge/sync_outlook_calendar.js';
 import { emitOAuthEvent } from './ipc.js';
 import { buildCredentialOverride } from '@x/core/dist/auth/credentials.js';
 export { buildCredentialOverride };
@@ -355,6 +356,7 @@ export async function connectProvider(provider: string, credentials?: { clientId
             // Without this a freshly connected mailbox sits empty until the
             // next 60s poll, which reads as a failed connect.
             triggerOutlookSync();
+            triggerOutlookCalendarSync();
           } else if (provider === 'fireflies-ai') {
             triggerFirefliesSync();
           }

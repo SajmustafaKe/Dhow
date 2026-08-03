@@ -142,12 +142,14 @@ export interface GraphRequestOptions {
     url: string;
     accountId: string;
     body?: unknown;
+    /** Extra request headers, e.g. `Prefer` to pin the response time zone. */
+    headers?: Record<string, string>;
 }
 
 const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0';
 
 /** One authorized Graph call, with the error body surfaced rather than swallowed. */
-export async function graphRequest<T>({ method = 'GET', url, accountId, body }: GraphRequestOptions): Promise<T> {
+export async function graphRequest<T>({ method = 'GET', url, accountId, body, headers }: GraphRequestOptions): Promise<T> {
     const token = await GraphClientFactory.getAccessToken(accountId);
     if (!token) throw new Error(`Microsoft account ${accountId} is not connected.`);
 
@@ -157,6 +159,7 @@ export async function graphRequest<T>({ method = 'GET', url, accountId, body }: 
         headers: {
             Authorization: `Bearer ${token}`,
             ...(body ? { 'Content-Type': 'application/json' } : {}),
+            ...headers,
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
     });

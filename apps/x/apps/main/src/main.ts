@@ -22,6 +22,7 @@ import { initUpdater } from "./updater.js";
 import { init as initGmailSync } from "@x/core/dist/knowledge/sync_gmail.js";
 import { migrateLegacyMailLayout } from "@x/core/dist/knowledge/mail_migration.js";
 import { init as initOutlookSync } from "@x/core/dist/knowledge/sync_outlook.js";
+import { init as initOutlookCalendarSync } from "@x/core/dist/knowledge/sync_outlook_calendar.js";
 import { init as initImapSync } from "@x/core/dist/knowledge/sync_imap.js";
 import { setSecretCipher } from "@x/core/dist/auth/secret-cipher.js";
 import { init as initCalendarSync } from "@x/core/dist/knowledge/sync_calendar.js";
@@ -712,6 +713,7 @@ app.whenReady().then(async () => {
   // Outlook and IMAP run their own loops; each is a no-op until an account of
   // that kind is connected.
   initOutlookSync();
+  initOutlookCalendarSync();
   initImapSync();
 
   // start calendar sync

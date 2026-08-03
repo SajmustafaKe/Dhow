@@ -8,6 +8,7 @@ import { GoogleClientFactory } from './google-client-factory.js';
 import { serviceLogger } from '../services/service_logger.js';
 import { limitEventItems } from './limit_event_items.js';
 import { createEvent } from '../events/producer.js';
+import { isOutlookCalendarFile, isReservedCalendarFile } from './calendar_files.js';
 
 const MAX_EVENTS_IN_DIGEST = 50;
 const MAX_DESCRIPTION_CHARS = 500;
@@ -177,13 +178,17 @@ function cleanFilename(name: string): string {
 
 // --- Sync Logic ---
 
-function cleanUpOldFiles(currentEventIds: Set<string>, syncDir: string): string[] {
+/** Exported for tests: the ownership guard here prevents data loss. */
+export function cleanUpOldFiles(currentEventIds: Set<string>, syncDir: string): string[] {
     if (!fs.existsSync(syncDir)) return [];
 
     const files = fs.readdirSync(syncDir);
     const deleted: string[] = [];
     for (const filename of files) {
-        if (filename === 'sync_state.json' || filename === 'composio_state.json') continue;
+        if (isReservedCalendarFile(filename)) continue;
+        // Outlook writes into this same directory. Without this guard the
+        // Google window would delete every Outlook event on each pass.
+        if (isOutlookCalendarFile(filename)) continue;
 
         // We expect files like:
         // {eventId}.json

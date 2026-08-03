@@ -101,6 +101,9 @@ const providerConfigs: ProviderConfig = {
       'email',
       'https://graph.microsoft.com/Mail.ReadWrite',
       'https://graph.microsoft.com/Mail.Send',
+      // Read-only, matching the Google side. No admin consent needed for
+      // personal accounts; work tenants already gate Mail.ReadWrite anyway.
+      'https://graph.microsoft.com/Calendars.Read',
     ],
   },
   'fireflies-ai': {
