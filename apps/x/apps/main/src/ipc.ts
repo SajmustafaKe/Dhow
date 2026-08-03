@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow, shell, dialog, systemPreferences, desktopCapturer, app, screen, powerSaveBlocker } from 'electron';
 import type { IImapRepo } from "@x/core/dist/auth/imap-repo.js";
 import { isEncryptionAvailable } from "@x/core/dist/auth/secret-cipher.js";
-import { testImapConnection, triggerSync as triggerImapSync } from "@x/core/dist/knowledge/sync_imap.js";
+import { testImapConnection, testSmtpConnection, triggerSync as triggerImapSync } from "@x/core/dist/knowledge/sync_imap.js";
 import { convene } from "@x/core/dist/council/convene.js";
 import { readAttachments as readCouncilAttachments } from "@x/core/dist/council/attachments.js";
 import {
@@ -1496,7 +1496,10 @@ export function setupIpcHandlers() {
           id: a.id,
           host: a.host,
           port: a.port,
-          secure: a.secure,
+          security: a.security,
+          smtpHost: a.smtpHost,
+          smtpPort: a.smtpPort,
+          smtpSecurity: a.smtpSecurity,
           username: a.username,
           email: a.email,
           error: a.error,
@@ -1507,7 +1510,21 @@ export function setupIpcHandlers() {
       };
     },
     'imap:test': async (_event, args) => {
-      return await testImapConnection(args);
+      // Both halves, reported separately.
+      const incoming = await testImapConnection({
+        host: args.host, port: args.port, security: args.security,
+        username: args.username, password: args.password,
+      });
+      const outgoing = args.smtpHost
+        ? await testSmtpConnection({
+            host: args.smtpHost,
+            port: args.smtpPort ?? 587,
+            security: args.smtpSecurity ?? 'starttls',
+            username: args.username,
+            password: args.password,
+          })
+        : null;
+      return { incoming, outgoing };
     },
     'imap:save': async (_event, args) => {
       try {
@@ -1516,9 +1533,11 @@ export function setupIpcHandlers() {
         // silently producing an account that never syncs.
         if (args.password) {
           const probe = await testImapConnection({
-            host: args.host, port: args.port, secure: args.secure,
+            host: args.host, port: args.port, security: args.security,
             username: args.username, password: args.password,
           });
+          // Incoming must work to sync at all; a broken outgoing server is
+          // saved with its error rather than blocking the whole account.
           if (!probe.ok) return { id: null, error: probe.error ?? 'Could not connect.' };
         }
         const id = args.id ?? `${args.username}@${args.host}`.toLowerCase().replace(/[^a-z0-9._@-]+/g, '-');
@@ -1526,7 +1545,12 @@ export function setupIpcHandlers() {
           id,
           host: args.host,
           port: args.port,
-          secure: args.secure,
+          secure: args.security === 'ssl',
+          security: args.security,
+          smtpHost: args.smtpHost ?? null,
+          smtpPort: args.smtpPort ?? null,
+          smtpSecurity: args.smtpSecurity ?? 'starttls',
+          smtpUsername: args.smtpUsername ?? null,
           username: args.username,
           password: args.password ?? null,
           email: args.email ?? args.username,

@@ -264,6 +264,7 @@ export function ConnectedAccountsSettings({ dialogOpen }: ConnectedAccountsSetti
           }
         }}
         onSubmit={c.handleGoogleClientIdSubmit}
+        provider={c.clientIdProvider}
         isSubmitting={c.providerStates.google?.isConnecting ?? false}
         description={c.googleClientIdDescription}
       />

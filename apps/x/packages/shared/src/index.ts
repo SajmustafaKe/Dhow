@@ -25,3 +25,4 @@ export * as time from './time.js';
 export * as dhowApp from './dhow-app.js';
 export { PrefixLogger };
 export * from './council.js';
+export * from './mail.js';

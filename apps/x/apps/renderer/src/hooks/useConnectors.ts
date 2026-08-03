@@ -16,7 +16,10 @@ export interface ImapAccountSummary {
   id: string
   host: string
   port: number
-  secure: boolean
+  security: 'ssl' | 'starttls' | 'none'
+  smtpHost: string | null
+  smtpPort: number | null
+  smtpSecurity: 'ssl' | 'starttls' | 'none'
   username: string
   email: string | null
   error: string | null
@@ -96,6 +99,9 @@ export function useConnectors(active: boolean) {
   const [imapEncryptionAvailable, setImapEncryptionAvailable] = useState(true)
   const [primaryAccountIds, setPrimaryAccountIds] = useState<Record<string, string | null>>({})
   const [googleClientIdOpen, setGoogleClientIdOpen] = useState(false)
+  // The credential modal is shared: Microsoft needs BYOK exactly as Google
+  // does, and without this it connected with no client ID and errored.
+  const [clientIdProvider, setClientIdProvider] = useState<'google' | 'microsoft'>('google')
   const [googleClientIdDescription, setGoogleClientIdDescription] = useState<string | undefined>(undefined)
 
   // Granola state
@@ -618,6 +624,14 @@ export function useConnectors(active: boolean) {
         return
       }
       setGoogleClientIdDescription(undefined)
+      setClientIdProvider('google')
+      setGoogleClientIdOpen(true)
+      return
+    }
+
+    if (provider === 'microsoft') {
+      setGoogleClientIdDescription(undefined)
+      setClientIdProvider('microsoft')
       setGoogleClientIdOpen(true)
       return
     }
@@ -626,11 +640,12 @@ export function useConnectors(active: boolean) {
   }, [startConnect, providerStates])
 
   const handleGoogleClientIdSubmit = useCallback((clientId: string, clientSecret: string) => {
-    setGoogleCredentials(clientId, clientSecret)
+    // Only Google caches credentials locally for the onboarding flow to reuse.
+    if (clientIdProvider === 'google') setGoogleCredentials(clientId, clientSecret)
     setGoogleClientIdOpen(false)
     setGoogleClientIdDescription(undefined)
-    startConnect('google', { clientId, clientSecret })
-  }, [startConnect])
+    startConnect(clientIdProvider, { clientId, clientSecret })
+  }, [startConnect, clientIdProvider])
 
   // Reconnect flow used by the "Reconnect" button. Mirrors handleConnect's
   // dhow-vs-BYOK branching for Google so signed-in users don't get the
@@ -645,6 +660,15 @@ export function useConnectors(active: boolean) {
       setGoogleClientIdDescription(
         "To keep your Google account connected, please re-enter your client ID. You only need to do this once."
       )
+      setClientIdProvider('google')
+      setGoogleClientIdOpen(true)
+      return
+    }
+    if (provider === 'microsoft') {
+      setGoogleClientIdDescription(
+        "To keep your Outlook account connected, please re-enter your application (client) ID."
+      )
+      setClientIdProvider('microsoft')
       setGoogleClientIdOpen(true)
       return
     }
@@ -665,7 +689,10 @@ export function useConnectors(active: boolean) {
     id?: string
     host: string
     port: number
-    secure: boolean
+    security: 'ssl' | 'starttls' | 'none'
+    smtpHost?: string | null
+    smtpPort?: number | null
+    smtpSecurity?: 'ssl' | 'starttls' | 'none'
     username: string
     password?: string
     email?: string | null
@@ -918,6 +945,7 @@ export function useConnectors(active: boolean) {
 
     // Google credentials modal
     googleClientIdOpen,
+    clientIdProvider,
     setGoogleClientIdOpen,
     googleClientIdDescription,
     setGoogleClientIdDescription,

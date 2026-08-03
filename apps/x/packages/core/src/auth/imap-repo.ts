@@ -18,11 +18,29 @@ import { isProtected, protectSecret, revealSecret } from './secret-cipher.js';
  * anyone who reads the file, with no console to revoke a single grant from.
  */
 
+/**
+ * How a connection is secured.
+ *
+ * A boolean cannot express this: `ssl` connects with TLS from the first byte
+ * (IMAP 993 / SMTP 465), while `starttls` opens in the clear and upgrades
+ * (IMAP 143 / SMTP 587). Choosing the wrong one produces a hang or a protocol
+ * error rather than a clear failure, so it is an explicit setting.
+ */
+export const MailSecurity = z.enum(['ssl', 'starttls', 'none']);
+export type MailSecurity = z.infer<typeof MailSecurity>;
+
 const ImapAccountSchema = z.object({
     id: z.string(),
     host: z.string(),
     port: z.number(),
     secure: z.boolean().default(true),
+    security: MailSecurity.default('ssl'),
+    /** Outgoing server. Absent on accounts added before send was supported. */
+    smtpHost: z.string().nullable().default(null),
+    smtpPort: z.number().nullable().default(null),
+    smtpSecurity: MailSecurity.default('starttls'),
+    /** Usually the same as the IMAP login; kept separate because some hosts differ. */
+    smtpUsername: z.string().nullable().default(null),
     username: z.string(),
     /** Ciphertext when a keychain is available, plaintext otherwise. */
     password: z.string(),
@@ -44,6 +62,11 @@ export interface ImapAccount {
     host: string;
     port: number;
     secure: boolean;
+    security: MailSecurity;
+    smtpHost: string | null;
+    smtpPort: number | null;
+    smtpSecurity: MailSecurity;
+    smtpUsername: string | null;
     username: string;
     password: string | null;
     email: string | null;
@@ -91,6 +114,11 @@ export class FSImapRepo implements IImapRepo {
             host: record.host,
             port: record.port,
             secure: record.secure,
+            security: record.security,
+            smtpHost: record.smtpHost,
+            smtpPort: record.smtpPort,
+            smtpSecurity: record.smtpSecurity,
+            smtpUsername: record.smtpUsername,
             username: record.username,
             password: revealSecret(record.password),
             email: record.email,
@@ -124,6 +152,11 @@ export class FSImapRepo implements IImapRepo {
             host: account.host,
             port: account.port,
             secure: account.secure,
+            security: account.security,
+            smtpHost: account.smtpHost,
+            smtpPort: account.smtpPort,
+            smtpSecurity: account.smtpSecurity,
+            smtpUsername: account.smtpUsername,
             username: account.username,
             password,
             email: account.email,

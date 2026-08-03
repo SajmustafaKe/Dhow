@@ -45,6 +45,11 @@ const account = {
   host: "imap.example.com",
   port: 993,
   secure: true,
+  security: "ssl" as const,
+  smtpHost: "smtp.example.com",
+  smtpPort: 587,
+  smtpSecurity: "starttls" as const,
+  smtpUsername: null,
   username: "me@example.com",
   email: "me@example.com",
   error: null,
@@ -110,6 +115,30 @@ describe("FSImapRepo", () => {
     await repo.delete("other");
     expect((await repo.list()).map((a) => a.id)).toEqual(["me-at-example"]);
     expect((await repo.read(account.id))?.password).toBe("one");
+  });
+
+  it("round-trips incoming and outgoing settings independently", async () => {
+    const repo = await loadRepo();
+    await repo.upsert({ ...account, password: "one" });
+
+    const stored = await repo.read(account.id);
+    // The two halves use different ports and different security modes; a
+    // single boolean could not express either.
+    expect(stored?.security).toBe("ssl");
+    expect(stored?.port).toBe(993);
+    expect(stored?.smtpHost).toBe("smtp.example.com");
+    expect(stored?.smtpPort).toBe(587);
+    expect(stored?.smtpSecurity).toBe("starttls");
+  });
+
+  it("treats a receive-only account as valid", async () => {
+    const repo = await loadRepo();
+    await repo.upsert({ ...account, smtpHost: null, smtpPort: null, password: "one" });
+
+    const stored = await repo.read(account.id);
+    // Syncing must not require an outgoing server; only replying does.
+    expect(stored?.smtpHost).toBeNull();
+    expect(stored?.host).toBe("imap.example.com");
   });
 
   it("records a sync error against one account without touching its credentials", async () => {

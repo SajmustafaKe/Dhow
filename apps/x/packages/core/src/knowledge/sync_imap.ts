@@ -41,7 +41,8 @@ function repo(): IImapRepo {
 }
 
 /** Thread key from RFC 5322 headers — the root of the reference chain. */
-function threadKeyFor(parsed: ParsedMail): string {
+/** Exported for tests: the trickiest pure function in this module. */
+export function threadKeyFor(parsed: ParsedMail): string {
     const references = parsed.references;
     if (Array.isArray(references) && references.length > 0) return references[0];
     if (typeof references === 'string' && references) return references;
@@ -86,7 +87,10 @@ async function syncAccount(account: ImapAccount): Promise<void> {
     const client = new ImapFlow({
         host: account.host,
         port: account.port,
-        secure: account.secure,
+        // `secure` is TLS-from-connect; STARTTLS instead opens plain and
+        // upgrades, which imapflow does automatically when secure is false.
+        secure: account.security === 'ssl',
+        ...(account.security === 'none' ? { ignoreTLS: true } : {}),
         auth: { user: account.username, pass: account.password },
         logger: false,
     });
@@ -172,14 +176,15 @@ async function syncAccount(account: ImapAccount): Promise<void> {
 export async function testImapConnection(params: {
     host: string;
     port: number;
-    secure: boolean;
+    security: 'ssl' | 'starttls' | 'none';
     username: string;
     password: string;
 }): Promise<{ ok: boolean; error?: string }> {
     const client = new ImapFlow({
         host: params.host,
         port: params.port,
-        secure: params.secure,
+        secure: params.security === 'ssl',
+        ...(params.security === 'none' ? { ignoreTLS: true } : {}),
         auth: { user: params.username, pass: params.password },
         logger: false,
     });
@@ -192,6 +197,40 @@ export async function testImapConnection(params: {
     } catch (err) {
         try { client.close(); } catch { /* already closed */ }
         return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
+}
+
+/**
+ * Verify the outgoing server separately from the incoming one.
+ *
+ * They fail independently and for different reasons — a working IMAP login
+ * says nothing about whether SMTP will accept the same credentials, and many
+ * hosts use a different port and security mode for each. Reporting one result
+ * for both would hide exactly the half that is broken.
+ */
+export async function testSmtpConnection(params: {
+    host: string;
+    port: number;
+    security: 'ssl' | 'starttls' | 'none';
+    username: string;
+    password: string;
+}): Promise<{ ok: boolean; error?: string }> {
+    const nodemailer = await import('nodemailer');
+    const transport = nodemailer.createTransport({
+        host: params.host,
+        port: params.port,
+        secure: params.security === 'ssl',
+        requireTLS: params.security === 'starttls',
+        ignoreTLS: params.security === 'none',
+        auth: { user: params.username, pass: params.password },
+    });
+    try {
+        await transport.verify();
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    } finally {
+        transport.close();
     }
 }
 

@@ -27,7 +27,7 @@ const nhm = new NodeHtmlMarkdown();
  * groups the same way Gmail does rather than guessing from References headers.
  */
 
-interface GraphMessage {
+export interface GraphMessage {
     id: string;
     conversationId?: string;
     subject?: string;
@@ -83,7 +83,8 @@ function toNormalizedMessage(msg: GraphMessage): NormalizedMessage {
 }
 
 /** Group a flat delta page into threads by conversation. */
-function groupByConversation(messages: GraphMessage[]): Map<string, GraphMessage[]> {
+/** Exported for tests. */
+export function groupByConversation(messages: GraphMessage[]): Map<string, GraphMessage[]> {
     const byConversation = new Map<string, GraphMessage[]>();
     for (const msg of messages) {
         // A message with no conversationId is its own thread rather than being

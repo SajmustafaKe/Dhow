@@ -21,6 +21,7 @@ import { AppSummarySchema, RegistryRecordSchema, DhowAppManifestSchema } from '.
 import { BrowserStateSchema, DisplayMediaRequestSchema, HttpAuthRequestSchema } from './browser-control.js';
 import { EmailBlockSchema, GmailThreadSchema } from './blocks.js';
 import { AssignmentSchema, AssignmentStatus, CouncilAttachmentSchema, CouncilMemberSchema, CouncilSessionSchema } from './council.js';
+import { MailSecurity } from './mail.js';
 import { PermissionDecision, ApprovalPolicy, CodingAgent, type CodeRunFeedEvent } from './code-mode.js';
 import { NotificationSettingsSchema } from './notification-settings.js';
 import { TurnLimitsSettingsSchema } from './turn-limits.js';
@@ -900,7 +901,10 @@ const ipcSchemas = {
         id: z.string(),
         host: z.string(),
         port: z.number(),
-        secure: z.boolean(),
+        security: MailSecurity,
+        smtpHost: z.string().nullable(),
+        smtpPort: z.number().nullable(),
+        smtpSecurity: MailSecurity,
         username: z.string(),
         email: z.string().nullable(),
         error: z.string().nullable(),
@@ -912,21 +916,33 @@ const ipcSchemas = {
     }),
   },
   'imap:test': {
+    // Incoming and outgoing are reported separately: they fail independently,
+    // and one combined result would hide which half is broken.
     req: z.object({
       host: z.string().min(1),
       port: z.number(),
-      secure: z.boolean(),
+      security: MailSecurity,
+      smtpHost: z.string().optional(),
+      smtpPort: z.number().optional(),
+      smtpSecurity: MailSecurity.optional(),
       username: z.string().min(1),
       password: z.string().min(1),
     }),
-    res: z.object({ ok: z.boolean(), error: z.string().optional() }),
+    res: z.object({
+      incoming: z.object({ ok: z.boolean(), error: z.string().optional() }),
+      outgoing: z.object({ ok: z.boolean(), error: z.string().optional() }).nullable(),
+    }),
   },
   'imap:save': {
     req: z.object({
       id: z.string().optional(),
       host: z.string().min(1),
       port: z.number(),
-      secure: z.boolean(),
+      security: MailSecurity,
+      smtpHost: z.string().nullable().optional(),
+      smtpPort: z.number().nullable().optional(),
+      smtpSecurity: MailSecurity.optional(),
+      smtpUsername: z.string().nullable().optional(),
       username: z.string().min(1),
       /** Omit to keep the stored password unchanged. */
       password: z.string().optional(),
