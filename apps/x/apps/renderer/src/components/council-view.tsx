@@ -5,9 +5,10 @@ import { useCallback, useEffect, useState } from "react"
 import { Loader2, Users, ListTodo, AlertTriangle, Plus, Check, X, Paperclip, MessagesSquare, Landmark, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import type { Assignment, CouncilAttachment, CouncilMember, CouncilSession } from "@x/shared/dist/council.js"
+import { ChatInputWithMentions, type StagedAttachment } from "@/components/chat-input-with-mentions"
+import type { FileMention, PromptInputMessage } from "@/components/ai-elements/prompt-input"
 
 /**
  * Council — put one question to a standing group of advisors.
@@ -35,18 +36,23 @@ const STATUS_STYLES: Record<Assignment["status"], string> = {
   cancelled: "text-muted-foreground line-through",
 }
 
-export function CouncilView() {
+export interface CouncilViewProps {
+  /** Passed straight through to the standard composer so @-mentions work. */
+  knowledgeFiles: string[]
+  recentFiles: string[]
+  visibleFiles: string[]
+}
+
+export function CouncilView({ knowledgeFiles, recentFiles, visibleFiles }: CouncilViewProps) {
   const [tab, setTab] = useState<Tab>("ask")
   const [members, setMembers] = useState<CouncilMember[]>([])
   const [sessions, setSessions] = useState<CouncilSession[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
 
-  const [question, setQuestion] = useState("")
   // Which members answer. Defaults to the core four: eleven simultaneous
   // positions is a document, not a decision.
   const [selected, setSelected] = useState<string[]>([])
   const [discuss, setDiscuss] = useState(false)
-  const [attachments, setAttachments] = useState<CouncilAttachment[]>([])
   const [convening, setConvening] = useState(false)
   const [active, setActive] = useState<CouncilSession | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -72,24 +78,41 @@ export function CouncilView() {
     [members],
   )
 
-  const ask = useCallback(async () => {
-    const q = question.trim()
-    if (!q || convening) return
+  /**
+   * The composer hands back staged attachments and @-mentions as vault paths.
+   * Both are documents the council should read, so they are resolved the same
+   * way — a mentioned note is no less a document than a dragged-in file.
+   */
+  const ask = useCallback(async (
+    message: PromptInputMessage,
+    mentions?: FileMention[],
+    staged?: StagedAttachment[],
+  ) => {
+    const q = message.text.trim()
+    if (!q || convening || selected.length === 0) return
     setConvening(true)
     setError(null)
     try {
+      const paths = [
+        ...(staged ?? []).map((a) => a.path),
+        ...(mentions ?? []).map((m) => m.path),
+      ]
+      let docs: CouncilAttachment[] = []
+      if (paths.length > 0) {
+        const read = await window.ipc.invoke("council:readAttachments", { paths })
+        docs = read.attachments
+        if (read.errors.length > 0) setError(read.errors.map((e) => e.error).join(" "))
+      }
       const res = await window.ipc.invoke("council:convene", {
         question: q,
         memberIds: selected,
-        attachments,
+        attachments: docs,
         discuss,
       })
       if (res.error || !res.session) {
         setError(res.error ?? "The council returned nothing.")
       } else {
         setActive(res.session)
-        setQuestion("")
-        setAttachments([])
         await loadAll()
       }
     } catch (err) {
@@ -97,7 +120,7 @@ export function CouncilView() {
     } finally {
       setConvening(false)
     }
-  }, [question, convening, selected, attachments, discuss, loadAll])
+  }, [convening, selected, discuss, loadAll])
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -131,8 +154,6 @@ export function CouncilView() {
       <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-8">
         {tab === "ask" && (
           <AskTab
-            question={question}
-            setQuestion={setQuestion}
             convening={convening}
             onAsk={ask}
             error={error}
@@ -145,9 +166,9 @@ export function CouncilView() {
             setSelected={setSelected}
             discuss={discuss}
             setDiscuss={setDiscuss}
-            attachments={attachments}
-            setAttachments={setAttachments}
-            setError={setError}
+            knowledgeFiles={knowledgeFiles}
+            recentFiles={recentFiles}
+            visibleFiles={visibleFiles}
           />
         )}
         {tab === "assignments" && (
@@ -164,13 +185,12 @@ export function CouncilView() {
 }
 
 function AskTab({
-  question, setQuestion, convening, onAsk, error, active, sessions, onSelect, memberTitle,
-  members, selected, setSelected, discuss, setDiscuss, attachments, setAttachments, setError,
+  convening, onAsk, error, active, sessions, onSelect, memberTitle,
+  members, selected, setSelected, discuss, setDiscuss,
+  knowledgeFiles, recentFiles, visibleFiles,
 }: {
-  question: string
-  setQuestion: (v: string) => void
   convening: boolean
-  onAsk: () => void
+  onAsk: (message: PromptInputMessage, mentions?: FileMention[], staged?: StagedAttachment[]) => void
   error: string | null
   active: CouncilSession | null
   sessions: CouncilSession[]
@@ -181,9 +201,9 @@ function AskTab({
   setSelected: (v: string[]) => void
   discuss: boolean
   setDiscuss: (v: boolean) => void
-  attachments: CouncilAttachment[]
-  setAttachments: (v: CouncilAttachment[]) => void
-  setError: (v: string | null) => void
+  knowledgeFiles: string[]
+  recentFiles: string[]
+  visibleFiles: string[]
 }) {
   const enabled = members.filter((m) => m.enabled)
   const core = enabled.filter((m) => m.group === "core")
@@ -195,13 +215,6 @@ function AskTab({
 
   const setRoster = (ids: string[]) => setSelected(ids)
 
-  const attach = async () => {
-    const picked = await window.ipc.invoke("dialog:openFiles", { title: "Attach documents for review" })
-    if (picked.paths.length === 0) return
-    const res = await window.ipc.invoke("council:readAttachments", { paths: picked.paths })
-    if (res.errors.length > 0) setError(res.errors.map((e) => e.error).join(" "))
-    if (res.attachments.length > 0) setAttachments([...attachments, ...res.attachments])
-  }
 
   const roster = (label: string, icon: ReactNode, group: CouncilMember[]) =>
     group.length === 0 ? null : (
@@ -242,80 +255,47 @@ function AskTab({
 
   return (
     <div className="flex flex-col gap-5 max-w-3xl">
-      <div className="flex flex-col gap-3">
-        <Textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Should we take the enterprise deal that needs a 3-month custom build?"
-          rows={3}
-          disabled={convening}
-          onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); onAsk() }
-          }}
-        />
+      {/* Roster and mode sit above the composer; the composer itself is the
+          standard one, so attachments, @-mentions, dictation and drafts behave
+          exactly as they do everywhere else in Dhow. */}
+      <div className="flex flex-col gap-3 rounded-md border p-3">
+        {roster("Core", <Users className="size-3.5" />, core)}
+        {roster("Cabinet", <Landmark className="size-3.5" />, csuite)}
+        {roster("Custom", <Users className="size-3.5" />, other)}
 
-        {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {attachments.map((a, i) => (
-              <span key={`${a.name}-${i}`} className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs">
-                <Paperclip className="size-3" />
-                {a.name}
-                {a.truncated && <span className="text-amber-600">truncated</span>}
-                <button
-                  type="button"
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={() => setAttachments(attachments.filter((_, j) => j !== i))}
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-3 rounded-md border p-3">
-          {roster("Core", <Users className="size-3.5" />, core)}
-          {roster("Cabinet", <Landmark className="size-3.5" />, csuite)}
-          {roster("Custom", <Users className="size-3.5" />, other)}
-
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={discuss}
-              onChange={(e) => setDiscuss(e.target.checked)}
-              className="mt-0.5"
-            />
-            <span className="flex flex-col">
-              <span className="inline-flex items-center gap-1.5">
-                <MessagesSquare className="size-3.5" />
-                Let them discuss
-              </span>
-              {/* Say what it costs, since it doubles the calls. */}
-              <span className="text-xs text-muted-foreground">
-                Adds a second round where each member reads the others and may change their mind. Doubles the model calls.
-              </span>
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={discuss}
+            onChange={(e) => setDiscuss(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span className="flex flex-col">
+            <span className="inline-flex items-center gap-1.5">
+              <MessagesSquare className="size-3.5" />
+              Let them discuss
             </span>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void attach()} disabled={convening}>
-              <Paperclip className="size-3.5" />
-              Attach
-            </Button>
             <span className="text-xs text-muted-foreground">
-              {selected.length === 0
-                ? "Pick at least one member"
-                : `${selected.length} member${selected.length === 1 ? "" : "s"} answer independently`}
+              Adds a second round where each member reads the others and may change their mind. Doubles the model calls.
             </span>
-          </div>
-          <Button size="sm" disabled={!question.trim() || convening || selected.length === 0} onClick={onAsk}>
-            {convening ? <Loader2 className="size-3.5 animate-spin" /> : null}
-            {convening ? "Convening…" : "Convene"}
-          </Button>
+          </span>
+        </label>
+
+        <div className="text-xs text-muted-foreground">
+          {selected.length === 0
+            ? "Pick at least one member"
+            : `${selected.length} member${selected.length === 1 ? "" : "s"} answer independently · attach or @-mention documents for them to review`}
         </div>
       </div>
+
+      <ChatInputWithMentions
+        knowledgeFiles={knowledgeFiles}
+        recentFiles={recentFiles}
+        visibleFiles={visibleFiles}
+        onSubmit={onAsk}
+        isProcessing={convening}
+        isActive={selected.length > 0}
+      />
 
       {error && (
         <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">

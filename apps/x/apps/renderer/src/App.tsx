@@ -7060,7 +7060,11 @@ function App() {
                 </div>
               ) : isCouncilOpen ? (
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                  <CouncilView />
+                  <CouncilView
+                    knowledgeFiles={knowledgeFiles}
+                    recentFiles={recentWikiFiles}
+                    visibleFiles={visibleKnowledgeFiles}
+                  />
                 </div>
               ) : isMeetingsOpen ? (
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
