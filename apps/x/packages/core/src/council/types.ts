@@ -8,6 +8,8 @@
 export {
     CouncilMemberSchema,
     PositionSchema,
+    RebuttalSchema,
+    CouncilAttachmentSchema,
     MemberPositionSchema,
     DisagreementSchema,
     SynthesisSchema,
@@ -18,6 +20,8 @@ export {
 export type {
     CouncilMember,
     Position,
+    Rebuttal,
+    CouncilAttachment,
     MemberPosition,
     Disagreement,
     Synthesis,

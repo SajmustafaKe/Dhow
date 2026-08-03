@@ -1,12 +1,13 @@
 "use client"
 
+import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Users, ListTodo, AlertTriangle, Plus, Check, X } from "lucide-react"
+import { Loader2, Users, ListTodo, AlertTriangle, Plus, Check, X, Paperclip, MessagesSquare, Landmark, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import type { Assignment, CouncilMember, CouncilSession } from "@x/shared/dist/council.js"
+import type { Assignment, CouncilAttachment, CouncilMember, CouncilSession } from "@x/shared/dist/council.js"
 
 /**
  * Council — put one question to a standing group of advisors.
@@ -41,6 +42,11 @@ export function CouncilView() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
 
   const [question, setQuestion] = useState("")
+  // Which members answer. Defaults to the core four: eleven simultaneous
+  // positions is a document, not a decision.
+  const [selected, setSelected] = useState<string[]>([])
+  const [discuss, setDiscuss] = useState(false)
+  const [attachments, setAttachments] = useState<CouncilAttachment[]>([])
   const [convening, setConvening] = useState(false)
   const [active, setActive] = useState<CouncilSession | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -54,6 +60,9 @@ export function CouncilView() {
     setMembers(m.members)
     setSessions(s.sessions)
     setAssignments(a.assignments)
+    setSelected((prev) => prev.length
+      ? prev
+      : m.members.filter((x) => x.enabled && x.group === 'core').map((x) => x.id))
   }, [])
 
   useEffect(() => { void loadAll() }, [loadAll])
@@ -69,12 +78,18 @@ export function CouncilView() {
     setConvening(true)
     setError(null)
     try {
-      const res = await window.ipc.invoke("council:convene", { question: q })
+      const res = await window.ipc.invoke("council:convene", {
+        question: q,
+        memberIds: selected,
+        attachments,
+        discuss,
+      })
       if (res.error || !res.session) {
         setError(res.error ?? "The council returned nothing.")
       } else {
         setActive(res.session)
         setQuestion("")
+        setAttachments([])
         await loadAll()
       }
     } catch (err) {
@@ -82,7 +97,7 @@ export function CouncilView() {
     } finally {
       setConvening(false)
     }
-  }, [question, convening, loadAll])
+  }, [question, convening, selected, attachments, discuss, loadAll])
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -125,7 +140,14 @@ export function CouncilView() {
             sessions={sessions}
             onSelect={setActive}
             memberTitle={memberTitle}
-            memberCount={members.filter((m) => m.enabled).length}
+            members={members}
+            selected={selected}
+            setSelected={setSelected}
+            discuss={discuss}
+            setDiscuss={setDiscuss}
+            attachments={attachments}
+            setAttachments={setAttachments}
+            setError={setError}
           />
         )}
         {tab === "assignments" && (
@@ -142,7 +164,8 @@ export function CouncilView() {
 }
 
 function AskTab({
-  question, setQuestion, convening, onAsk, error, active, sessions, onSelect, memberTitle, memberCount,
+  question, setQuestion, convening, onAsk, error, active, sessions, onSelect, memberTitle,
+  members, selected, setSelected, discuss, setDiscuss, attachments, setAttachments, setError,
 }: {
   question: string
   setQuestion: (v: string) => void
@@ -153,11 +176,73 @@ function AskTab({
   sessions: CouncilSession[]
   onSelect: (s: CouncilSession) => void
   memberTitle: (id: string) => string
-  memberCount: number
+  members: CouncilMember[]
+  selected: string[]
+  setSelected: (v: string[]) => void
+  discuss: boolean
+  setDiscuss: (v: boolean) => void
+  attachments: CouncilAttachment[]
+  setAttachments: (v: CouncilAttachment[]) => void
+  setError: (v: string | null) => void
 }) {
+  const enabled = members.filter((m) => m.enabled)
+  const core = enabled.filter((m) => m.group === "core")
+  const csuite = enabled.filter((m) => m.group === "csuite")
+  const other = enabled.filter((m) => m.group !== "core" && m.group !== "csuite")
+
+  const toggle = (id: string) =>
+    setSelected(selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id])
+
+  const setRoster = (ids: string[]) => setSelected(ids)
+
+  const attach = async () => {
+    const picked = await window.ipc.invoke("dialog:openFiles", { title: "Attach documents for review" })
+    if (picked.paths.length === 0) return
+    const res = await window.ipc.invoke("council:readAttachments", { paths: picked.paths })
+    if (res.errors.length > 0) setError(res.errors.map((e) => e.error).join(" "))
+    if (res.attachments.length > 0) setAttachments([...attachments, ...res.attachments])
+  }
+
+  const roster = (label: string, icon: ReactNode, group: CouncilMember[]) =>
+    group.length === 0 ? null : (
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {icon}
+            {label}
+          </span>
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+            onClick={() => setRoster(group.map((m) => m.id))}
+          >
+            only these
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {group.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => toggle(m.id)}
+              title={m.mission}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                selected.includes(m.id)
+                  ? "border-foreground bg-muted font-medium"
+                  : "text-muted-foreground hover:bg-muted/60",
+              )}
+            >
+              {m.title}
+            </button>
+          ))}
+        </div>
+      </div>
+    )
+
   return (
     <div className="flex flex-col gap-5 max-w-3xl">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <Textarea
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
@@ -168,11 +253,64 @@ function AskTab({
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); onAsk() }
           }}
         />
+
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {attachments.map((a, i) => (
+              <span key={`${a.name}-${i}`} className="inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs">
+                <Paperclip className="size-3" />
+                {a.name}
+                {a.truncated && <span className="text-amber-600">truncated</span>}
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setAttachments(attachments.filter((_, j) => j !== i))}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="flex flex-col gap-3 rounded-md border p-3">
+          {roster("Core", <Users className="size-3.5" />, core)}
+          {roster("Cabinet", <Landmark className="size-3.5" />, csuite)}
+          {roster("Custom", <Users className="size-3.5" />, other)}
+
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={discuss}
+              onChange={(e) => setDiscuss(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span className="flex flex-col">
+              <span className="inline-flex items-center gap-1.5">
+                <MessagesSquare className="size-3.5" />
+                Let them discuss
+              </span>
+              {/* Say what it costs, since it doubles the calls. */}
+              <span className="text-xs text-muted-foreground">
+                Adds a second round where each member reads the others and may change their mind. Doubles the model calls.
+              </span>
+            </span>
+          </label>
+        </div>
+
         <div className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">
-            {memberCount} member{memberCount === 1 ? "" : "s"} will answer independently
-          </span>
-          <Button size="sm" disabled={!question.trim() || convening} onClick={onAsk}>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => void attach()} disabled={convening}>
+              <Paperclip className="size-3.5" />
+              Attach
+            </Button>
+            <span className="text-xs text-muted-foreground">
+              {selected.length === 0
+                ? "Pick at least one member"
+                : `${selected.length} member${selected.length === 1 ? "" : "s"} answer independently`}
+            </span>
+          </div>
+          <Button size="sm" disabled={!question.trim() || convening || selected.length === 0} onClick={onAsk}>
             {convening ? <Loader2 className="size-3.5 animate-spin" /> : null}
             {convening ? "Convening…" : "Convene"}
           </Button>
@@ -203,6 +341,8 @@ function AskTab({
               <div className="truncate font-medium">{s.question}</div>
               <div className="text-xs text-muted-foreground">
                 {new Date(s.createdAt).toLocaleString()} · {s.positions.length} positions
+                {s.discussed ? " · discussed" : ""}
+                {s.attachments.length > 0 ? ` · ${s.attachments.length} doc${s.attachments.length === 1 ? "" : "s"}` : ""}
                 {s.synthesis && s.synthesis.disagreements.length > 0
                   ? ` · ${s.synthesis.disagreements.length} disagreement${s.synthesis.disagreements.length === 1 ? "" : "s"}`
                   : ""}
@@ -223,6 +363,17 @@ function SessionDetail({ session, memberTitle }: { session: CouncilSession; memb
       <div>
         <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Question</div>
         <div className="mt-1 text-sm">{session.question}</div>
+        {session.attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {session.attachments.map((a, i) => (
+              <span key={`${a.name}-${i}`} className="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs text-muted-foreground">
+                <Paperclip className="size-3" />
+                {a.name}
+                {a.truncated && <span className="text-amber-600">truncated</span>}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {session.synthesisError && (
@@ -272,6 +423,27 @@ function SessionDetail({ session, memberTitle }: { session: CouncilSession; memb
               <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Open questions</div>
               <ul className="mt-1.5 flex list-disc flex-col gap-1 pl-5 text-sm">
                 {s.openQuestions.map((q, i) => <li key={i}>{q}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {session.discussed && (
+            <div className="rounded-md border p-3">
+              <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <MessagesSquare className="size-3.5" />
+                After discussion
+              </div>
+              <ul className="mt-2 flex flex-col gap-2 text-sm">
+                {session.positions.filter((p) => p.rebuttal).map((p) => (
+                  <li key={p.memberId}>
+                    <span className="font-medium">{p.title}</span>
+                    <span className={cn("ml-1.5 text-xs", p.rebuttal!.changedMind ? "text-amber-600" : "text-muted-foreground")}>
+                      {p.rebuttal!.changedMind ? "changed position" : "held"}
+                    </span>
+                    <div className="text-muted-foreground">{p.rebuttal!.revisedPosition}</div>
+                    <div className="text-xs text-muted-foreground">{p.rebuttal!.reasoning}</div>
+                  </li>
+                ))}
               </ul>
             </div>
           )}
@@ -338,6 +510,7 @@ function AssignmentsTab({
   const [title, setTitle] = useState("")
   const [assignee, setAssignee] = useState<string>("")
   const [creating, setCreating] = useState(false)
+  const [dispatching, setDispatching] = useState<string | null>(null)
   const [blockingId, setBlockingId] = useState<string | null>(null)
   const [blockReason, setBlockReason] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -354,6 +527,15 @@ function AssignmentsTab({
     if (res.error) setError(res.error)
     else { setTitle(""); await onChanged() }
     setCreating(false)
+  }
+
+  const dispatch = async (a: Assignment) => {
+    setDispatching(a.id)
+    setError(null)
+    const res = await window.ipc.invoke("council:dispatchAssignment", { id: a.id })
+    if (res.error) setError(res.error)
+    await onChanged()
+    setDispatching(null)
   }
 
   const setStatus = async (a: Assignment, status: Assignment["status"]) => {
@@ -428,8 +610,28 @@ function AssignmentsTab({
                   {a.status === "blocked" && a.blockedReason && (
                     <div className="mt-1 text-xs text-amber-600">Blocked: {a.blockedReason}</div>
                   )}
+                  {a.result && (
+                    <details className="mt-1.5">
+                      <summary className="cursor-pointer text-xs text-muted-foreground">
+                        Result from {members.find((m) => m.id === a.assigneeId)?.title ?? a.assigneeId}
+                      </summary>
+                      {/* Returned, not accepted — only the principal marks it done. */}
+                      <pre className="mt-1.5 whitespace-pre-wrap rounded-md bg-muted/60 p-2 text-xs font-sans">{a.result}</pre>
+                    </details>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  {a.assigneeId && a.status !== "done" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title={`Hand this to the ${members.find((m) => m.id === a.assigneeId)?.title ?? a.assigneeId} and keep the result`}
+                      disabled={dispatching === a.id}
+                      onClick={() => void dispatch(a)}
+                    >
+                      {dispatching === a.id ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                    </Button>
+                  )}
                   {a.status !== "done" && (
                     <Button variant="ghost" size="sm" onClick={() => void setStatus(a, "done")}>
                       <Check className="size-3.5" />

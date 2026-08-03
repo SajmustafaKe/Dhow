@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { WorkDir } from '../config/config.js';
-import { BUILTIN_MEMBERS } from './charters.js';
+import { ALL_BUILTIN_MEMBERS } from './charters.js';
 import {
     AssignmentSchema,
     CouncilMemberSchema,
@@ -85,6 +85,8 @@ function memberToMarkdown(member: CouncilMember): string {
             title: member.title,
             enabled: member.enabled,
             builtin: member.builtin,
+            group: member.group,
+            order: member.order,
         },
         [
             `# ${member.title}\n`,
@@ -131,6 +133,8 @@ function memberFromMarkdown(content: string): CouncilMember | null {
         outputContract: parseSection(body, 'Every answer must contain'),
         enabled: data.enabled ?? true,
         builtin: data.builtin ?? false,
+        group: data.group ?? 'custom',
+        order: data.order ?? 100,
     });
     return parsed.success ? parsed.data : null;
 }
@@ -142,7 +146,7 @@ function memberFromMarkdown(content: string): CouncilMember | null {
  */
 export function seedBuiltinMembers(): void {
     ensureDir(MEMBERS_DIR);
-    for (const member of BUILTIN_MEMBERS) {
+    for (const member of ALL_BUILTIN_MEMBERS) {
         const file = path.join(MEMBERS_DIR, `${member.id}.md`);
         if (!fs.existsSync(file)) fs.writeFileSync(file, memberToMarkdown(member), 'utf-8');
     }
@@ -165,7 +169,13 @@ export function listMembers(): CouncilMember[] {
             // A malformed charter should not take the whole council down.
         }
     }
-    return members.sort((a, b) => a.title.localeCompare(b.title));
+    // Roster first, then rank: a cabinet listed alphabetically reads wrong.
+    const groupRank: Record<string, number> = { core: 0, csuite: 1, custom: 2 };
+    return members.sort((a, b) =>
+        (groupRank[a.group] ?? 3) - (groupRank[b.group] ?? 3)
+        || a.order - b.order
+        || a.title.localeCompare(b.title),
+    );
 }
 
 export function saveMember(member: CouncilMember): void {

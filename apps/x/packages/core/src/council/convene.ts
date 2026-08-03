@@ -8,7 +8,9 @@ import { SYNTHESISER } from './charters.js';
 import { listMembers, newSessionId, saveSession } from './store.js';
 import {
     PositionSchema,
+    RebuttalSchema,
     SynthesisSchema,
+    type CouncilAttachment,
     type CouncilMember,
     type CouncilSession,
     type MemberPosition,
@@ -47,7 +49,57 @@ function memberSystemPrompt(member: CouncilMember): string {
     ].filter(Boolean).join('\n');
 }
 
-function synthesisPrompt(question: string, positions: MemberPosition[]): string {
+/**
+ * Documents the council was asked to review.
+ *
+ * Every member sees the same text — a cabinet reviewing different excerpts of
+ * a contract is not reviewing the same contract.
+ */
+function attachmentBlock(attachments: CouncilAttachment[]): string {
+    if (attachments.length === 0) return '';
+    return [
+        '',
+        'Documents provided for review:',
+        ...attachments.map((a) => [
+            `--- ${a.name}${a.truncated ? ' (truncated)' : ''} ---`,
+            a.content,
+            '--- end ---',
+        ].join('\n')),
+        '',
+        'Ground your answer in these documents. Quote them where it matters, and say ' +
+        'plainly when the document does not settle the question.',
+    ].join('\n');
+}
+
+/**
+ * Round two. Each member now sees every first-round position, including its
+ * own, and may move or hold. This is the joint discussion; round one stays
+ * untouched so the record shows what each thought before being influenced.
+ */
+function rebuttalPrompt(question: string, self: CouncilMember, positions: MemberPosition[]): string {
+    const others = positions
+        .filter((p) => p.position && p.memberId !== self.id)
+        .map((p) => `--- ${p.title} (${p.memberId}) ---\nPOSITION: ${p.position!.position}\nWHY: ${p.position!.why.join('; ')}\nRISK: ${p.position!.risk}`)
+        .join('\n\n');
+    const own = positions.find((p) => p.memberId === self.id)?.position;
+
+    return [
+        `The principal asked: ${question}`,
+        '',
+        own ? `Your own first position was: ${own.position}` : '',
+        '',
+        'The rest of the council answered independently. You are now seeing them for the first time:',
+        '',
+        others || '(no other member returned a position)',
+        '',
+        'Respond as yourself, from your own mandate.',
+        '- If someone raised something that genuinely changes your view, say so and revise. Changing your mind on good evidence is the point of this round.',
+        '- If you still disagree, say what specifically they have got wrong. Address the argument, not the person.',
+        '- Do not converge for the sake of agreement. A council that always reaches consensus in round two is not deliberating.',
+    ].filter(Boolean).join('\n');
+}
+
+function synthesisPrompt(question: string, positions: MemberPosition[], discussed: boolean): string {
     const rendered = positions
         .filter((p) => p.position)
         .map((p) => {
@@ -63,12 +115,28 @@ function synthesisPrompt(question: string, positions: MemberPosition[]): string 
         })
         .join('\n\n');
 
+    const rebuttals = positions
+        .filter((p) => p.rebuttal)
+        .map((p) => {
+            const r = p.rebuttal!;
+            return [
+                `--- ${p.title} (${p.memberId}), after discussion ---`,
+                `${r.changedMind ? 'CHANGED POSITION' : 'HELD POSITION'}: ${r.revisedPosition}`,
+                `REASONING: ${r.reasoning}`,
+                ...r.responses.map((x) => `TO ${x.toMemberId}: ${x.response}`),
+            ].join('\n');
+        })
+        .join('\n\n');
+
     return [
         `The principal asked: ${question}`,
         '',
         "Your council returned these independent positions. They did not see each other's answers.",
         '',
         rendered,
+        ...(discussed && rebuttals
+            ? ['', 'They then read each other and responded. Where a member moved, the later view is the one that counts:', '', rebuttals]
+            : []),
         '',
         'Write the decision memo.',
         '- Open with ONE line the principal can act on immediately.',
@@ -93,9 +161,18 @@ export interface ConveneOptions {
     question: string;
     /** Restrict to these member ids; defaults to every enabled member. */
     memberIds?: string[];
+    /** Documents every member reads before answering. */
+    attachments?: CouncilAttachment[];
+    /** Run a second round in which members see each other and may respond. */
+    discuss?: boolean;
 }
 
-export async function convene({ question, memberIds }: ConveneOptions): Promise<CouncilSession> {
+export async function convene({
+    question,
+    memberIds,
+    attachments = [],
+    discuss = false,
+}: ConveneOptions): Promise<CouncilSession> {
     const trimmed = question.trim();
     if (!trimmed) throw new Error('A council needs a question.');
 
@@ -113,7 +190,7 @@ export async function convene({ question, memberIds }: ConveneOptions): Promise<
                 generateObjectSafe({
                     model,
                     system: memberSystemPrompt(member),
-                    prompt: `The principal asks: ${trimmed}`,
+                    prompt: `The principal asks: ${trimmed}${attachmentBlock(attachments)}`,
                     schema: PositionSchema,
                     retry: true,
                 }),
@@ -124,16 +201,47 @@ export async function convene({ question, memberIds }: ConveneOptions): Promise<
     const positions: MemberPosition[] = members.map((member, i) => {
         const outcome = settled[i];
         if (outcome.status === 'fulfilled') {
-            return { memberId: member.id, title: member.title, position: outcome.value.object, error: null };
+            return { memberId: member.id, title: member.title, position: outcome.value.object, error: null, rebuttal: null };
         }
         const error = outcome.reason instanceof Error ? outcome.reason.message : String(outcome.reason);
         log.log(`${member.id} returned no position: ${error}`);
         // Kept in the record rather than dropped — a silently missing member
         // looks like agreement.
-        return { memberId: member.id, title: member.title, position: null, error };
+        return { memberId: member.id, title: member.title, position: null, error, rebuttal: null };
     });
 
     const answered = positions.filter((p) => p.position);
+
+    // Round two, opt-in. Only members that actually answered can respond, and
+    // only when there is someone to respond to — a lone position has no
+    // discussion to join.
+    if (discuss && answered.length > 1) {
+        const respondents = members.filter((m) => answered.some((p) => p.memberId === m.id));
+        const rebuttals = await Promise.allSettled(
+            respondents.map((member) =>
+                withUseCase({ useCase: 'copilot_chat', subUseCase: `council_rebuttal_${member.id}` }, () =>
+                    generateObjectSafe({
+                        model,
+                        system: memberSystemPrompt(member),
+                        prompt: rebuttalPrompt(trimmed, member, positions) + attachmentBlock(attachments),
+                        schema: RebuttalSchema,
+                        retry: true,
+                    }),
+                ),
+            ),
+        );
+        respondents.forEach((member, i) => {
+            const outcome = rebuttals[i];
+            if (outcome.status !== 'fulfilled') {
+                // A failed rebuttal costs the discussion, never the position.
+                log.log(`${member.id} did not respond in discussion: ${outcome.reason}`);
+                return;
+            }
+            const entry = positions.find((p) => p.memberId === member.id);
+            if (entry) entry.rebuttal = RebuttalSchema.parse(outcome.value.object);
+        });
+    }
+
     let synthesis: CouncilSession['synthesis'] = null;
     let synthesisError: string | null = null;
 
@@ -147,7 +255,7 @@ export async function convene({ question, memberIds }: ConveneOptions): Promise<
                     generateObjectSafe({
                         model,
                         system: `You are the ${SYNTHESISER.title}. ${SYNTHESISER.mission}`,
-                        prompt: synthesisPrompt(trimmed, positions),
+                        prompt: synthesisPrompt(trimmed, positions, discuss),
                         schema: SynthesisSchema,
                         retry: true,
                     }),
@@ -163,6 +271,8 @@ export async function convene({ question, memberIds }: ConveneOptions): Promise<
         id: newSessionId(),
         question: trimmed,
         createdAt: new Date().toISOString(),
+        attachments,
+        discussed: discuss && positions.some((p) => p.rebuttal),
         positions,
         synthesis,
         synthesisError,

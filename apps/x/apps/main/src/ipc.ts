@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow, shell, dialog, systemPreferences, desktopCapturer, app, screen, powerSaveBlocker } from 'electron';
 import { convene } from "@x/core/dist/council/convene.js";
+import { readAttachments as readCouncilAttachments } from "@x/core/dist/council/attachments.js";
 import {
   listMembers as listCouncilMembers,
   saveMember as saveCouncilMember,
@@ -12,6 +13,7 @@ import {
   createAssignment,
   updateAssignment,
   deleteAssignmentTree,
+  dispatchAssignment,
 } from "@x/core/dist/council/assignments.js";
 import { ipc } from '@x/shared';
 import path from 'node:path';
@@ -1430,9 +1432,17 @@ export function setupIpcHandlers() {
       deleteCouncilMember(args.id);
       return { ok: true };
     },
+    'council:readAttachments': async (_event, args) => {
+      return await readCouncilAttachments(args.paths);
+    },
     'council:convene': async (_event, args) => {
       try {
-        const session = await convene({ question: args.question, memberIds: args.memberIds });
+        const session = await convene({
+          question: args.question,
+          memberIds: args.memberIds,
+          attachments: args.attachments,
+          discuss: args.discuss,
+        });
         return { session };
       } catch (err) {
         // Surfaced to the UI rather than thrown: a failed council should show
@@ -1460,6 +1470,13 @@ export function setupIpcHandlers() {
       try {
         const { id, ...patch } = args;
         return { assignment: updateAssignment(id, patch) };
+      } catch (err) {
+        return { assignment: null, error: err instanceof Error ? err.message : String(err) };
+      }
+    },
+    'council:dispatchAssignment': async (_event, args) => {
+      try {
+        return { assignment: await dispatchAssignment(args.id) };
       } catch (err) {
         return { assignment: null, error: err instanceof Error ? err.message : String(err) };
       }

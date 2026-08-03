@@ -7,6 +7,7 @@ import {
     deleteAssignment as removeAssignment,
     getAssignment,
     listAssignments,
+    listMembers,
     newAssignmentId,
     saveAssignment,
 } from './store.js';
@@ -23,6 +24,57 @@ import {
  *   reason attached, because a board should show where things got stuck rather
  *   than quietly forgetting.
  */
+
+/**
+ * Hand the task to its assigned member and keep what comes back.
+ *
+ * Modelled on the CoaleTech agent's `dispatch`: a task is a labelled position
+ * in a hierarchy, and the work itself is an ordinary model call — dispatch is
+ * not a second, privileged execution path.
+ *
+ * Two restraints matter. The member's output lands in `result` and moves the
+ * task to `in_progress`, never to `done`: returning work is not the same as
+ * the principal accepting it. And a failed dispatch blocks with the reason
+ * rather than silently leaving the task open, so the board shows the stall.
+ */
+export async function dispatchAssignment(id: string): Promise<Assignment> {
+    const existing = getAssignment(id);
+    if (!existing) throw new Error(`Assignment ${id} does not exist.`);
+    if (!existing.assigneeId) throw new Error('Assign this to a council member before dispatching it.');
+
+    const member = listMembers().find((m) => m.id === existing.assigneeId);
+    if (!member) throw new Error(`Council member ${existing.assigneeId} no longer exists.`);
+
+    const now = new Date().toISOString();
+    saveAssignment(AssignmentSchema.parse({ ...existing, status: 'in_progress', dispatchedAt: now, updatedAt: now }));
+
+    try {
+        // Imported here rather than at module load: the model stack is heavy,
+        // and listing or updating assignments must not pay for it.
+        const { runAssignment } = await import('./run.js');
+        const result = await runAssignment(member, existing);
+        const done = AssignmentSchema.parse({
+            ...existing,
+            status: 'in_progress',
+            result,
+            dispatchedAt: now,
+            updatedAt: new Date().toISOString(),
+        });
+        saveAssignment(done);
+        return done;
+    } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        const blocked = AssignmentSchema.parse({
+            ...existing,
+            status: 'blocked',
+            blockedReason: `Dispatch failed: ${reason}`,
+            dispatchedAt: now,
+            updatedAt: new Date().toISOString(),
+        });
+        saveAssignment(blocked);
+        return blocked;
+    }
+}
 
 export interface CreateAssignmentInput {
     title: string;

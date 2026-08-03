@@ -4,6 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// Fresh module registry + dynamic imports per test; the 5s default is tight
+// under full-suite load.
+const TIMEOUT = 30_000;
+
 // WorkDir resolves at module load, so each test gets a fresh vault.
 let tmpDir: string;
 
@@ -26,7 +30,7 @@ afterEach(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
-describe("council members", () => {
+describe("council members", { timeout: TIMEOUT }, () => {
   it("seeds editable charters and reads them back", async () => {
     const { listMembers } = await import("./store.js");
 
@@ -69,7 +73,7 @@ describe("council members", () => {
   });
 });
 
-describe("council sessions", () => {
+describe("council sessions", { timeout: TIMEOUT }, () => {
   const position = (text: string) => ({
     position: text,
     why: ["reason one"],
@@ -83,11 +87,13 @@ describe("council sessions", () => {
       id: "session-1",
       question: "Ship it?",
       createdAt: new Date().toISOString(),
+      attachments: [],
+      discussed: false,
       positions: [
-        { memberId: "operator", title: "Operator", position: position("Ship"), error: null },
+        { memberId: "operator", title: "Operator", position: position("Ship"), error: null, rebuttal: null },
         // A member that could not answer must still appear: silence reads as
         // agreement, which is the exact misreading this guards against.
-        { memberId: "skeptic", title: "Skeptic", position: null, error: "model timeout" },
+        { memberId: "skeptic", title: "Skeptic", position: null, error: "model timeout", rebuttal: null },
       ],
       synthesis: null,
       synthesisError: null,
@@ -108,7 +114,9 @@ describe("council sessions", () => {
       id: "session-2",
       question: "Take the enterprise deal?",
       createdAt: new Date().toISOString(),
-      positions: [{ memberId: "operator", title: "Operator", position: position("No"), error: null }],
+      attachments: [],
+      discussed: false,
+      positions: [{ memberId: "operator", title: "Operator", position: position("No"), error: null, rebuttal: null }],
       synthesis: {
         headline: "Decline the deal.",
         positions: [{ memberId: "operator", summary: "No capacity this quarter." }],
@@ -140,6 +148,8 @@ describe("council sessions", () => {
       id: "session-3",
       question: "Fix the bug?",
       createdAt: new Date().toISOString(),
+      attachments: [],
+      discussed: false,
       positions: [],
       synthesis: {
         headline: "Fix it.",
@@ -158,7 +168,7 @@ describe("council sessions", () => {
   });
 });
 
-describe("assignments", () => {
+describe("assignments", { timeout: TIMEOUT }, () => {
   it("refuses to block without a reason", async () => {
     const { createAssignment, updateAssignment } = await import("./assignments.js");
     const a = createAssignment({ title: "Draft the reply" });
@@ -226,5 +236,73 @@ describe("assignments", () => {
     expect(loaded?.detail).toBe("3 scenarios");
     expect(loaded?.assigneeId).toBe("analyst");
     expect(loaded?.status).toBe("in_progress");
+  });
+});
+
+describe("rosters", { timeout: TIMEOUT }, () => {
+  it("ships the core four and the executive cabinet, in rank order", async () => {
+    const { listMembers } = await import("./store.js");
+
+    const members = listMembers();
+    const core = members.filter((m) => m.group === "core").map((m) => m.id);
+    const csuite = members.filter((m) => m.group === "csuite").map((m) => m.id);
+
+    expect(core).toEqual(["operator", "analyst", "skeptic", "strategist"]);
+    // Rank order, not alphabetical — a cabinet listed A-Z reads wrong.
+    expect(csuite).toEqual(["ceo", "cfo", "coo", "cto", "cmo", "chro", "clo"]);
+    // Core comes first so the default roster is the one at the top.
+    expect(members.findIndex((m) => m.group === "core"))
+      .toBeLessThan(members.findIndex((m) => m.group === "csuite"));
+  });
+
+  it("keeps a member's roster across the Markdown round trip", async () => {
+    const { listMembers } = await import("./store.js");
+    listMembers();
+
+    // Re-read from disk, not from the in-memory defaults.
+    const { listMembers: reread } = await import("./store.js");
+    expect(reread().find((m) => m.id === "clo")?.group).toBe("csuite");
+    expect(reread().find((m) => m.id === "clo")?.title).toBe("Chief Legal Officer");
+  });
+});
+
+describe("dispatch", { timeout: TIMEOUT }, () => {
+  beforeEach(() => {
+    vi.doMock("./run.js", () => ({
+      runAssignment: vi.fn(async (member: { title: string }) => `work from ${member.title}`),
+    }));
+  });
+
+  it("refuses to dispatch an unassigned task", async () => {
+    const { createAssignment, dispatchAssignment } = await import("./assignments.js");
+    const a = createAssignment({ title: "Nobody owns this" });
+
+    await expect(dispatchAssignment(a.id)).rejects.toThrow(/assign/i);
+  });
+
+  // Returning work is not the same as the principal accepting it.
+  it("stores the result without marking the task done", async () => {
+    const { createAssignment, dispatchAssignment } = await import("./assignments.js");
+    const a = createAssignment({ title: "Draft the clause", assigneeId: "clo" });
+
+    const done = await dispatchAssignment(a.id);
+
+    expect(done.result).toBe("work from Chief Legal Officer");
+    expect(done.status).toBe("in_progress");
+    expect(done.dispatchedAt).toBeTruthy();
+  });
+
+  it("blocks with the reason when the member fails", async () => {
+    vi.doMock("./run.js", () => ({
+      runAssignment: vi.fn(async () => { throw new Error("model unavailable"); }),
+    }));
+    const { createAssignment, dispatchAssignment } = await import("./assignments.js");
+    const a = createAssignment({ title: "Draft the clause", assigneeId: "clo" });
+
+    const blocked = await dispatchAssignment(a.id);
+
+    // Silently leaving it open would hide the stall from the board.
+    expect(blocked.status).toBe("blocked");
+    expect(blocked.blockedReason).toMatch(/model unavailable/);
   });
 });

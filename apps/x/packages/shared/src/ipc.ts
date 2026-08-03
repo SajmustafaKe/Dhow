@@ -20,7 +20,7 @@ import { ZListToolkitsResponse } from './composio.js';
 import { AppSummarySchema, RegistryRecordSchema, DhowAppManifestSchema } from './dhow-app.js';
 import { BrowserStateSchema, DisplayMediaRequestSchema, HttpAuthRequestSchema } from './browser-control.js';
 import { EmailBlockSchema, GmailThreadSchema } from './blocks.js';
-import { AssignmentSchema, AssignmentStatus, CouncilMemberSchema, CouncilSessionSchema } from './council.js';
+import { AssignmentSchema, AssignmentStatus, CouncilAttachmentSchema, CouncilMemberSchema, CouncilSessionSchema } from './council.js';
 import { PermissionDecision, ApprovalPolicy, CodingAgent, type CodeRunFeedEvent } from './code-mode.js';
 import { NotificationSettingsSchema } from './notification-settings.js';
 import { TurnLimitsSettingsSchema } from './turn-limits.js';
@@ -828,9 +828,24 @@ const ipcSchemas = {
     req: z.object({ id: z.string() }),
     res: z.object({ ok: z.boolean() }),
   },
+  'council:readAttachments': {
+    // Read chosen documents into reviewable text, truncating anything too
+    // large to put in front of every member.
+    req: z.object({ paths: z.array(z.string()) }),
+    res: z.object({
+      attachments: z.array(CouncilAttachmentSchema),
+      errors: z.array(z.object({ path: z.string(), error: z.string() })),
+    }),
+  },
   'council:convene': {
     // Omit memberIds to ask every enabled member.
-    req: z.object({ question: z.string().min(1), memberIds: z.array(z.string()).optional() }),
+    req: z.object({
+      question: z.string().min(1),
+      memberIds: z.array(z.string()).optional(),
+      attachments: z.array(CouncilAttachmentSchema).optional(),
+      /** Run a second round where members read each other and may respond. */
+      discuss: z.boolean().optional(),
+    }),
     res: z.object({ session: CouncilSessionSchema.nullable(), error: z.string().optional() }),
   },
   'council:listSessions': {
@@ -864,6 +879,11 @@ const ipcSchemas = {
       status: AssignmentStatus.optional(),
       blockedReason: z.string().nullable().optional(),
     }),
+    res: z.object({ assignment: AssignmentSchema.nullable(), error: z.string().optional() }),
+  },
+  'council:dispatchAssignment': {
+    // Hand the task to its assigned member and keep what comes back.
+    req: z.object({ id: z.string() }),
     res: z.object({ assignment: AssignmentSchema.nullable(), error: z.string().optional() }),
   },
   'council:deleteAssignment': {

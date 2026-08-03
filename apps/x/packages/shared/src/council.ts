@@ -34,6 +34,17 @@ export const CouncilMemberSchema = z.object({
     enabled: z.boolean().default(true),
     /** Built-ins ship with Dhow; custom members are user-authored. */
     builtin: z.boolean().default(false),
+    /**
+     * Which roster a member belongs to.
+     *
+     * `core` is the default four — deliberately small, because a council of
+     * eleven produces eleven paragraphs nobody reads. `csuite` is the
+     * executive cabinet, convened when the question is a company decision
+     * rather than a judgement call. A session can mix them.
+     */
+    group: z.enum(['core', 'csuite', 'custom']).default('custom'),
+    /** Display order within a roster; the cabinet reads better in rank order. */
+    order: z.number().default(100),
 });
 export type CouncilMember = z.infer<typeof CouncilMemberSchema>;
 
@@ -55,6 +66,27 @@ export const PositionSchema = z.object({
 });
 export type Position = z.infer<typeof PositionSchema>;
 
+/**
+ * A member's second-round contribution, after seeing everyone else.
+ *
+ * Round one is isolated on purpose. This is the deliberate opposite: the point
+ * of a joint discussion is that members can be moved by an argument they had
+ * not considered. Keeping it as a separate round preserves the independence of
+ * the first pass — the original position is never overwritten, so a reader can
+ * see who changed their mind and why.
+ */
+export const RebuttalSchema = z.object({
+    /** Whether seeing the others changed anything. */
+    changedMind: z.boolean(),
+    /** The revised recommendation when it changed; otherwise a restatement. */
+    revisedPosition: z.string(),
+    /** Direct responses to specific members, by id. */
+    responses: z.array(z.object({ toMemberId: z.string(), response: z.string() })).default([]),
+    /** What made them move, or why they held. */
+    reasoning: z.string(),
+});
+export type Rebuttal = z.infer<typeof RebuttalSchema>;
+
 /** A position plus its outcome — a member that failed still appears, with why. */
 export const MemberPositionSchema = z.object({
     memberId: z.string(),
@@ -62,6 +94,8 @@ export const MemberPositionSchema = z.object({
     position: PositionSchema.nullable(),
     /** Set when this member could not answer. Never silently dropped. */
     error: z.string().nullable(),
+    /** Present only when the session ran a discussion round. */
+    rebuttal: RebuttalSchema.nullable().default(null),
 });
 export type MemberPosition = z.infer<typeof MemberPositionSchema>;
 
@@ -96,10 +130,23 @@ export const SynthesisSchema = z.object({
 });
 export type Synthesis = z.infer<typeof SynthesisSchema>;
 
+/** A document the council was asked to review alongside the question. */
+export const CouncilAttachmentSchema = z.object({
+    name: z.string(),
+    /** Extracted text. Large documents are truncated before they reach a model. */
+    content: z.string(),
+    truncated: z.boolean().default(false),
+});
+export type CouncilAttachment = z.infer<typeof CouncilAttachmentSchema>;
+
 export const CouncilSessionSchema = z.object({
     id: z.string(),
     question: z.string(),
     createdAt: z.string(),
+    /** Documents every member read before answering. */
+    attachments: z.array(CouncilAttachmentSchema).default([]),
+    /** Whether members saw each other and could respond. */
+    discussed: z.boolean().default(false),
     /** Verbatim member positions, kept so a principal can go behind the memo. */
     positions: z.array(MemberPositionSchema),
     synthesis: SynthesisSchema.nullable(),
@@ -133,6 +180,16 @@ export const AssignmentSchema = z.object({
     sessionId: z.string().nullable().default(null),
     /** Why it stalled. Required in spirit whenever status is `blocked`. */
     blockedReason: z.string().nullable().default(null),
+    /**
+     * What the assigned member produced when the task was dispatched.
+     *
+     * Dispatch is the difference between a to-do list and delegation: the
+     * member actually works the goal and hands back a result. It is kept
+     * separate from `status` because returning work is not the same as the
+     * principal accepting it — only a human moves this to `done`.
+     */
+    result: z.string().nullable().default(null),
+    dispatchedAt: z.string().nullable().default(null),
     createdAt: z.string(),
     updatedAt: z.string(),
 });
