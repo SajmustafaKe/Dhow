@@ -13,6 +13,7 @@ import { IClientRegistrationRepo } from '@x/core/dist/auth/client-repo.js';
 import { triggerSync as triggerGmailSync } from '@x/core/dist/knowledge/sync_gmail.js';
 import { triggerSync as triggerCalendarSync } from '@x/core/dist/knowledge/sync_calendar.js';
 import { triggerSync as triggerFirefliesSync } from '@x/core/dist/knowledge/sync_fireflies.js';
+import { triggerSync as triggerOutlookSync } from '@x/core/dist/knowledge/sync_outlook.js';
 import { emitOAuthEvent } from './ipc.js';
 import { buildCredentialOverride } from '@x/core/dist/auth/credentials.js';
 export { buildCredentialOverride };
@@ -350,6 +351,10 @@ export async function connectProvider(provider: string, credentials?: { clientId
           if (provider === 'google') {
             triggerGmailSync();
             triggerCalendarSync();
+          } else if (provider === 'microsoft') {
+            // Without this a freshly connected mailbox sits empty until the
+            // next 60s poll, which reads as a failed connect.
+            triggerOutlookSync();
           } else if (provider === 'fireflies-ai') {
             triggerFirefliesSync();
           }
