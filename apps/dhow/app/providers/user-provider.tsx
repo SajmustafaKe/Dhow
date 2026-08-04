@@ -48,7 +48,7 @@ function toAppUser(supabaseUser: SupabaseUserLike | null | undefined): AppUser |
 export function UserProvider({ children }: { children: ReactNode }) {
     const [supabase] = useState(() => createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
     ));
     const [user, setUser] = useState<AppUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);

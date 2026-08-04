@@ -22,7 +22,7 @@ services:
       # Supabase Auth (GoTrue). Placeholders so the app boots with USE_AUTH
       # unset; override for a real tenant. Never add the service-role key here.
       - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL:-https://test.supabase.co}
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-test_anon_key}
+      - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-sb_publishable_test_key}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       - AGENTS_API_URL=http://dhow_agents:3001
       - AGENTS_API_KEY=${AGENTS_API_KEY}
