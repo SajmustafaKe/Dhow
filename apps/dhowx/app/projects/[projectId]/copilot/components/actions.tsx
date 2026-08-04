@@ -1,14 +1,15 @@
 'use client';
-import { createContext, useContext, useRef, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import clsx from "clsx";
 import { z } from "zod";
 import { CopilotAssistantMessageActionPart } from "../../../../../src/entities/models/copilot";
 import { Workflow } from "../../../../lib/types/workflow_types";
-import { PreviewModalProvider, usePreviewModal } from '../../workflow/preview-modal';
+import { usePreviewModal } from '../../workflow/preview-modal';
 import { getAppliedChangeKey } from "../app";
-import { AlertTriangleIcon, CheckCheckIcon, CheckIcon, ChevronsDownIcon, ChevronsUpIcon, EyeIcon, PencilIcon, PlusIcon } from "lucide-react";
+import { CheckIcon, EyeIcon, PencilIcon, PlusIcon } from "lucide-react";
 import { Spinner } from "@/app/lib/components/spinner";
 import { PictureImg } from "@/components/ui/picture-img";
+import { Action as WorkflowDispatchAction } from "../../workflow/workflow_editor";
 
 const ActionContext = createContext<{
     msgIndex: number;
@@ -24,18 +25,16 @@ export function Action({
     actionIndex,
     action,
     workflow,
-    dispatch,
     stale,
     onApplied,
     externallyApplied = false,
-    defaultExpanded = false,
     onRequestTriggerSetup,
 }: {
     msgIndex: number;
     actionIndex: number;
     action: z.infer<typeof CopilotAssistantMessageActionPart>['content'];
     workflow: z.infer<typeof Workflow>;
-    dispatch: (action: any) => void;
+    dispatch: (action: WorkflowDispatchAction) => void;
     stale: boolean;
     onApplied?: () => void;
     externallyApplied?: boolean;
@@ -43,7 +42,6 @@ export function Action({
     onRequestTriggerSetup?: (params: { action: z.infer<typeof CopilotAssistantMessageActionPart>['content']; msgIndex: number; actionIndex: number }) => void;
 }) {
     const { showPreview } = usePreviewModal();
-    const [expanded, setExpanded] = useState(defaultExpanded);
     const [appliedChanges, setAppliedChanges] = useState<Record<string, boolean>>({});
     const isExternalTriggerCreate = action.config_type === 'external_trigger' && action.action === 'create_new';
 
@@ -61,53 +59,6 @@ export function Action({
     if (!externallyApplied && (action.action === "delete" || action.config_type === 'start_agent')) {
         allApplied = false;
     }
-
-    // Handle applying a single field change
-    const handleFieldChange = (field: string) => {
-        const changes = { [field]: action.config_changes[field] };
-        
-        // Dispatch the field change directly (this is for partial updates)
-        switch (action.config_type) {
-            case 'agent':
-                dispatch({
-                    type: 'update_agent_no_select',
-                    name: action.name,
-                    agent: changes
-                });
-                break;
-            case 'tool':
-                dispatch({
-                    type: 'update_tool_no_select',
-                    name: action.name,
-                    tool: changes
-                });
-                break;
-            case 'prompt':
-                dispatch({
-                    type: 'update_prompt',
-                    name: action.name,
-                    prompt: changes
-                });
-                break;
-        }
-
-        setAppliedChanges(prev => {
-            const newApplied = {
-                ...prev,
-                [getAppliedChangeKey(msgIndex, actionIndex, field)]: true
-            };
-            
-            // Check if all fields are now applied
-            const allFieldsApplied = Object.keys(action.config_changes).every(key => 
-                newApplied[getAppliedChangeKey(msgIndex, actionIndex, key)]
-            );
-            
-            // If all fields are applied, mark as externally applied but don't call onApplied
-            // to avoid duplicate dispatch (the parent's onApplied would dispatch the full action again)
-            
-            return newApplied;
-        });
-    };
 
     // Handle applying all changes - delegate to parent
     const handleApplyAll = () => {
@@ -146,13 +97,13 @@ export function Action({
         if (action.action === 'edit') {
             if (action.config_type === 'tool') {
                 const tool = workflow.tools.find(t => t.name === action.name);
-                if (tool) oldValue = (tool as any)[field];
+                if (tool) oldValue = (tool as Record<string, unknown>)[field];
             } else if (action.config_type === 'agent') {
                 const agent = workflow.agents.find(a => a.name === action.name);
-                if (agent) oldValue = (agent as any)[field];
+                if (agent) oldValue = (agent as Record<string, unknown>)[field];
             } else if (action.config_type === 'prompt') {
                 const prompt = workflow.prompts.find(p => p.name === action.name);
-                if (prompt) oldValue = (prompt as any)[field];
+                if (prompt) oldValue = (prompt as Record<string, unknown>)[field];
             }
         }
         const markdown = (action.config_type === 'agent' && field === 'instructions') ||
@@ -169,26 +120,34 @@ export function Action({
     // Determine composio toolkit logo for tools
     const toolkitLogo = (() => {
         if (action.config_type !== 'tool') return undefined;
-        const getLogo = (o: any): string | undefined => {
-            return (
-                o?.composioData?.logo ||
-                o?.composioData?.logoUrl ||
-                o?.composio?.logo ||
-                o?.toolkit?.logo ||
-                o?.composio_tool?.toolkit?.logo ||
-                o?.logo ||
-                undefined
-            );
+        // config_changes is copilot-LLM-produced data whose shape isn't guaranteed to
+        // match WorkflowTool exactly; probe the shapes the copilot has emitted for a
+        // composio tool's logo before falling back to the live workflow tool record.
+        const getLogo = (o: unknown): string | undefined => {
+            if (!o || typeof o !== 'object') return undefined;
+            const at = (base: unknown, ...path: string[]): unknown => {
+                let cur = base;
+                for (const key of path) {
+                    if (!cur || typeof cur !== 'object') return undefined;
+                    cur = (cur as Record<string, unknown>)[key];
+                }
+                return cur;
+            };
+            const candidates = [
+                at(o, 'composioData', 'logo'),
+                at(o, 'composioData', 'logoUrl'),
+                at(o, 'composio', 'logo'),
+                at(o, 'toolkit', 'logo'),
+                at(o, 'composio_tool', 'toolkit', 'logo'),
+                at(o, 'logo'),
+            ];
+            return candidates.find((c): c is string => typeof c === 'string');
         };
-        // Try various shapes the action might use
-        const a: any = action as any;
         return (
-            getLogo(a.config_changes) ||
-            getLogo(a) ||
-            getLogo(a.config_changes?.tool) ||
-            getLogo(a.config_changes?.composio_tool) ||
-            getLogo(a.tool) ||
-            (workflow.tools.find(t => t.name === action.name) as any)?.composioData?.logo ||
+            getLogo(action.config_changes) ||
+            getLogo(action.config_changes.tool) ||
+            getLogo(action.config_changes.composio_tool) ||
+            workflow.tools.find(t => t.name === action.name)?.composioData?.logo ||
             undefined
         );
     })();
@@ -257,7 +216,7 @@ export function Action({
 }
 
 export function ActionSummary() {
-    const { msgIndex, actionIndex, action, workflow, appliedFields, stale } = useContext(ActionContext);
+    const { action, workflow } = useContext(ActionContext);
     if (!action || !workflow) return null;
 
     return <div className="px-1 my-1">
@@ -268,7 +227,7 @@ export function ActionSummary() {
 }
 
 export function ActionHeader() {
-    const { msgIndex, actionIndex, action, workflow, appliedFields, stale } = useContext(ActionContext);
+    const { action, workflow } = useContext(ActionContext);
     if (!action || !workflow) return null;
 
     const targetType = action.config_type === 'tool' ? 'tool' : action.config_type === 'agent' ? 'agent' : action.config_type === 'pipeline' ? 'pipeline' : 'prompt';
@@ -288,7 +247,7 @@ export function ActionField({
     field: string;
     onApply: (field: string) => void;
 }) {
-    const { msgIndex, actionIndex, action, workflow, appliedFields, stale } = useContext(ActionContext);
+    const { action, workflow, appliedFields, stale } = useContext(ActionContext);
     const { showPreview } = usePreviewModal();
     if (!action || !workflow) return null;
 
@@ -303,25 +262,25 @@ export function ActionField({
             // Find the tool in the workflow
             const tool = workflow.tools.find(t => t.name === action.name);
             if (tool) {
-                oldValue = (tool as any)[field];
+                oldValue = (tool as Record<string, unknown>)[field];
             }
         } else if (action.config_type === 'agent') {
             // Find the agent in the workflow
             const agent = workflow.agents.find(a => a.name === action.name);
             if (agent) {
-                oldValue = (agent as any)[field];
+                oldValue = (agent as Record<string, unknown>)[field];
             }
         } else if (action.config_type === 'prompt') {
             // Find the prompt in the workflow
             const prompt = workflow.prompts.find(p => p.name === action.name);
             if (prompt) {
-                oldValue = (prompt as any)[field];
+                oldValue = (prompt as Record<string, unknown>)[field];
             }
         } else if (action.config_type === 'pipeline') {
             // Find the pipeline in the workflow
             const pipeline = workflow.pipelines?.find(p => p.name === action.name);
             if (pipeline) {
-                oldValue = (pipeline as any)[field];
+                oldValue = (pipeline as Record<string, unknown>)[field];
             }
         }
     }
@@ -382,7 +341,6 @@ export function ActionField({
 
 export function StreamingAction({
     action,
-    loading,
 }: {
     action: {
         action?: 'create_new' | 'edit' | 'delete';

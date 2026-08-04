@@ -2,31 +2,79 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { listProjects } from "@/app/actions/project.actions";
-import { createProjectWithOptions, createProjectFromJsonWithOptions, createProjectFromTemplate } from "../lib/project-creation-utils";
+import { createProjectWithOptions, createProjectFromJsonWithOptions } from "../lib/project-creation-utils";
 import { useRouter, useSearchParams } from 'next/navigation';
 import clsx from 'clsx';
 import Image from 'next/image';
 import mascotImage from '@/public/mascot.png';
-import { Button } from "@/components/ui/button";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { TextareaWithSend } from "@/app/components/ui/textarea-with-send";
 import { Workflow } from '../../lib/types/workflow_types';
 import { loadSharedWorkflow, createSharedWorkflowFromJson } from '@/app/actions/shared-workflow.actions';
-import { PictureImg } from '@/components/ui/picture-img';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Project } from "@/src/entities/models/project";
+import type { AssistantTemplate } from "@/src/entities/models/assistant-template";
 import { z } from "zod";
 import Link from 'next/link';
 import { UnifiedTemplatesSection } from '@/components/common/UnifiedTemplatesSection';
 import { 
-    listAssistantTemplates, 
-    getAssistantTemplateCategories, 
+    listAssistantTemplates,
     toggleTemplateLike,
     deleteAssistantTemplate,
     getAssistantTemplate
 } from '@/app/actions/assistant-templates.actions';
 
 const SHOW_PREBUILT_CARDS = process.env.NEXT_PUBLIC_SHOW_PREBUILT_CARDS !== 'false';
+
+interface TemplateToolInfo {
+    name: string;
+    isComposio?: boolean;
+    isLibrary?: boolean;
+    composioData?: { logo?: string };
+}
+
+// Mirrors the unexported `PrebuiltListItem` shape returned by
+// listAssistantTemplates({ source: 'library' }) in assistant-templates.actions.ts.
+// `tools` is intentionally `unknown[]` there too — it comes from untyped,
+// build-time-trusted JSON assets (see PrebuiltTemplateAsset in that file).
+interface LibraryTemplateSummary {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    tools: unknown[];
+    createdAt?: string;
+    source: 'library';
+}
+
+type CommunityTemplateSummary = AssistantTemplate & { isLiked?: boolean };
+
+type TemplateSummary = LibraryTemplateSummary | CommunityTemplateSummary;
+
+function isLibraryTemplateSummary(item: TemplateSummary): item is LibraryTemplateSummary {
+    return !('workflow' in item);
+}
+
+function isCommunityTemplateSummary(item: TemplateSummary): item is CommunityTemplateSummary {
+    return 'workflow' in item;
+}
+
+// Mirrors UnifiedTemplatesSection's unexported `TemplateItem` prop shape.
+interface TemplateCardItem {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    authorId?: string;
+    source?: 'library' | 'community';
+    tools?: TemplateToolInfo[];
+    authorName?: string;
+    isAnonymous?: boolean;
+    likeCount?: number;
+    createdAt?: string;
+    isLiked?: boolean;
+    type: 'prebuilt' | 'community';
+}
 
 
 
@@ -58,13 +106,13 @@ export function BuildAssistantSection() {
     const [importLoading, setImportLoading] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
     // Library templates (paginated)
-    const [templates, setTemplates] = useState<any[]>([]);
+    const [templates, setTemplates] = useState<TemplateSummary[]>([]);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [templatesError, setTemplatesError] = useState<string | null>(null);
     const [templatesCursor, setTemplatesCursor] = useState<string | null>(null);
     
     // Community templates (paginated)
-    const [communityTemplates, setCommunityTemplates] = useState<any[]>([]);
+    const [communityTemplates, setCommunityTemplates] = useState<TemplateSummary[]>([]);
     const [communityTemplatesLoading, setCommunityTemplatesLoading] = useState(false);
     const [communityTemplatesError, setCommunityTemplatesError] = useState<string | null>(null);
     const [communityCursor, setCommunityCursor] = useState<string | null>(null);
@@ -84,18 +132,18 @@ export function BuildAssistantSection() {
     const currentProjects = projects.slice(startIndex, endIndex);
 
     // Extract unique tools from template - using same approach as ToolkitCard
-    const getUniqueTools = (template: any) => {
+    const getUniqueTools = (template: TemplateCardItem) => {
         if (!template.tools) return [];
 
-        const uniqueToolsMap = new Map();
-        template.tools.forEach((tool: any) => {
+        const uniqueToolsMap = new Map<string, { name: string; isComposio?: boolean; isLibrary?: boolean; logo?: string }>();
+        template.tools.forEach((tool) => {
             if (!uniqueToolsMap.has(tool.name)) {
                 // Include all tools, following the same pattern as Composio toolkit cards
                 const toolData = {
                     name: tool.name,
                     isComposio: tool.isComposio,
                     isLibrary: tool.isLibrary,
-                    logo: tool.isComposio && tool.composioData?.logo ? tool.composioData.logo : null,
+                    logo: tool.isComposio && tool.composioData?.logo ? tool.composioData.logo : undefined,
                 };
 
                 uniqueToolsMap.set(tool.name, toolData);
@@ -106,7 +154,7 @@ export function BuildAssistantSection() {
     };
 
     // Utility: append unique by id (prevents duplicates when paginating)
-    const appendUniqueById = useCallback((prev: any[], next: any[]) => {
+    const appendUniqueById = useCallback(<T extends { id: string }>(prev: T[], next: T[]): T[] => {
         const seen = new Set(prev.map(i => i.id));
         const merged = [...prev];
         for (const item of next) {
@@ -135,7 +183,7 @@ export function BuildAssistantSection() {
             while (items.length < targetCount && (cursor !== null || items.length === 0)) {
                 const pageSize = Math.min(Math.max(targetCount - items.length, 12), 30);
                 const data = await listAssistantTemplates({ source, limit: pageSize, cursor: cursor || undefined });
-                items = appendUniqueById(items, data.items);
+                items = appendUniqueById<TemplateSummary>(items, data.items);
                 setItems(items);
                 cursor = data.nextCursor || null;
                 setCursor(cursor);
@@ -156,7 +204,7 @@ export function BuildAssistantSection() {
     }, [loadTemplatesToCount]);
 
     // Handle template selection
-    const handleTemplateSelect = async (template: any) => {
+    const handleTemplateSelect = async (template: TemplateCardItem) => {
         // Show a small non-blocking spinner on the clicked card
         setLoadingTemplateId(template.id);
         try {
@@ -166,7 +214,7 @@ export function BuildAssistantSection() {
                 await createProjectFromJsonWithOptions({
                     workflowJson: JSON.stringify(data.workflow),
                     router,
-                    onSuccess: (_projectId) => {},
+                    onSuccess: () => {},
                     onError: () => {
                         setLoadingTemplateId(null);
                     }
@@ -186,14 +234,14 @@ export function BuildAssistantSection() {
                     }
                 });
             }
-        } catch (_err) {
+        } catch {
             // In case of unexpected error, clear loading state
             setLoadingTemplateId(null);
         }
     };
 
     // Handle template like (unified for library and community) - now uses proper authentication
-    const handleTemplateLike = async (template: any) => {
+    const handleTemplateLike = async (template: TemplateCardItem) => {
         if (template.type === 'prebuilt') return;
         try {
             const data = await toggleTemplateLike(template.id);
@@ -207,7 +255,7 @@ export function BuildAssistantSection() {
             } else {
                 setTemplates(prev => prev.map(t => 
                     t.id === template.id 
-                        ? { ...t, likeCount: data.likeCount, isLiked: data.liked } as any
+                        ? { ...t, likeCount: data.likeCount, isLiked: data.liked }
                         : t
                 ));
             }
@@ -217,7 +265,7 @@ export function BuildAssistantSection() {
     };
 
     // Handle template share (for both library and community)
-    const handleTemplateShare = async (template: any) => {
+    const handleTemplateShare = async (template: TemplateCardItem) => {
         try {
             // Robust copy helper: tries async clipboard first, then falls back to execCommand
             const copyTextToClipboard = async (text: string): Promise<boolean> => {
@@ -226,7 +274,7 @@ export function BuildAssistantSection() {
                         await navigator.clipboard.writeText(text);
                         return true;
                     }
-                } catch (_e) {
+                } catch {
                     // fall through to fallback
                 }
                 try {
@@ -242,7 +290,7 @@ export function BuildAssistantSection() {
                     const successful = document.execCommand('copy');
                     document.body.removeChild(textarea);
                     return successful;
-                } catch (_e) {
+                } catch {
                     return false;
                 }
             };
@@ -622,17 +670,17 @@ export function BuildAssistantSection() {
                     {selectedTab === 'new' && SHOW_PREBUILT_CARDS && (
                         <div className="max-w-5xl mx-auto mt-16">
                             <UnifiedTemplatesSection
-                                prebuiltTemplates={templates.map(template => ({
+                                prebuiltTemplates={templates.filter(isLibraryTemplateSummary).map(template => ({
                                     id: template.id,
                                     name: template.name,
                                     description: template.description,
                                     category: template.category || 'Other',
-                                    tools: template.tools,
+                                    tools: template.tools as TemplateToolInfo[],
                                     type: 'prebuilt' as const,
-                                    likeCount: (template as any).likeCount || 0,
-                                    isLiked: (template as any).isLiked || false,
+                                    likeCount: 0,
+                                    isLiked: false,
                                 }))}
-                                communityTemplates={communityTemplates.map(template => ({
+                                communityTemplates={communityTemplates.filter(isCommunityTemplateSummary).map(template => ({
                                     id: template.id,
                                     name: template.name,
                                     description: template.description,

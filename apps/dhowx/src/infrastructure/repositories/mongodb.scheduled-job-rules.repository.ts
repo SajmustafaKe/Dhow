@@ -10,21 +10,15 @@ import { PaginatedList } from "@/src/entities/common/paginated-list";
  * MongoDB document schema for ScheduledJobRule.
  * Excludes the 'id' field as it's represented by MongoDB's '_id'.
  */
-const DocSchema = ScheduledJobRule
-    .omit({
-        id: true,
-        nextRunAt: true,
-        processedAt: true,
-    })
-    .extend({
-        _id: z.instanceof(ObjectId),
-        nextRunAt: z.number(),
-    });
+type Doc = Omit<z.infer<typeof ScheduledJobRule>, "id" | "nextRunAt"> & {
+    _id: ObjectId;
+    nextRunAt: number;
+};
 
 /**
- * Schema for creating documents (without _id field).
+ * Type for creating documents (without _id field).
  */
-const CreateDocSchema = DocSchema.omit({ _id: true });
+type CreateDoc = Omit<Doc, "_id">;
 
 /**
  * MongoDB implementation of the ScheduledJobRulesRepository.
@@ -33,13 +27,13 @@ const CreateDocSchema = DocSchema.omit({ _id: true });
  * creating, fetching, polling, processing, and listing rules for worker processing.
  */
 export class MongoDBScheduledJobRulesRepository implements IScheduledJobRulesRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("scheduled_job_rules");
+    private readonly collection = db.collection<Doc>("scheduled_job_rules");
 
     /**
      * Converts a MongoDB document to a domain model.
      * Handles the conversion of nextRunAt and processedAt from Unix timestamps to ISO strings.
      */
-    private convertDocToModel(doc: z.infer<typeof DocSchema>): z.infer<typeof ScheduledJobRule> {
+    private convertDocToModel(doc: Doc): z.infer<typeof ScheduledJobRule> {
         const { _id, nextRunAt, ...rest } = doc;
         return {
             ...rest,
@@ -64,7 +58,7 @@ export class MongoDBScheduledJobRulesRepository implements IScheduledJobRulesRep
         const nextRunAtMinutes = Math.floor(nextRunAtSeconds / 60) * 60;
         const nextRunAt = nextRunAtMinutes;
 
-        const doc: z.infer<typeof CreateDocSchema> = {
+        const doc: CreateDoc = {
             ...rest,
             nextRunAt: nextRunAt,
             status: "pending",
@@ -222,7 +216,7 @@ export class MongoDBScheduledJobRulesRepository implements IScheduledJobRulesRep
      * Lists scheduled job rules for a specific project with pagination.
      */
     async list(projectId: string, cursor?: string, limit: number = 50): Promise<z.infer<ReturnType<typeof PaginatedList<typeof ListedRuleItem>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { projectId };
+        const query: Filter<Doc> = { projectId };
 
         if (cursor) {
             query._id = { $lt: new ObjectId(cursor) };

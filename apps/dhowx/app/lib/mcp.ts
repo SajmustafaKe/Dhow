@@ -17,7 +17,7 @@ export async function getMcpClient(serverUrl: string, serverName: string): Promi
         await client.connect(transport);
         console.log(`[MCP] Connected using Streamable HTTP transport to ${serverName}`);
         return client;
-    } catch (error) {
+    } catch {
         // If that fails with a 4xx error, try the older SSE transport
         console.log(`[MCP] Streamable HTTP connection failed, falling back to SSE transport for ${serverName}`);
         client = new Client({

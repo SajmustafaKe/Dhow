@@ -130,8 +130,7 @@ export async function addDocsToDataSource({
 
 export async function listDocsInDataSource({
     sourceId,
-    page = 1,
-    limit = 10,
+    page: _page = 1, limit: _limit = 10,
 }: {
     sourceId: string,
     page?: number,

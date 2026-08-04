@@ -5,12 +5,10 @@ import { z } from "zod";
 import { Filter, ObjectId } from "mongodb";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 
-const docSchema = ProjectMember.omit({
-    id: true,
-});
+type Doc = Omit<z.infer<typeof ProjectMember>, "id">;
 
 export class MongoDBProjectMembersRepository implements IProjectMembersRepository {
-    private collection = db.collection<z.infer<typeof docSchema>>('project_members');
+    private collection = db.collection<Doc>('project_members');
 
     async create(data: z.infer<typeof CreateProjectMemberSchema>): Promise<z.infer<typeof ProjectMember>> {
         // this has to be an upsert operation
@@ -45,7 +43,7 @@ export class MongoDBProjectMembersRepository implements IProjectMembersRepositor
     }
 
     async findByUserId(userId: string, cursor?: string, limit: number = 50): Promise<z.infer<ReturnType<typeof PaginatedList<typeof ProjectMember>>>> {
-        const query: Filter<z.infer<typeof docSchema>> = { userId };
+        const query: Filter<Doc> = { userId };
 
         if (cursor) {
             query._id = { $lt: new ObjectId(cursor) };

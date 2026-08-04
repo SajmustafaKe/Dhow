@@ -6,17 +6,11 @@ import { z } from "zod";
 import { IProjectMembersRepository } from "@/src/application/repositories/project-members.repository.interface";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 
-const docSchema = Project
-    .omit({
-        id: true,
-    })
-    .extend({
-        _id: z.string().uuid(),
-    });
+type Doc = Omit<z.infer<typeof Project>, "id"> & { _id: string };
 
 export class MongodbProjectsRepository implements IProjectsRepository {
     private readonly projectMembersRepository: IProjectMembersRepository;
-    private collection = db.collection<z.infer<typeof docSchema>>('projects');
+    private collection = db.collection<Doc>('projects');
 
     constructor({
         projectMembersRepository,

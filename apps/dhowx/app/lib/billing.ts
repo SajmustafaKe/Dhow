@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Customer, AuthorizeRequest, AuthorizeResponse, LogUsageRequest, UsageResponse, CustomerPortalSessionResponse, PricesResponse, UpdateSubscriptionPlanRequest, UpdateSubscriptionPlanResponse, ModelsResponse, UsageItem } from './types/billing_types';
 import { redirect } from 'next/navigation';
-import { getUserFromSessionId, requireAuth } from './auth';
+import { requireAuth } from './auth';
 import { USE_BILLING } from './feature_flags';
 import { container } from '@/di/container';
 import { IProjectsRepository } from '@/src/application/repositories/projects.repository.interface';

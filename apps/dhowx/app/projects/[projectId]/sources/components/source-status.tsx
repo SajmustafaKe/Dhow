@@ -1,7 +1,7 @@
 import { DataSource } from "@/src/entities/models/data-source";
 import { Spinner } from "@/app/lib/components/spinner";
 import { z } from 'zod';
-import { CheckCircleIcon, XCircleIcon, ClockIcon } from "lucide-react";
+import { CheckCircleIcon, XCircleIcon } from "lucide-react";
 
 export function SourceStatus({
     status,
@@ -17,9 +17,11 @@ export function SourceStatus({
                     <CheckCircleIcon className="w-4 h-4 text-green-500 dark:text-green-400" />
                     <div className="flex flex-col">
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Ready</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                            This source has been indexed and is ready to use.
-                        </span>
+                        {!compact && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                This source has been indexed and is ready to use.
+                            </span>
+                        )}
                     </div>
                 </>
             )}
@@ -31,9 +33,11 @@ export function SourceStatus({
                     </div>
                     <div className="flex flex-col">
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Processing</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                            This source is being processed. This may take a few minutes.
-                        </span>
+                        {!compact && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                This source is being processed. This may take a few minutes.
+                            </span>
+                        )}
                     </div>
                 </>
             )}
@@ -43,9 +47,11 @@ export function SourceStatus({
                     <XCircleIcon className="w-4 h-4 text-red-500 dark:text-red-400" />
                     <div className="flex flex-col">
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Error</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                            There was an error processing this source.
-                        </span>
+                        {!compact && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                There was an error processing this source.
+                            </span>
+                        )}
                     </div>
                 </>
             )}

@@ -323,37 +323,6 @@ export function DeleteProjectSection({
     );
 }
 
-function ApiKeyDisplay({ apiKey }: { apiKey: string }) {
-    const [isVisible, setIsVisible] = useState(false);
-
-    const formattedKey = isVisible ? apiKey : `${apiKey.slice(0, 2)}${'•'.repeat(5)}${apiKey.slice(-2)}`;
-
-    return (
-        <div className="flex flex-col gap-1">
-            <div className="text-sm font-mono break-all">{formattedKey}</div>
-            <div className="flex flex-row gap-2 items-center">
-                <button
-                    onClick={() => setIsVisible(!isVisible)}
-                    className="text-gray-300 hover:text-gray-700"
-                >
-                    {isVisible ? (
-                        <EyeOffIcon className="w-4 h-4" />
-                    ) : (
-                        <EyeIcon className="w-4 h-4" />
-                    )}
-                </button>
-                <CopyButton
-                    onCopy={() => {
-                        navigator.clipboard.writeText(apiKey);
-                    }}
-                    label="Copy"
-                    successLabel="Copied"
-                />
-            </div>
-        </div>
-    );
-}
-
 export function ConfigApp({
     projectId,
     useChatWidget,

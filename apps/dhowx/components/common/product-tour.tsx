@@ -168,7 +168,7 @@ export function ProductTour({
     // Determine if the target is a panel that should have the hint on the side
     const isPanelTarget = ['entity-agents', 'entity-tools', 'entity-prompts', 'copilot', 'playground', 'entity-data', 'settings', 'triggers', 'jobs', 'conversations'].includes(currentTarget);
 
-    const { x, y, strategy, refs, context, middlewareData } = useFloating({
+    const { x, y, strategy, refs, context } = useFloating({
         placement: isPanelTarget ? 'right' : 'top',
         middleware: [
             offset(16),
@@ -188,7 +188,6 @@ export function ProductTour({
 
     // Update reference element when step changes and notify parent first, then resolve target element
     useEffect(() => {
-        let raf1: number | undefined;
         let raf2: number | undefined;
 
         if (onStepChange) {
@@ -196,16 +195,16 @@ export function ProductTour({
         }
 
         // Give the parent a frame to update DOM (e.g., switching panels), then query element
-        raf1 = requestAnimationFrame(() => {
+        const raf1 = requestAnimationFrame(() => {
             raf2 = requestAnimationFrame(() => {
                 const el = document.querySelector(`[data-tour-target="${currentTarget}"]`);
                 setTargetElement(el);
-                if (el) refs.setReference(el as any);
+                if (el) refs.setReference(el);
             });
         });
 
         return () => {
-            if (raf1) cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf1);
             if (raf2) cancelAnimationFrame(raf2);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -234,11 +233,6 @@ export function ProductTour({
     }, [projectId, onComplete]);
 
     if (!shouldShow) return null;
-
-    // Get the actual placement after middleware calculations
-    const actualPlacement = middlewareData.flip?.overflows?.length ?
-        middlewareData.flip?.overflows[0].placement :
-        isPanelTarget ? 'right' : 'top';
 
     return (
         <FloatingPortal>

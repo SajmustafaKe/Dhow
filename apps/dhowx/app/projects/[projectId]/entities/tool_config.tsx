@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import clsx from "clsx";
 import { SectionCard } from "@/components/common/section-card";
 import { ToolParamCard } from "@/components/common/tool-param-card";
 import { UserIcon, Settings, Settings2 } from "lucide-react";
@@ -29,17 +28,10 @@ const PARAM_TYPES = ['string', 'number', 'boolean', 'array', 'object'] as const;
 // Update textarea styles with improved states
 const textareaStyles = "rounded-lg p-3 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-750 focus:shadow-inner focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20 placeholder:text-gray-400 dark:placeholder:text-gray-500";
 
-// Add divider styles
-const dividerStyles = "border-t border-gray-200 dark:border-gray-800";
-
-// Common section header styles
-const sectionHeaderStyles = "block text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400";
-
 export function ParameterConfig({
     param,
     handleUpdate,
     handleDelete,
-    handleRename,
     readOnly
 }: {
     param: {

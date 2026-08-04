@@ -88,11 +88,9 @@ function FileListItem({
 
 function PaginatedFileList({
     sourceId,
-    handleReload,
     onDelete,
 }: {
     sourceId: string,
-    handleReload: () => void;
     onDelete: (fileId: string) => Promise<void>;
 }) {
     const [files, setFiles] = useState<z.infer<typeof DataSourceDoc>[]>([]);
@@ -290,7 +288,6 @@ export function FilesSource({
                 <PaginatedFileList
                     key={fileListKey}
                     sourceId={dataSource.id}
-                    handleReload={handleReload}
                     onDelete={async (docId) => {
                         await deleteDocFromDataSource({
                             docId: docId,

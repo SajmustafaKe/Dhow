@@ -4,26 +4,30 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRef, useState, useEffect } from "react";
 import { Textarea } from "@/components/common/rich-textarea";
+import { z } from "zod";
+import { CopilotChatContext, CopilotMessage } from "@/src/entities/models/copilot";
 
-// Add a type to support both message formats
-type FlexibleMessage = {
-    role: 'user' | 'assistant' | 'system' | 'tool';
-    content: string | any;
-    version?: string;
-    chatId?: string;
-    createdAt?: string;
-    // Add any other optional fields that might be needed
-};
+interface CopilotStatusBarProps {
+    allCardsLoaded?: boolean;
+    allApplied?: boolean;
+    appliedCount?: number;
+    pendingCount?: number;
+    streamingLine?: string;
+    completedSummary?: string;
+    hasPanelWarning?: boolean;
+    handleApplyAll?: () => void;
+    context?: z.infer<typeof CopilotChatContext> | null;
+}
 
 interface ComposeBoxCopilotProps {
     handleUserMessage: (message: string) => void;
-    messages: any[];
+    messages: z.infer<typeof CopilotMessage>[];
     loading: boolean;
     initialFocus?: boolean;
     shouldAutoFocus?: boolean;
     onFocus?: () => void;
     onCancel?: () => void;
-    statusBar?: any;
+    statusBar?: CopilotStatusBarProps;
 }
 
 export function ComposeBoxCopilot({
@@ -196,19 +200,7 @@ function CopilotStatusBar({
     hasPanelWarning,
     handleApplyAll,
     context,
-    onCloseContext
-}: {
-    allCardsLoaded?: boolean;
-    allApplied?: boolean;
-    appliedCount?: number;
-    pendingCount?: number;
-    streamingLine?: string;
-    completedSummary?: string;
-    hasPanelWarning?: boolean;
-    handleApplyAll?: () => void;
-    context?: any;
-    onCloseContext?: () => void;
-}) {
+}: CopilotStatusBarProps) {
     // Context label rendering
     const renderContext = () => {
         if (!context) return null;

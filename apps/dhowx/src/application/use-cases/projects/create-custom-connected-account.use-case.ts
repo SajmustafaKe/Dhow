@@ -69,7 +69,7 @@ export class CreateCustomConnectedAccountUseCase implements ICreateCustomConnect
             state = {
                 authScheme: authConfig.authScheme,
                 val: { status: 'ACTIVE', ...authConfig.credentials },
-            } as any;
+            };
         }
 
         const response = await createConnectedAccount({

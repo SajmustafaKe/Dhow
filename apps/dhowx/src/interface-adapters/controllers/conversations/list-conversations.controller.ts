@@ -1,7 +1,6 @@
 import { BadRequestError } from "@/src/entities/errors/common";
 import z from "zod";
 import { IListConversationsUseCase } from "@/src/application/use-cases/conversations/list-conversations.use-case";
-import { Conversation } from "@/src/entities/models/conversation";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 import { ListedConversationItem } from "@/src/application/repositories/conversations.repository.interface";
 

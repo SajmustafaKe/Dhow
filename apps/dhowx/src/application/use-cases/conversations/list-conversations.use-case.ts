@@ -1,9 +1,7 @@
-import { BadRequestError, NotFoundError } from '@/src/entities/errors/common';
 import { z } from "zod";
 import { IUsageQuotaPolicy } from '../../policies/usage-quota.policy.interface';
 import { IProjectActionAuthorizationPolicy } from '../../policies/project-action-authorization.policy';
 import { IConversationsRepository, ListedConversationItem } from '../../repositories/conversations.repository.interface';
-import { Conversation } from '@/src/entities/models/conversation';
 import { PaginatedList } from '@/src/entities/common/paginated-list';
 
 const inputSchema = z.object({

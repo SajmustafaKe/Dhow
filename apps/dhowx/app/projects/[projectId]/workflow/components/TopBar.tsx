@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -101,11 +101,9 @@ export function TopBar({
     showBuildModeBanner,
     canUndo,
     canRedo,
-    activePanel,
     viewMode,
     hasAgentInstructionChanges,
     hasPlaygroundTested,
-    hasPublished,
     hasClickedUse,
     onUndo,
     onRedo,
@@ -113,7 +111,6 @@ export function TopBar({
     onPublishWorkflow,
     onChangeMode,
     onRevertToLive,
-    onTogglePanel,
     onSetViewMode,
     hasAgents = true,
     onUseAssistantClick,
@@ -124,8 +121,6 @@ export function TopBar({
     onShareWorkflow,
     shareUrl,
     onCopyShareUrl,
-    shareMode,
-    setShareMode,
     communityData,
     setCommunityData,
     onCommunityPublish,
@@ -140,7 +135,7 @@ export function TopBar({
     // Share modal state
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-    const onShareModalClose = () => setIsShareModalOpen(false);
+    const onShareModalClose = useCallback(() => setIsShareModalOpen(false), []);
     const onConfirmClose = () => setIsConfirmOpen(false);
     const [acknowledged, setAcknowledged] = useState(false);
     const [copyButtonText, setCopyButtonText] = useState('Copy');

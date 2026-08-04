@@ -7,13 +7,10 @@ import { nanoid } from "nanoid";
 import { Turn } from "@/src/entities/models/turn";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 
-const DocSchema = Conversation
-    .omit({
-        id: true,
-    });
+type Doc = Omit<z.infer<typeof Conversation>, "id">;
 
 export class MongoDBConversationsRepository implements IConversationsRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("conversations");
+    private readonly collection = db.collection<Doc>("conversations");
 
     async create(data: z.infer<typeof CreateConversationData>): Promise<z.infer<typeof Conversation>> {
         const now = new Date();
@@ -76,7 +73,7 @@ export class MongoDBConversationsRepository implements IConversationsRepository 
     }
 
     async list(projectId: string, cursor?: string, limit: number = 50): Promise<z.infer<ReturnType<typeof PaginatedList<typeof ListedConversationItem>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { projectId };
+        const query: Filter<Doc> = { projectId };
 
         if (cursor) {
             query._id = { $lt: new ObjectId(cursor) };

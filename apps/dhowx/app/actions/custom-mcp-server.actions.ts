@@ -18,7 +18,7 @@ function validateUrl(url: string): string {
       throw new Error('Invalid protocol');
     }
     return parsedUrl.toString();
-  } catch (error) {
+  } catch {
     throw new Error('Invalid URL');
   }
 }

@@ -27,7 +27,7 @@ export default function App() {
     try {
       await updateUserEmail(email);
       router.push('/projects');
-    } catch (error) {
+    } catch {
       setError("Failed to update email.");
     }
   }

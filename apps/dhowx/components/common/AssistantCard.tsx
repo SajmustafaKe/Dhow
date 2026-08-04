@@ -44,15 +44,14 @@ const getRelativeTime = (dateString: string): string => {
     return `${diffInYears} year${diffInYears === 1 ? '' : 's'} ago`;
 };
 
-interface AssistantCardProps {
+type ToolSummary = { name: string; logo?: string };
+
+interface AssistantCardProps<TItem extends { tools?: ToolSummary[] } = { tools?: ToolSummary[] }> {
     id: string;
     name: string;
     description: string;
     category: string;
-    tools?: Array<{
-        name: string;
-        logo?: string;
-    }>;
+    tools?: ToolSummary[];
     // Community-specific props
     authorName?: string;
     isAnonymous?: boolean;
@@ -68,13 +67,12 @@ interface AssistantCardProps {
     onClick?: () => void;
     loading?: boolean;
     disabled?: boolean;
-    getUniqueTools?: (item: any) => Array<{ name: string; logo?: string }>;
+    getUniqueTools?: (item: TItem) => ToolSummary[];
     // UI flags
     hideLikes?: boolean;
 }
 
-export function AssistantCard({
-    id,
+export function AssistantCard<TItem extends { tools?: ToolSummary[] } = { tools?: ToolSummary[] }>({
     name,
     description,
     category,
@@ -93,18 +91,16 @@ export function AssistantCard({
     disabled = false,
     getUniqueTools,
     hideLikes = false
-}: AssistantCardProps) {
-    const displayTools = getUniqueTools ? getUniqueTools({ tools }) : tools;
+}: AssistantCardProps<TItem>) {
+    const displayTools = getUniqueTools ? getUniqueTools({ tools } as TItem) : tools;
     const [isDescriptionExpanded, setIsDescriptionExpanded] = React.useState(false);
     const [showDescriptionToggle, setShowDescriptionToggle] = React.useState(false);
     const descriptionRef = React.useRef<HTMLDivElement | null>(null);
     const [copied, setCopied] = React.useState(false);
     React.useEffect(() => {
-        let t: any;
-        if (copied) {
-            t = setTimeout(() => setCopied(false), 1500);
-        }
-        return () => t && clearTimeout(t);
+        if (!copied) return;
+        const t = setTimeout(() => setCopied(false), 1500);
+        return () => clearTimeout(t);
     }, [copied]);
 
     React.useEffect(() => {

@@ -58,6 +58,10 @@ export default function MarkdownContent({
                     return <blockquote className='py-2 bg-gray-200 px-1'>{children}</blockquote>;
                 },
                 a(props) {
+                    // className and node are destructured to keep them out of
+                    // `rest`, which is spread onto the real <a>. Unused by
+                    // design; `ignoreRestSiblings` in eslint.config.mjs covers
+                    // exactly this shape.
                     const { children, href, className, node, ...rest } = props;
 
                     // If this is a mention link, render it with mention styling

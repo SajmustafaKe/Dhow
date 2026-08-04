@@ -1,11 +1,3 @@
-import { getResponse } from "@/src/application/lib/agents-runtime/agents";
-import { twilioConfigsCollection, twilioInboundCallsCollection } from "@/app/lib/mongodb";
-import { PrefixLogger } from "@/app/lib/utils";
-import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
-import { z } from "zod";
-import { TwilioInboundCall } from "@/app/lib/types/voice_types";
-import { hangup, reject, XmlResponse, ZStandardRequestParams } from "../utils";
-
     /*
     form data example
     ...
@@ -39,7 +31,7 @@ import { hangup, reject, XmlResponse, ZStandardRequestParams } from "../utils";
         FromState: 'PXXXXXXX'
     }
     */
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
     return new Response('Not implemented', { status: 501 });
     /*
     let logger = new PrefixLogger("twilioInboundCall");

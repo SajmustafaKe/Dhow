@@ -7,7 +7,6 @@ import { fetchConversation } from "@/app/actions/conversation.actions";
 import { Conversation } from "@/src/entities/models/conversation";
 import { Turn } from "@/src/entities/models/turn";
 import { z } from "zod";
-import Link from "next/link";
 import { MessageDisplay } from "../../../../lib/components/message-display";
 import { ReasonBadge } from "../../../../lib/components/reason-badge";
 

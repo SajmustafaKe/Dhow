@@ -17,7 +17,7 @@ export class LocalUploadsStorageService implements IUploadsStorageService {
         this.dataSourceDocsRepository = dataSourceDocsRepository;
     }
 
-    async getUploadUrl(key: string, contentType: string): Promise<string> {
+    async getUploadUrl(key: string): Promise<string> {
         return `/api/uploads/${key}`;
     }
 

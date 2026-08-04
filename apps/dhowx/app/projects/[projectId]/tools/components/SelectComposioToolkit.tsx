@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Search } from 'lucide-react';
 import clsx from 'clsx';

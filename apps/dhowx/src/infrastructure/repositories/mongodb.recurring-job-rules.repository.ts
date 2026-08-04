@@ -11,22 +11,16 @@ import { CronExpressionParser } from 'cron-parser';
  * MongoDB document schema for RecurringJobRule.
  * Excludes the 'id' field as it's represented by MongoDB's '_id'.
  */
-const DocSchema = RecurringJobRule
-    .omit({
-        id: true,
-        nextRunAt: true,
-        lastProcessedAt: true,
-    })
-    .extend({
-        _id: z.instanceof(ObjectId),
-        nextRunAt: z.number(),
-        lastProcessedAt: z.number().optional(),
-    });
+type Doc = Omit<z.infer<typeof RecurringJobRule>, "id" | "nextRunAt" | "lastProcessedAt"> & {
+    _id: ObjectId;
+    nextRunAt: number;
+    lastProcessedAt?: number;
+};
 
 /**
- * Schema for creating documents (without _id field).
+ * Type for creating documents (without _id field).
  */
-const CreateDocSchema = DocSchema.omit({ _id: true });
+type CreateDoc = Omit<Doc, "_id">;
 
 /**
  * MongoDB implementation of the RecurringJobRulesRepository.
@@ -35,13 +29,13 @@ const CreateDocSchema = DocSchema.omit({ _id: true });
  * creating, fetching, polling, processing, and listing rules for worker processing.
  */
 export class MongoDBRecurringJobRulesRepository implements IRecurringJobRulesRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("recurring_job_rules");
+    private readonly collection = db.collection<Doc>("recurring_job_rules");
 
     /**
      * Converts a MongoDB document to a domain model.
      * Handles the conversion of timestamps from Unix timestamps to ISO strings.
      */
-    private convertDocToModel(doc: z.infer<typeof DocSchema>): z.infer<typeof RecurringJobRule> {
+    private convertDocToModel(doc: Doc): z.infer<typeof RecurringJobRule> {
         const { _id, nextRunAt, lastProcessedAt, ...rest } = doc;
         return {
             ...rest,
@@ -58,7 +52,7 @@ export class MongoDBRecurringJobRulesRepository implements IRecurringJobRulesRep
         const now = new Date().toISOString();
         const _id = new ObjectId();
 
-        const doc: z.infer<typeof CreateDocSchema> = {
+        const doc: CreateDoc = {
             ...data,
             nextRunAt: 0,
             disabled: false,
@@ -170,7 +164,7 @@ export class MongoDBRecurringJobRulesRepository implements IRecurringJobRulesRep
      * Lists recurring job rules for a specific project with pagination.
      */
     async list(projectId: string, cursor?: string, limit: number = 50): Promise<z.infer<ReturnType<typeof PaginatedList<typeof ListedRecurringRuleItem>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { projectId };
+        const query: Filter<Doc> = { projectId };
 
         if (cursor) {
             query._id = { $lt: new ObjectId(cursor) };

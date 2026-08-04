@@ -10,13 +10,9 @@ import { InputField } from "@/app/lib/components/input-field";
 import { SectionCard } from "@/components/common/section-card";
 
 export function PipelineConfig({
-    projectId,
-    workflow,
     pipeline,
     usedPipelineNames,
     usedAgentNames,
-    agents,
-    pipelines,
     handleUpdate,
     handleClose,
 }: {

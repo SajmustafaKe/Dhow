@@ -1,5 +1,4 @@
 import clsx from "clsx";
-import { ActionButton } from "./structured-panel";
 
 export function SectionHeader({ title, children }: { title: string; children: React.ReactNode }) {
     return (
@@ -31,7 +30,7 @@ export function ListItem({
 }) {
     return (
         <button
-            ref={selectedRef as any}
+            ref={selectedRef as React.RefObject<HTMLButtonElement>}
             onClick={onClick}
             className={clsx("flex items-center justify-between rounded-md px-2 py-1", {
                 "bg-gray-100 dark:bg-gray-700": isSelected,

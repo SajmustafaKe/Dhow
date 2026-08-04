@@ -1,7 +1,6 @@
 import { BadRequestError } from "@/src/entities/errors/common";
 import z from "zod";
 import { IListJobsUseCase } from "@/src/application/use-cases/jobs/list-jobs.use-case";
-import { Job } from "@/src/entities/models/job";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 import { JobFiltersSchema, ListedJobItem } from "@/src/application/repositories/jobs.repository.interface";
 

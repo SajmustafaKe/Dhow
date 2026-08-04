@@ -16,7 +16,7 @@ import { Section, SectionRow, SectionLabel, SectionContent } from "../components
 import Link from "next/link";
 import { BackIcon } from "../../../../lib/components/icons";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckIcon, TriangleAlertIcon } from "lucide-react";
+import { CheckIcon } from "lucide-react";
 import { Button } from "@/components/common/pill-button";
 import { BillingUpgradeModal } from "@/components/common/billing-upgrade-modal";
 

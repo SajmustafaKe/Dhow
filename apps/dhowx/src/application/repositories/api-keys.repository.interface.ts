@@ -1,4 +1,3 @@
-import { PaginatedList } from "@/src/entities/common/paginated-list";
 import { ApiKey } from "@/src/entities/models/api-key";
 import { z } from "zod";
 

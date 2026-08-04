@@ -1,19 +1,6 @@
-import { getResponse } from "@/src/application/lib/agents-runtime/agents";
-import { twilioInboundCallsCollection } from "@/app/lib/mongodb";
-import { PrefixLogger } from "@/app/lib/utils";
-import VoiceResponse from "twilio/lib/twiml/VoiceResponse";
-import { z } from "zod";
-import { hangup, XmlResponse, ZStandardRequestParams } from "../../utils";
-import { Message } from "@/app/lib/types/types";
-
-const ZRequestData = ZStandardRequestParams.extend({
-    SpeechResult: z.string(),
-    Confidence: z.string(),
-});
-
 export async function POST(
-    request: Request,
-    { params }: { params: Promise<{ callSid: string }> }
+    _request: Request,
+    { params: _params }: { params: Promise<{ callSid: string }> }
 ) {
     return new Response('Not implemented', { status: 501 });
     /*

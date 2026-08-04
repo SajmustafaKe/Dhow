@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Textarea } from '@/components/common/rich-textarea';
 import { Button } from "@/components/ui/button";
+import { z } from "zod";
+import { Message } from "@/app/lib/types/types";
 
 interface ComposeBoxPlaygroundProps {
     handleUserMessage: (message: string) => void;
-    messages: any[];
+    messages: z.infer<typeof Message>[];
     loading: boolean;
     disabled?: boolean;
     shouldAutoFocus?: boolean;

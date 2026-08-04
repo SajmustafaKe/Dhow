@@ -179,7 +179,7 @@ async function searchRelevantTools(usageTracker: UsageTracker, query: string): P
     
     // Extract tool slugs from results[].primary_tool_slugs[]
     const toolSlugs = (result.data.results || [])
-        .flatMap((item: any) => item.primary_tool_slugs || [])
+        .flatMap((item) => item.primary_tool_slugs || [])
         .filter((slug: string) => slug);
     
     if (!toolSlugs.length) {
@@ -201,7 +201,7 @@ async function searchRelevantTools(usageTracker: UsageTracker, query: string): P
     
     // Filter out failed tool fetches
     const composioTools = composioToolsResults
-        .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+        .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof getTool>>> => result.status === 'fulfilled')
         .map(result => result.value);
     
     if (composioTools.length === 0) {
@@ -286,11 +286,11 @@ async function searchRelevantTriggers(
             }
             cursor = response.next_cursor || undefined;
         }
-    } catch (error: any) {
-        logger.log(`trigger search failed: ${error?.message || error}`);
+    } catch (error) {
+        logger.log(`trigger search failed: ${error instanceof Error ? error.message : String(error)}`);
         console.log("❌ TOOL CALL FAILED: COMPOSIO_LIST_TRIGGERS", {
             toolkitSlug: trimmedSlug,
-            error: error?.message || error,
+            error: error instanceof Error ? error.message : String(error),
         });
         return `Trigger search failed for toolkit "${trimmedSlug}".`;
     }
@@ -540,13 +540,18 @@ export async function* streamMultiAgentResponse(
                 content: event.text,
             };
         } else if (event.type === "tool-call") {
-            const input = event.input as Record<string, any>;
+            // `event.input` is `unknown` here for dynamic/unmatched tool calls
+            // (the SDK cannot statically infer input types across the union of
+            // both declared tools); narrow it the same way agent-tools.ts's
+            // `asRecord` does for the equivalent SDK boundary.
+            const rawInput = event.input;
+            const input = (typeof rawInput === 'object' && rawInput !== null) ? rawInput as Record<string, unknown> : {};
             yield {
                 type: 'tool-call',
                 toolName: event.toolName,
                 toolCallId: event.toolCallId,
                 args: input,
-                query: input.query || undefined,
+                query: (typeof input.query === 'string' && input.query) ? input.query : undefined,
             };
         } else if (event.type === "tool-result") { 
             yield {

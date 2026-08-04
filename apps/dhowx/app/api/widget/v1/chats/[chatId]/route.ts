@@ -19,7 +19,7 @@ export async function GET(
         let chatIdObj: ObjectId;
         try {
             chatIdObj = new ObjectId(chatId);
-        } catch (e) {
+        } catch {
             return Response.json({ error: "Invalid chat ID" }, { status: 400 });
         }
 

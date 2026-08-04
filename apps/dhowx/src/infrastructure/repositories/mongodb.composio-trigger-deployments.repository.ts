@@ -6,12 +6,10 @@ import { ComposioTriggerDeployment } from "@/src/entities/models/composio-trigge
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 
 /**
- * MongoDB document schema for ComposioTriggerDeployment.
+ * MongoDB document type for ComposioTriggerDeployment.
  * Excludes the 'id' field as it's represented by MongoDB's '_id'.
  */
-const DocSchema = ComposioTriggerDeployment.omit({
-    id: true,
-});
+type Doc = Omit<z.infer<typeof ComposioTriggerDeployment>, "id">;
 
 /**
  * MongoDB implementation of the ComposioTriggerDeploymentsRepository.
@@ -20,7 +18,7 @@ const DocSchema = ComposioTriggerDeployment.omit({
  * providing CRUD operations and paginated queries for deployments.
  */
 export class MongodbComposioTriggerDeploymentsRepository implements IComposioTriggerDeploymentsRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("composio_trigger_deployments");
+    private readonly collection = db.collection<Doc>("composio_trigger_deployments");
 
     /**
      * Creates a new Composio trigger deployment.
@@ -118,7 +116,7 @@ export class MongodbComposioTriggerDeploymentsRepository implements IComposioTri
      * Retrieves all trigger deployments for a specific project with pagination.
      */
     async listByProjectId(projectId: string, cursor?: string, limit: number = 50): Promise<z.infer<ReturnType<typeof PaginatedList<typeof ComposioTriggerDeployment>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { projectId };
+        const query: Filter<Doc> = { projectId };
 
         if (cursor) {
             query._id = { $gt: new ObjectId(cursor) };

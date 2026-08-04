@@ -746,8 +746,6 @@ function DeleteProjectSection({ projectId }: { projectId: string }) {
 
 export function ProjectSection({
     projectId,
-    useChatWidget,
-    chatWidgetHost,
 }: {
     projectId: string;
     useChatWidget: boolean;

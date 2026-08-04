@@ -9,7 +9,7 @@ import { listRecurringJobRules, deleteRecurringJobRule } from "@/app/actions/rec
 import { z } from "zod";
 import { ListedRecurringRuleItem } from "@/src/application/repositories/recurring-job-rules.repository.interface";
 import { isToday, isThisWeek, isThisMonth } from "@/lib/utils/date";
-import { PlusIcon, Trash2, ArrowLeftIcon } from "lucide-react";
+import { PlusIcon, Trash2 } from "lucide-react";
 import { CreateRecurringJobRuleForm } from "./create-recurring-job-rule-form";
 
 type ListedItem = z.infer<typeof ListedRecurringRuleItem>;
@@ -86,7 +86,7 @@ export function RecurringJobRulesList({ projectId }: { projectId: string }) {
             await deleteRecurringJobRule({ projectId, ruleId });
             // Remove the deleted item from the list
             setItems(prev => prev.filter(item => item.id !== ruleId));
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error deleting recurring trigger:', err);
             alert('Failed to delete recurring trigger. Please try again.');
         } finally {

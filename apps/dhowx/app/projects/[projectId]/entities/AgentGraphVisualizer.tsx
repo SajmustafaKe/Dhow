@@ -2,22 +2,22 @@
 
 import React, { useEffect, useRef } from "react";
 import mermaid from "mermaid";
-import { Workflow } from "../../../lib/types/workflow_types";
+import { z } from "zod";
+import { Workflow, WorkflowAgent, WorkflowTool } from "../../../lib/types/workflow_types";
 
 function sanitizeId(name: string): string {
   return name.replace(/[^a-zA-Z0-9\s_-]/g, "").replace(/[\s-]+/g, "_");
 }
 
-function generateMermaidFromWorkflow(workflow: any, isDark: boolean): string {
+function generateMermaidFromWorkflow(workflow: z.infer<typeof Workflow>, isDark: boolean): string {
   const startAgentName = workflow.startAgent;
-  const agents: any[] = workflow.agents || [];
-  const tools: any[] = workflow.tools || [];
+  const agents: z.infer<typeof WorkflowAgent>[] = workflow.agents || [];
+  const tools: z.infer<typeof WorkflowTool>[] = workflow.tools || [];
 
   // Light and dark mode colors
   const toolFillLight = '#ede9fe';
   const toolStrokeLight = '#a78bfa';
   const toolFillDark = '#312e81';
-  const toolStrokeDark = '#a78bfa';
   const agentFillLight = '#EBF5FB';
   const agentStrokeLight = '#85C1E9';
   const agentFillDark = '#1e293b';
@@ -67,7 +67,7 @@ function generateMermaidFromWorkflow(workflow: any, isDark: boolean): string {
 
   // --- Tool Nodes ---
   // 1. Collect all tool names from workflow.tools
-  const toolNamesFromArray = new Set(tools.map((tool: any) => tool.name));
+  const toolNamesFromArray = new Set(tools.map((tool) => tool.name));
   // 2. Collect all tool names mentioned in agent instructions
   const agentMentionPattern = /\[@agent:([^\]]+)\]\(#mention[^\)]*\)/g;
   const toolMentionPattern = /\[@tool:([^\]]+)\]\(#mention[^\)]*\)/g;
@@ -128,7 +128,7 @@ function getCssVarValue(varName: string, fallback: string) {
   return value || fallback;
 }
 
-export const AgentGraphVisualizer = ({ workflow }: { workflow: any }) => {
+export const AgentGraphVisualizer = ({ workflow }: { workflow: z.infer<typeof Workflow> }) => {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

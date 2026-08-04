@@ -4,11 +4,9 @@ import { useMemo, useState } from "react";
 import z from "zod";
 import Image from "next/image";
 import { Workflow } from "@/app/lib/types/workflow_types";
-import { WorkflowTool } from "@/app/lib/types/workflow_types";
 import MarkdownContent from "@/app/lib/components/markdown-content";
-import { ChevronRightIcon, ChevronDownIcon, ChevronUpIcon, CodeIcon, CheckCircleIcon, FileTextIcon, EyeIcon, EyeOffIcon, WrapTextIcon, ArrowRightFromLineIcon, BracesIcon, TextIcon, FlagIcon, HelpCircleIcon, MoreHorizontal, Download as DownloadIcon } from "lucide-react";
+import { ChevronRightIcon, ChevronDownIcon, CodeIcon, CheckCircleIcon, FileTextIcon, WrapTextIcon, ArrowRightFromLineIcon, BracesIcon, FlagIcon, HelpCircleIcon, MoreHorizontal, Download as DownloadIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ProfileContextBox } from "./profile-context-box";
 import { Message, ToolMessage, AssistantMessageWithToolCalls } from "@/app/lib/types/types";
 
 function UserMessage({ content }: { content: string }) {
@@ -31,7 +29,7 @@ function UserMessage({ content }: { content: string }) {
     );
 }
 
-function InternalAssistantMessage({ content, sender, latency, delta, showJsonMode = false, onFix, onExplain, showDebugMessages, isFirstAssistant, index }: { content: string, sender: string | null | undefined, latency: number, delta: number, showJsonMode?: boolean, onFix?: (message: string, index: number) => void, onExplain?: (type: 'assistant', message: string, index: number) => void, showDebugMessages?: boolean, isFirstAssistant?: boolean, index: number }) {
+function InternalAssistantMessage({ content, sender, delta, onFix, onExplain, showDebugMessages, isFirstAssistant, index }: { content: string, sender: string | null | undefined, latency: number, delta: number, showJsonMode?: boolean, onFix?: (message: string, index: number) => void, onExplain?: (type: 'assistant', message: string, index: number) => void, showDebugMessages?: boolean, isFirstAssistant?: boolean, index: number }) {
     const isJsonContent = useMemo(() => {
         try {
             JSON.parse(content);
@@ -246,7 +244,6 @@ function TypingIndicator() {
 function ToolCalls({
     toolCalls,
     results,
-    projectId,
     messages,
     sender,
     workflow,
@@ -301,7 +298,6 @@ function ToolCall({
     onFix,
     onExplain,
     showDebugMessages,
-    isFirstAssistant,
     parentIndex,
     toolCallIndex
 }: {
@@ -318,13 +314,6 @@ function ToolCall({
     parentIndex: number;
     toolCallIndex: number;
 }) {
-    let matchingWorkflowTool: z.infer<typeof WorkflowTool> | undefined;
-    for (const tool of workflow.tools) {
-        if (tool.name === toolCall.function.name) {
-            matchingWorkflowTool = tool;
-            break;
-        }
-    }
 
     if (toolCall.function.name.startsWith('transfer_to_')) {
         return <TransferToAgentToolCall
@@ -340,9 +329,9 @@ function ToolCall({
     // Prefer the ToolMessage that actually follows this tool call in the stream
     let nearestResult: z.infer<typeof ToolMessage> | undefined = result;
     for (let i = parentIndex; i < messages.length; i++) {
-        const m = messages[i] as any;
+        const m = messages[i];
         if (i > parentIndex && m.role === 'assistant') break; // stop at next assistant
-        if (m.role === 'tool' && m.toolCallId === toolCall.id) { nearestResult = m as any; break; }
+        if (m.role === 'tool' && m.toolCallId === toolCall.id) { nearestResult = m; break; }
     }
 
     return <ClientToolCall
@@ -366,7 +355,6 @@ function TransferToAgentToolCall({
     onExplain,
     showDebugMessages,
     parentIndex,
-    toolCallIndex
 }: {
     result: z.infer<typeof ToolMessage> | undefined;
     sender: string | null | undefined;
@@ -407,17 +395,21 @@ function TransferToAgentToolCall({
     );
 }
 
+type ToolResultImage = {
+    mimeType?: string;
+    dataBase64?: string;
+    url?: string;
+    truncated?: boolean;
+};
+
 function ClientToolCall({
     toolCall,
     result: availableResult,
     sender,
-    workflow,
-    delta,
     onFix,
     onExplain,
     showDebugMessages,
     parentIndex,
-    toolCallIndex
 }: {
     toolCall: z.infer<typeof AssistantMessageWithToolCalls>['toolCalls'][number];
     result: z.infer<typeof ToolMessage> | undefined;
@@ -437,21 +429,21 @@ function ClientToolCall({
     const isCompressed = !paramsExpanded && !resultsExpanded;
 
     // Try to parse tool result as JSON and extract images
-    let parsedResult: any = undefined;
+    let parsedResult: { images?: ToolResultImage[] } | undefined = undefined;
     let imagePreviews: { mimeType: string; dataBase64?: string; url?: string; truncated?: boolean }[] = [];
     if (availableResult && typeof availableResult.content === 'string') {
         try {
             parsedResult = JSON.parse(availableResult.content);
             const imgs = Array.isArray(parsedResult?.images) ? parsedResult.images : [];
             imagePreviews = imgs
-                .filter((img: any) => (typeof img?.dataBase64 === 'string' && img.dataBase64.length > 0) || typeof img?.url === 'string')
-                .map((img: any) => ({
+                .filter((img: ToolResultImage) => (typeof img?.dataBase64 === 'string' && img.dataBase64.length > 0) || typeof img?.url === 'string')
+                .map((img: ToolResultImage) => ({
                     mimeType: img?.mimeType || 'image/png',
                     dataBase64: typeof img?.dataBase64 === 'string' ? img.dataBase64 : undefined,
                     url: typeof img?.url === 'string' ? img.url : undefined,
                     truncated: Boolean(img?.truncated),
                 }));
-        } catch (_) {
+        } catch {
             // ignore parse errors; treat as non-JSON result
         }
     }
@@ -682,7 +674,7 @@ function ExpandableContent({
             try {
                 const parsed = JSON.parse(content);
                 return JSON.stringify(parsed, null, 2);
-            } catch (e) {
+            } catch {
                 // If it's not JSON, return the string as-is
                 return content;
             }
@@ -884,13 +876,13 @@ export function Messages({
             // Attach images from the nearest preceding tool call and its corresponding tool result message
             const previews: { mimeType: string; url?: string; dataBase64?: string; truncated?: boolean }[] = [];
             for (let i = index - 1; i >= 0; i--) {
-                const prev = messages[i] as any;
-                if (prev && prev.role === 'assistant' && Array.isArray(prev.toolCalls)) {
+                const prev = messages[i];
+                if (prev && prev.role === 'assistant' && 'toolCalls' in prev && Array.isArray(prev.toolCalls)) {
                     for (const tc of prev.toolCalls) {
                         // Find the nearest tool result message after 'i' and before next assistant
-                        let resMsg: any = null;
+                        let resMsg: z.infer<typeof ToolMessage> | null = null;
                         for (let j = i + 1; j < messages.length; j++) {
-                            const m = messages[j] as any;
+                            const m = messages[j];
                             if (m.role === 'assistant') break; // stop at next assistant
                             if (m.role === 'tool' && m.toolCallId === tc.id) { resMsg = m; break; }
                         }
@@ -936,14 +928,6 @@ export function Messages({
         return null;
     };
 
-    const isAgentTransition = (message: z.infer<typeof Message>) => {
-        return message.role === 'assistant' && 'toolCalls' in message && Array.isArray(message.toolCalls) && message.toolCalls.some(tc => tc.function.name.startsWith('transfer_to_'));
-    };
-
-    const isAssistantMessage = (message: z.infer<typeof Message>) => {
-        return message.role === 'assistant' && (!('toolCalls' in message) || !Array.isArray(message.toolCalls) || !message.toolCalls.some(tc => tc.function.name.startsWith('transfer_to_')));
-    };
-
     // Just render the messages, no scroll container or unread bubble
     return (
         <div className="max-w-7xl mx-auto px-2 sm:px-8 relative">
@@ -963,6 +947,3 @@ export function Messages({
     );
 }
 
-// Add a utility class for icon-with-label-on-hover
-const iconWithLabelClass = "group relative flex items-center gap-1 text-xs cursor-pointer hover:underline";
-const iconLabelClass = "absolute left-full ml-2 px-2 py-1 rounded bg-zinc-800 text-white text-xs opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10";

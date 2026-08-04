@@ -133,9 +133,9 @@ export function TriggerSetupModal({
 
       onCreated?.();
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to create trigger', err);
-      setError(err?.message || 'Failed to create trigger. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to create trigger. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
-import { Readable } from 'stream';
 
 // Serves generated images from S3 by UUID-only path: /api/generated-images/{id}
 // Reconstructs the S3 key using the same sharding logic as image creation.
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-    } as any : undefined,
+    } : undefined,
   });
 
   // Reconstruct directory sharding from last two characters of UUID
@@ -53,12 +52,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
   try {
     const resp = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
     const contentType = resp.ContentType || 'application/octet-stream';
-    const body = resp.Body as any;
-    const webStream = body?.transformToWebStream
-      ? body.transformToWebStream()
-      : (Readable as any)?.toWeb
-        ? (Readable as any).toWeb(body)
-        : body;
+    const body = resp.Body;
+    const webStream = body?.transformToWebStream();
     return new NextResponse(webStream, {
       status: 200,
       headers: {

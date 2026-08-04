@@ -9,7 +9,7 @@ export class PrefixLogger {
         this.parent = parent;
     }
 
-    log(...args: any[]) {
+    log(...args: unknown[]) {
         const timestamp = new Date().toISOString();
         const prefix = '[' + this.prefix + ']';
 

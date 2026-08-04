@@ -49,7 +49,7 @@ export async function listTemplates() {
         name: item.name,
         description: item.description,
         category: item.category,
-        tools: (item as any).workflow?.tools || [],
+        tools: item.workflow?.tools || [],
         copilotPrompt: item.copilotPrompt,
     }));
 }
@@ -98,15 +98,15 @@ export async function createProjectFromWorkflowJson(formData: FormData): Promise
 
     try {
         // Parse workflow and apply default model to blank agent models
-        const workflow = JSON.parse(workflowJson);
+        const workflow: unknown = JSON.parse(workflowJson);
         const defaultModel = process.env.PROVIDER_DEFAULT_MODEL || 'gpt-4o';
-        
-        if (workflow.agents && Array.isArray(workflow.agents)) {
-            workflow.agents.forEach((agent: any) => {
-                if (agent.model === '') {
+
+        if (typeof workflow === 'object' && workflow !== null && 'agents' in workflow && Array.isArray(workflow.agents)) {
+            for (const agent of workflow.agents) {
+                if (agent && typeof agent === 'object' && agent.model === '') {
                     agent.model = defaultModel;
                 }
-            });
+            }
         }
 
         const project = await createProjectController.execute({

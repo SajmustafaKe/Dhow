@@ -1,3 +1,6 @@
+import { z } from "zod";
+import { WorkflowAgent, WorkflowPrompt, WorkflowTool, WorkflowPipeline } from "@/app/lib/types/workflow_types";
+
 interface AtMentionItem {
     id: string;
     value: string;
@@ -5,12 +8,12 @@ interface AtMentionItem {
 }
 
 interface CreateAtMentionsProps {
-    agents: any[];
-    prompts: any[];
-    tools: any[];
-    pipelines?: any[];
+    agents: z.infer<typeof WorkflowAgent>[];
+    prompts: z.infer<typeof WorkflowPrompt>[];
+    tools: z.infer<typeof WorkflowTool>[];
+    pipelines?: z.infer<typeof WorkflowPipeline>[];
     currentAgentName?: string;
-    currentAgent?: any; // Add current agent object to know its outputVisibility
+    currentAgent?: z.infer<typeof WorkflowAgent>; // Add current agent object to know its outputVisibility
 }
 
 export function createAtMentions({ agents, prompts, tools, pipelines = [], currentAgentName, currentAgent }: CreateAtMentionsProps): AtMentionItem[] {

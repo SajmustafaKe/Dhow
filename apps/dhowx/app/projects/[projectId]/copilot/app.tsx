@@ -1,8 +1,7 @@
 'use client';
 
-import { Metadata } from "next";
 import { Button } from "@/components/common/pill-button";
-import { useRef, useState, createContext, useContext, useCallback, forwardRef, useImperativeHandle, useEffect, Ref } from "react";
+import { useRef, useState, createContext, useCallback, forwardRef, useImperativeHandle, useEffect } from "react";
 import { CopilotChatContext, TriggerSchemaForCopilot } from "../../../../src/entities/models/copilot";
 import { CopilotMessage } from "../../../../src/entities/models/copilot";
 import { Workflow } from "@/app/lib/types/workflow_types";
@@ -12,16 +11,17 @@ import { Action as WorkflowDispatch } from "@/app/projects/[projectId]/workflow/
 import { Panel } from "@/components/common/panel-common";
 import { ComposeBoxCopilot } from "@/components/common/compose-box-copilot";
 import { Messages } from "./components/messages";
-import { CopyIcon, CheckIcon, PlusIcon, XIcon, InfoIcon, Sparkles } from "lucide-react";
-import { useCopilot } from "./use-copilot";
+import { CopyIcon, CheckIcon, PlusIcon, Sparkles } from "lucide-react";
+import { useCopilot, type UseCopilotResult } from "./use-copilot";
 import { BillingUpgradeModal } from "@/components/common/billing-upgrade-modal";
 import { SHOW_COPILOT_MARQUEE } from "@/app/lib/feature_flags";
 import Image from "next/image";
 import mascot from "@/public/mascot.png";
+import type { CopilotStatusBarState } from "./components/messages";
 
 const CopilotContext = createContext<{
     workflow: z.infer<typeof Workflow> | null;
-    dispatch: (action: any) => void;
+    dispatch: (action: WorkflowDispatch) => void;
 }>({ workflow: null, dispatch: () => { } });
 
 export function getAppliedChangeKey(messageIndex: number, actionIndex: number, field: string) {
@@ -31,9 +31,9 @@ export function getAppliedChangeKey(messageIndex: number, actionIndex: number, f
 interface AppProps {
     projectId: string;
     workflow: z.infer<typeof Workflow>;
-    dispatch: (action: any) => void;
-    chatContext?: any;
-    onCopyJson?: (data: { messages: any[] }) => void;
+    dispatch: (action: WorkflowDispatch) => void;
+    chatContext?: z.infer<typeof CopilotChatContext>;
+    onCopyJson?: (data: { messages: z.infer<typeof CopilotMessage>[] }) => void;
     onMessagesChange?: (messages: z.infer<typeof CopilotMessage>[]) => void;
     isInitialState?: boolean;
     dataSources?: z.infer<typeof DataSource>[];
@@ -59,16 +59,16 @@ const App = forwardRef<{ handleCopyChat: () => void; handleUserMessage: (message
     const [discardContext, setDiscardContext] = useState(false);
     const [isLastInteracted, setIsLastInteracted] = useState(isInitialState);
     const workflowRef = useRef(workflow);
-    const startRef = useRef<any>(null);
-    const cancelRef = useRef<any>(null);
-    const [statusBar, setStatusBar] = useState<any>(null);
+    const startRef = useRef<UseCopilotResult['start'] | null>(null);
+    const cancelRef = useRef<UseCopilotResult['cancel'] | null>(null);
+    const [statusBar, setStatusBar] = useState<(CopilotStatusBarState & { context?: z.infer<typeof CopilotChatContext> | null }) | null>(null);
 
     // Always use effectiveContext for the user's current selection
     const effectiveContext = discardContext ? null : chatContext;
 
     // Context locking state
-    const [lockedContext, setLockedContext] = useState<any>(effectiveContext);
-    const [pendingContext, setPendingContext] = useState<any>(effectiveContext);
+    const [lockedContext, setLockedContext] = useState<z.infer<typeof CopilotChatContext> | null | undefined>(effectiveContext);
+    const [pendingContext, setPendingContext] = useState<z.infer<typeof CopilotChatContext> | null | undefined>(effectiveContext);
     const [isStreaming, setIsStreaming] = useState(false);
 
     // Keep workflow ref up to date
@@ -146,7 +146,7 @@ const App = forwardRef<{ handleCopyChat: () => void; handleUserMessage: (message
             // startRef not yet ready; no-op
         }
 
-        return () => currentCancel();
+        return () => currentCancel?.();
     }, [messages, responseError]);
 
     // --- CONTEXT LOCKING LOGIC ---
@@ -160,7 +160,7 @@ const App = forwardRef<{ handleCopyChat: () => void; handleUserMessage: (message
         if (loadingResponse) {
             // Streaming started: lock context to the value at the start
             setIsStreaming(true);
-            setLockedContext((prev: any) => prev ?? pendingContext); // lock to previous if already set, else to pending
+            setLockedContext((prev) => prev ?? pendingContext); // lock to previous if already set, else to pending
         } else {
             // Streaming ended: update lockedContext to the last pendingContext
             setIsStreaming(false);
@@ -191,16 +191,15 @@ const App = forwardRef<{ handleCopyChat: () => void; handleUserMessage: (message
     }), [handleCopyChat, handleUserMessage]);
 
     // Memoized status bar change handler to prevent infinite update loop
-    const handleStatusBarChange = useCallback((status: any) => {
-        setStatusBar((prev: any) => {
+    const handleStatusBarChange = useCallback((status: CopilotStatusBarState) => {
+        setStatusBar((prev) => {
             // Shallow compare previous and next status
             const next = { ...status, context: lockedContext };
-            const keys = Object.keys(next);
-            if (
-                prev &&
-                keys.every(key => prev[key] === next[key])
-            ) {
-                return prev;
+            if (prev) {
+                const keys = Object.keys(next) as (keyof typeof next)[];
+                if (keys.every(key => prev[key] === next[key])) {
+                    return prev;
+                }
             }
             return next;
         });
@@ -339,7 +338,6 @@ export const Copilot = forwardRef<{ handleUserMessage: (message: string) => void
     dataSources,
     triggers,
     activePanel,
-    onTogglePanel,
     onTriggersUpdated,
 }, ref) => {
     console.log('🎪 Copilot wrapper component mounted:', {
@@ -351,8 +349,7 @@ export const Copilot = forwardRef<{ handleUserMessage: (message: string) => void
 
     const [copilotKey, setCopilotKey] = useState(0);
     const [showCopySuccess, setShowCopySuccess] = useState(false);
-    const [messages, setMessages] = useState<z.infer<typeof CopilotMessage>[]>([]);
-    const [billingError, setBillingError] = useState<string | null>(null);
+    const [, setMessages] = useState<z.infer<typeof CopilotMessage>[]>([]);
     const appRef = useRef<{ handleCopyChat: () => void; handleUserMessage: (message: string) => void }>(null);
 
     function handleNewChat() {
@@ -360,7 +357,7 @@ export const Copilot = forwardRef<{ handleUserMessage: (message: string) => void
         setMessages([]);
     }
 
-    function handleCopyJson(data: { messages: any[] }) {
+    function handleCopyJson(data: { messages: z.infer<typeof CopilotMessage>[] }) {
         const jsonString = JSON.stringify(data, null, 2);
         navigator.clipboard.writeText(jsonString);
         setShowCopySuccess(true);
@@ -372,10 +369,7 @@ export const Copilot = forwardRef<{ handleUserMessage: (message: string) => void
     // Expose handleUserMessage through ref
     useImperativeHandle(ref, () => ({
         handleUserMessage: (message: string) => {
-            const app = appRef.current as any;
-            if (app?.handleUserMessage) {
-                app.handleUserMessage(message);
-            }
+            appRef.current?.handleUserMessage(message);
         }
     }), []);
 

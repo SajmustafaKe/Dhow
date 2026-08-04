@@ -36,14 +36,14 @@ const listComposioToolkitsController = container.resolve<IListComposioToolkitsCo
 const getComposioToolkitController = container.resolve<IGetComposioToolkitController>("getComposioToolkitController");
 const listComposioToolsController = container.resolve<IListComposioToolsController>("listComposioToolsController");
 
-const ZCreateCustomConnectedAccountRequest = z.object({
-    toolkitSlug: z.string(),
-    authConfig: z.object({
-        authScheme: ZAuthScheme,
-        credentials: ZCredentials,
-    }),
-    callbackUrl: z.string(),
-});
+type CreateCustomConnectedAccountRequest = {
+    toolkitSlug: string;
+    authConfig: {
+        authScheme: z.infer<typeof ZAuthScheme>;
+        credentials: z.infer<typeof ZCredentials>;
+    };
+    callbackUrl: string;
+};
 
 export async function listToolkits(projectId: string, cursor: string | null = null): Promise<z.infer<ReturnType<typeof ZListResponse<typeof ZToolkit>>>> {
     const user = await authCheck();
@@ -88,7 +88,7 @@ export async function createComposioManagedOauth2ConnectedAccount(projectId: str
     });
 }
 
-export async function createCustomConnectedAccount(projectId: string, request: z.infer<typeof ZCreateCustomConnectedAccountRequest>): Promise<z.infer<typeof ZCreateConnectedAccountResponse>> {
+export async function createCustomConnectedAccount(projectId: string, request: CreateCustomConnectedAccountRequest): Promise<z.infer<typeof ZCreateConnectedAccountResponse>> {
     const user = await authCheck();
     return await createCustomConnectedAccountController.execute({
         caller: 'user',

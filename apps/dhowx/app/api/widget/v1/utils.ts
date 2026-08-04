@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { jwtVerify } from "jose";
 
 export const Session = z.object({
     userId: z.string(),
@@ -16,7 +15,7 @@ export const Session = z.object({
     it returns a 403 Forbidden response. Otherwise, it sets the project ID
     in the request headers and calls the provided handler function.
 */
-export async function clientIdCheck(req: NextRequest, handler: (projectId: string) => Promise<Response>): Promise<Response> {
+export async function clientIdCheck(_req: NextRequest, _handler: (projectId: string) => Promise<Response>): Promise<Response> {
     return new Response('Not implemented', { status: 501 });
     /*
     const clientId = req.headers.get('x-client-id')?.trim();
@@ -43,7 +42,7 @@ export async function clientIdCheck(req: NextRequest, handler: (projectId: strin
     it sets the project ID and user ID in the request headers and calls the
     provided handler function.
 */
-export async function authCheck(req: NextRequest, handler: (session: z.infer<typeof Session>) => Promise<Response>): Promise<Response> {
+export async function authCheck(_req: NextRequest, _handler: (session: z.infer<typeof Session>) => Promise<Response>): Promise<Response> {
     return new Response('Not implemented', { status: 501 });
     /*
     const authHeader = req.headers.get('Authorization');

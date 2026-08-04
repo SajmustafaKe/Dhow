@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/common/pill-button';
 import { Input } from '@/components/ui/input';
-import { Info, Plus, Trash2 } from 'lucide-react';
+import { Info, Plus } from 'lucide-react';
 import { z } from 'zod';
 import { Workflow, WorkflowTool } from '@/app/lib/types/workflow_types';
 import { fetchProject } from '@/app/actions/project.actions';
@@ -15,8 +15,7 @@ import { McpToolsPanel } from './McpToolsPanel';
 import { ProjectWideChangeConfirmationModal } from '@/components/common/project-wide-change-confirmation-modal';
 
 // Types
-const CustomMcpServerType = z.object({ serverUrl: z.string() });
-type CustomMcpServer = z.infer<typeof CustomMcpServerType>;
+type CustomMcpServer = { serverUrl: string };
 
 type ServerList = Record<string, CustomMcpServer>;
 

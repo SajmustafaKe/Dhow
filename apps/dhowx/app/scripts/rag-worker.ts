@@ -345,7 +345,6 @@ async function runDeletionPipeline(_logger: PrefixLogger, job: z.infer<typeof Da
 // fetch next job from mongodb
 (async () => {
     while (true) {
-        const now = Date.now();
         let job: z.infer<typeof DataSource> | null = null;
 
         // first try to find a job that needs deleting
@@ -442,7 +441,7 @@ async function runDeletionPipeline(_logger: PrefixLogger, job: z.infer<typeof Da
                     } else if (doc.data.type === "url") {
                         await runScrapePipeline(logger, usageTracker, job, doc);
                     }
-                } catch (e: any) {
+                } catch (e) {
                     errors = true;
                     logger.log("Error processing doc:", e);
                     await dataSourceDocsRepository.updateByVersion(doc.id, doc.version, {
@@ -475,7 +474,7 @@ async function runDeletionPipeline(_logger: PrefixLogger, job: z.infer<typeof Da
             for (const doc of deletedDocs) {
                 try {
                     await runDeletionPipeline(logger, job, doc);
-                } catch (e: any) {
+                } catch (e) {
                     errors = true;
                     logger.log("Error deleting doc:", e);
                     await dataSourceDocsRepository.updateByVersion(doc.id, doc.version, {

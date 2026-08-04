@@ -1,10 +1,8 @@
 'use client';
-import { Spinner } from "@/app/lib/components/spinner";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { z } from "zod";
 import { Workflow} from "@/app/lib/types/workflow_types";
 import MarkdownContent from "@/app/lib/components/markdown-content";
-import { MessageSquareIcon, EllipsisIcon, XIcon, CheckCheckIcon, ChevronDown, ChevronUp } from "lucide-react";
 import { CopilotMessage, CopilotAssistantMessage, CopilotAssistantMessageActionPart, TriggerSchemaForCopilot } from "@/src/entities/models/copilot";
 import { Action, StreamingAction } from './actions';
 import { TriggerSetupModal } from './TriggerSetupModal';
@@ -12,9 +10,29 @@ import { useCopilotTriggerActions } from './use-trigger-actions';
 import { useParsedBlocks } from "../use-parsed-blocks";
 import { validateConfigChanges } from "@/app/lib/client_utils";
 import { PreviewModalProvider } from '../../workflow/preview-modal';
+import { Action as WorkflowDispatchAction } from "../../workflow/workflow_editor";
 
 type CopilotTriggerType = z.infer<typeof TriggerSchemaForCopilot>;
 
+// Serializable snapshot of the assistant message's action-card status, used to
+// detect real changes before notifying the parent (see AssistantMessage below).
+export interface CopilotStatusBarSnapshot {
+    allCardsLoaded: boolean;
+    allApplied: boolean;
+    appliedCount: number;
+    pendingCount: number;
+    streamingLine: string;
+    completedSummary: string;
+    hasPanelWarning: boolean;
+}
+
+export interface CopilotStatusBarState extends CopilotStatusBarSnapshot {
+    handleApplyAll: () => Promise<void>;
+}
+
+// zod schema used only for its inferred type (z.infer) below; the schema value
+// itself is never parsed/invoked, only its shape is needed at compile time.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const CopilotResponsePart = z.union([
     z.object({
         type: z.literal('text'),
@@ -107,7 +125,7 @@ function enrich(response: string): z.infer<typeof CopilotResponsePart> {
                 action: actionPayload
             };
         }
-    } catch (e) {
+    } catch {
         // JSON parsing failed - this is likely a streaming block
     }
 
@@ -138,39 +156,6 @@ function UserMessage({ content }: { content: string }) {
     );
 }
 
-function InternalAssistantMessage({ content }: { content: string }) {
-    const [expanded, setExpanded] = useState(false);
-
-    return (
-        <div className="w-full">
-            {!expanded ? (
-                <button className="flex items-center text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 gap-1 group"
-                    onClick={() => setExpanded(true)}>
-                    <MessageSquareIcon size={16} />
-                    <EllipsisIcon size={16} />
-                    <span className="text-xs">Show debug message</span>
-                </button>
-            ) : (
-                <div className="w-full">
-                    <div className="border border-gray-200 dark:border-gray-700 border-dashed 
-                        px-4 py-2.5 rounded-lg text-sm
-                        text-gray-700 dark:text-gray-200 shadow-sm">
-                        <div className="flex justify-end mb-2">
-                            <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                                onClick={() => setExpanded(false)}>
-                                <XIcon size={16} />
-                            </button>
-                        </div>
-                        <pre className="whitespace-pre-wrap">{content}</pre>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-}
-
-
-
 /**
  * AssistantMessage component that renders copilot responses with action cards.
  * 
@@ -194,10 +179,10 @@ function AssistantMessage({
 }: {
     content: z.infer<typeof CopilotAssistantMessage>['content'],
     workflow: z.infer<typeof Workflow>,
-    dispatch: (action: any) => void,
+    dispatch: (action: WorkflowDispatchAction) => void,
     messageIndex: number,
     loading: boolean,
-    onStatusBarChange?: (status: any) => void;
+    onStatusBarChange?: (status: CopilotStatusBarState) => void;
     projectId: string;
     triggers?: CopilotTriggerType[];
     onTriggersUpdated?: () => Promise<void> | void;
@@ -269,11 +254,11 @@ function AssistantMessage({
     const allApplied = pendingCount === 0 && totalActions > 0;
 
     // Memoized applyAction for useCallback dependencies
-    const applyAction = useCallback((action: any): boolean => {
+    const applyAction = useCallback((action: z.infer<typeof CopilotAssistantMessageActionPart>['content']): boolean => {
         if (action.action === 'create_new') {
             switch (action.config_type) {
                 case 'agent': {
-                    if (workflow.agents.some((agent: any) => agent.name === action.name)) {
+                    if (workflow.agents.some((agent) => agent.name === action.name)) {
                         return false;
                     }
                     dispatch({
@@ -287,7 +272,7 @@ function AssistantMessage({
                     return true;
                 }
                 case 'tool': {
-                    if (workflow.tools.some((tool: any) => tool.name === action.name)) {
+                    if (workflow.tools.some((tool) => tool.name === action.name)) {
                         return false;
                     }
                     dispatch({
@@ -492,7 +477,7 @@ function AssistantMessage({
 
     // At the end of the render, call onStatusBarChange with the current status bar props
     // Only call onStatusBarChange if the serializable status actually changes
-    const lastStatusRef = useRef<any>(null);
+    const lastStatusRef = useRef<CopilotStatusBarSnapshot | null>(null);
     useEffect(() => {
         if (onStatusBarChange) {
             const status = {
@@ -575,26 +560,6 @@ function AssistantMessage({
     );
 }
 
-function AssistantMessageLoading({ currentStatus }: { currentStatus: 'thinking' | 'planning' | 'generating' }) {
-    const statusText = {
-        thinking: "Thinking...",
-        planning: "Planning...",
-        generating: "Generating..."
-    };
-
-    return (
-        <div className="w-full">
-            <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2.5 
-                rounded-lg
-                border border-gray-200 dark:border-gray-700
-                shadow-sm dark:shadow-gray-950/20 animate-pulse min-h-[2.5rem] flex items-center gap-2">
-                <Spinner size="sm" className="ml-2" />
-                <span className="text-sm text-gray-600 dark:text-gray-400">{statusText[currentStatus]}</span>
-            </div>
-        </div>
-    );
-}
-
 export function Messages({
     projectId,
     messages,
@@ -613,8 +578,8 @@ export function Messages({
     streamingResponse: string;
     loadingResponse: boolean;
     workflow: z.infer<typeof Workflow>;
-    dispatch: (action: any) => void;
-    onStatusBarChange?: (status: any) => void;
+    dispatch: (action: WorkflowDispatchAction) => void;
+    onStatusBarChange?: (status: CopilotStatusBarState) => void;
     toolCalling?: boolean;
     toolQuery?: string | null;
     triggers?: z.infer<typeof TriggerSchemaForCopilot>[];

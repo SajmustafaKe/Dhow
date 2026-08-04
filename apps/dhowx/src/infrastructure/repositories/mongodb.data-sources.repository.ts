@@ -16,19 +16,19 @@ import { NotFoundError } from "@/src/entities/errors/common";
  * MongoDB document schema for DataSource.
  * Excludes the 'id' field as it's represented by MongoDB's '_id'.
  */
-const DocSchema = DataSource.omit({ id: true });
+type Doc = Omit<z.infer<typeof DataSource>, "id">;
 
 /**
  * MongoDB implementation of the DataSources repository.
  */
 export class MongoDBDataSourcesRepository implements IDataSourcesRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("sources");
+    private readonly collection = db.collection<Doc>("sources");
 
     async create(data: z.infer<typeof CreateSchema>): Promise<z.infer<typeof DataSource>> {
         const now = new Date().toISOString();
         const _id = new ObjectId();
 
-        const doc: z.infer<typeof DocSchema> = {
+        const doc: Doc = {
             ...data,
             active: true,
             attempts: 0,
@@ -68,7 +68,7 @@ export class MongoDBDataSourcesRepository implements IDataSourcesRepository {
         cursor?: string,
         limit: number = 50
     ): Promise<z.infer<ReturnType<typeof PaginatedList<typeof DataSource>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { projectId, status: { $ne: "deleted" } };
+        const query: Filter<Doc> = { projectId, status: { $ne: "deleted" } };
 
         // Default behavior: exclude deleted unless explicitly asked for
         if (filters?.deleted === true) {

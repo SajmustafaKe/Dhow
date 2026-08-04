@@ -66,27 +66,6 @@ const TabType = {
 
 type TabState = typeof TabType[keyof typeof TabType];
 
-const isNotBlankTemplate = (tab: TabState): boolean => true;
-
-const tabStyles = clsx(
-    "px-4 py-2 text-sm font-medium",
-    "rounded-lg",
-    "focus:outline-none focus:ring-2 focus:ring-indigo-500/20 dark:focus:ring-indigo-400/20",
-    "transition-colors duration-150"
-);
-
-const activeTabStyles = clsx(
-    "bg-white dark:bg-gray-800",
-    "text-gray-900 dark:text-gray-100",
-    "shadow-sm",
-    "border border-gray-200 dark:border-gray-700"
-);
-
-const inactiveTabStyles = clsx(
-    "text-gray-600 dark:text-gray-400",
-    "hover:bg-gray-50 dark:hover:bg-gray-750"
-);
-
 const largeSectionHeaderStyles = clsx(
     "text-lg font-medium",
     "text-gray-900 dark:text-gray-100"
@@ -109,22 +88,6 @@ const emptyTextareaStyles = clsx(
     "shadow-[0_0_8px_1px_rgba(99,102,241,0.2)] dark:shadow-[0_0_8px_1px_rgba(129,140,248,0.2)]"
 );
 
-const tabButtonStyles = clsx(
-    "border border-gray-200 dark:border-gray-700"
-);
-
-const selectedTabStyles = clsx(
-    tabButtonStyles,
-    "text-gray-900 dark:text-gray-100",
-    "text-base"
-);
-
-const unselectedTabStyles = clsx(
-    tabButtonStyles,
-    "text-gray-900 dark:text-gray-100",
-    "text-sm"
-);
-
 interface CreateProjectProps {
     defaultName: string;
     onOpenProjectPane: () => void;
@@ -133,9 +96,9 @@ interface CreateProjectProps {
 }
 
 export function CreateProject({ defaultName, onOpenProjectPane, isProjectPaneOpen, hideHeader = false }: CreateProjectProps) {
-    const [selectedTab, setSelectedTab] = useState<TabState>(TabType.Describe);
+    const [, setSelectedTab] = useState<TabState>(TabType.Describe);
     const [customPrompt, setCustomPrompt] = useState("");
-    const [name, setName] = useState(defaultName);
+    const [, setName] = useState(defaultName);
     const [promptError, setPromptError] = useState<string | null>(null);
     const [billingError, setBillingError] = useState<string | null>(null);
     const [importedJson, setImportedJson] = useState<string | null>(null);
@@ -217,16 +180,6 @@ export function CreateProject({ defaultName, onOpenProjectPane, isProjectPaneOpe
 
     // Removed dropdownRef and isExamplesDropdownOpen effect
 
-    const handleTabChange = (tab: TabState) => {
-        setSelectedTab(tab);
-        setImportError(null);
-        if (tab === TabType.Describe) {
-            setCustomPrompt('');
-            setImportedJson(null);
-            setImportedFilename(null);
-        }
-    };
-
     // Open file chooser when Import JSON is clicked
     const handleImportJsonClick = () => {
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -270,16 +223,6 @@ export function CreateProject({ defaultName, onOpenProjectPane, isProjectPaneOpe
         } finally {
             setImportLoading(false);
         }
-    };
-
-    // Allow user to pick another file
-    const handleChooseAnother = () => {
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        setImportedJson(null);
-        setImportedFilename(null);
-        setTimeout(() => {
-            fileInputRef.current?.click();
-        }, 0);
     };
 
     // Remove imported file with X button

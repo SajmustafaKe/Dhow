@@ -95,7 +95,7 @@ export function JobsList({ projectId, filters, showTitle = true, customTitle }: 
         }
     };
 
-    const getReasonDisplay = (reason: any) => {
+    const getReasonDisplay = (reason: z.infer<typeof ListedJobItem>["reason"]) => {
         if (reason.type === 'composio_trigger') {
             return {
                 type: 'Composio Trigger',

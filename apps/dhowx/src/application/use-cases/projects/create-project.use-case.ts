@@ -90,7 +90,7 @@ export class CreateProjectUseCase implements ICreateProjectUseCase {
         } else {
             try {
                 workflow = workflowSchema.parse(JSON.parse(request.data.mode.workflowJson));
-            } catch (error) {
+            } catch {
                 throw new BadRequestError('Invalid workflow JSON');
             }
         }

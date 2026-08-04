@@ -15,13 +15,13 @@ import { NotFoundError } from "@/src/entities/errors/common";
  * MongoDB document schema for DataSourceDoc.
  * Excludes the 'id' field as it's represented by MongoDB's '_id'.
  */
-const DocSchema = DataSourceDoc.omit({ id: true });
+type Doc = Omit<z.infer<typeof DataSourceDoc>, "id">;
 
 /**
  * MongoDB implementation of the DataSourceDocs repository.
  */
 export class MongoDBDataSourceDocsRepository implements IDataSourceDocsRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("source_docs");
+    private readonly collection = db.collection<Doc>("source_docs");
 
     async bulkCreate(projectId: string, sourceId: string, data: z.infer<typeof CreateSchema>[]): Promise<string[]> {
         const now = new Date().toISOString();
@@ -70,7 +70,7 @@ export class MongoDBDataSourceDocsRepository implements IDataSourceDocsRepositor
         cursor?: string,
         limit: number = 50
     ): Promise<z.infer<ReturnType<typeof PaginatedList<typeof DataSourceDoc>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { sourceId, status: { $ne: "deleted" } };
+        const query: Filter<Doc> = { sourceId, status: { $ne: "deleted" } };
 
         if (filters?.status && filters.status.length > 0) {
             query.status = { $in: filters.status };

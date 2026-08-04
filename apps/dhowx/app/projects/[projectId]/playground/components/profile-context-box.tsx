@@ -11,8 +11,6 @@ interface ProfileContextBoxProps {
 
 export function ProfileContextBox({
     content,
-    onChange,
-    locked = false,
 }: ProfileContextBoxProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);

@@ -2,7 +2,7 @@
 import { WorkflowPrompt, WorkflowAgent, Workflow, WorkflowTool } from "../../../lib/types/workflow_types";
 import { DataSource } from "@/src/entities/models/data-source";
 import { z } from "zod";
-import { PlusIcon, X as XIcon, Trash2, Maximize2, Minimize2, StarIcon, DatabaseIcon, UserIcon, Settings, Edit3, Loader2 } from "lucide-react";
+import { PlusIcon, X as XIcon, Trash2, Maximize2, Minimize2, StarIcon, DatabaseIcon, Settings, Edit3, Loader2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { usePreviewModal } from "../workflow/preview-modal";
 import {
@@ -36,7 +36,6 @@ import clsx from "clsx";
 import { InputField } from "@/app/lib/components/input-field";
 import { getDefaultTools } from "@/app/lib/default_tools";
 import { USE_TRANSFER_CONTROL_OPTIONS } from "@/app/lib/feature_flags";
-import { useCopilot } from "../copilot/use-copilot";
 import { BillingUpgradeModal } from "@/components/common/billing-upgrade-modal";
 import { ModelsResponse } from "@/app/lib/types/billing_types";
 import { SectionCard } from "@/components/common/section-card";
@@ -62,7 +61,6 @@ export function AgentConfig({
     dataSources,
     handleUpdate,
     handleClose,
-    useRag,
     triggerCopilotChat,
     eligibleModels,
     onOpenDataSourcesModal,
@@ -98,15 +96,6 @@ export function AgentConfig({
 
     // Check if this agent is a pipeline agent
     const isPipelineAgent = agent.type === 'pipeline';
-
-    const {
-        start: startCopilotChat,
-    } = useCopilot({
-        projectId,
-        workflow,
-        context: null,
-        dataSources
-    });
 
     // Function to show saved banner
     const showSavedMessage = () => {
@@ -257,7 +246,7 @@ export function AgentConfig({
             const defaults = getDefaultTools();
             const map = new Map<string, z.infer<typeof WorkflowTool>>();
             for (const t of tools) map.set(t.name, t);
-            for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t as any);
+            for (const t of defaults as z.infer<typeof WorkflowTool>[]) if (!map.has(t.name)) map.set(t.name, t);
             return Array.from(map.values());
         })(),
         pipelines: agent.type === "pipeline" ? [] : (workflow.pipelines || []), // Pipeline agents can't reference pipelines
@@ -903,15 +892,3 @@ function GenerateInstructionsModal({
     );
 }
 
-function validateAgentName(value: string, currentName?: string, usedNames?: Set<string>) {
-    if (value.length === 0) {
-        return "Name cannot be empty";
-    }
-    if (currentName && value !== currentName && usedNames?.has(value)) {
-        return "This name is already taken";
-    }
-    if (!/^[a-zA-Z0-9_-\s]+$/.test(value)) {
-        return "Name must contain only letters, numbers, underscores, hyphens, and spaces";
-    }
-    return null;
-}

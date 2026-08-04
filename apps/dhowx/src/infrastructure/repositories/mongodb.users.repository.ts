@@ -4,13 +4,10 @@ import { ObjectId } from "mongodb";
 import { CreateSchema, IUsersRepository } from "@/src/application/repositories/users.repository.interface";
 import { User } from "@/src/entities/models/user";
 
-const DocSchema = User
-    .omit({
-        id: true,
-    });
+type Doc = Omit<z.infer<typeof User>, "id">;
 
 export class MongoDBUsersRepository implements IUsersRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("users");
+    private readonly collection = db.collection<Doc>("users");
 
     async create(data: z.infer<typeof CreateSchema>): Promise<z.infer<typeof User>> {
         const now = new Date().toISOString();

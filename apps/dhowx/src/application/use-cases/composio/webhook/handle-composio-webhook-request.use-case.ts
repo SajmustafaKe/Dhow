@@ -3,7 +3,6 @@ import { IComposioTriggerDeploymentsRepository } from "@/src/application/reposit
 import { createHmac, timingSafeEqual } from "crypto";
 import { z } from "zod";
 import { BadRequestError, BillingError, NotFoundError } from "@/src/entities/errors/common";
-import { UserMessage } from "@/app/lib/types/types";
 import { PrefixLogger } from "@/app/lib/utils";
 import { IProjectsRepository } from "@/src/application/repositories/projects.repository.interface";
 import { IPubSubService } from "@/src/application/services/pub-sub.service.interface";
@@ -80,7 +79,7 @@ export class HandleCompsioWebhookRequestUseCase implements IHandleCompsioWebhook
         // verify payload
         try {
             this.verifySignature(headers, payload);
-        } catch (error) {
+        } catch {
             throw new BadRequestError("Payload verification failed");
         }
 
@@ -88,7 +87,7 @@ export class HandleCompsioWebhookRequestUseCase implements IHandleCompsioWebhook
         let event: z.infer<typeof payloadSchema>;
         try {
             event = payloadSchema.parse(JSON.parse(payload));
-        } catch (error) {
+        } catch {
             throw new BadRequestError("Invalid webhook payload");
         }
 

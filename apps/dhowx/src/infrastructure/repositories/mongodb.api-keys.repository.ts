@@ -5,13 +5,10 @@ import { z } from "zod";
 import { ObjectId } from "mongodb";
 import { CreateSchema } from "@/src/application/repositories/api-keys.repository.interface";
 
-const DocSchema = ApiKey
-    .omit({
-        id: true,
-    });
+type Doc = Omit<z.infer<typeof ApiKey>, "id">;
 
 export class MongoDBApiKeysRepository implements IApiKeysRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("api_keys");
+    private readonly collection = db.collection<Doc>("api_keys");
 
     async checkAndConsumeKey(projectId: string, apiKey: string): Promise<boolean> {
         const result = await this.collection.findOneAndUpdate(
@@ -30,7 +27,7 @@ export class MongoDBApiKeysRepository implements IApiKeysRepository {
             createdAt: now,
         };
 
-        const result = await this.collection.insertOne({
+        await this.collection.insertOne({
             _id,
             ...doc,
         });

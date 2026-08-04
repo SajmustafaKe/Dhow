@@ -5,8 +5,8 @@ import { z } from "zod";
 const ZFallbackSchema = z.object({}).passthrough();
 
 export function validateConfigChanges(configType: string, configChanges: Record<string, unknown>, name: string) {
-    let testObject: any;
-    let schema: z.ZodType<any> = ZFallbackSchema;
+    let testObject: Record<string, unknown>;
+    let schema: z.ZodType = ZFallbackSchema;
 
     switch (configType) {
         case 'tool': {

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/common/rich-textarea";
 // Add a type to support both message formats
 type FlexibleMessage = {
     role: 'user' | 'assistant' | 'system' | 'tool';
-    content: string | any;
+    content: unknown;
     version?: string;
     chatId?: string;
     createdAt?: string;
@@ -16,13 +16,11 @@ type FlexibleMessage = {
 };
 
 export function ComposeBox({
-    minRows=3,
     disabled=false,
     loading=false,
     handleUserMessage,
     messages,
 }: {
-    minRows?: number;
     disabled?: boolean;
     loading?: boolean;
     handleUserMessage: (prompt: string) => void;

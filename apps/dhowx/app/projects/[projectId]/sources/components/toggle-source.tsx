@@ -28,7 +28,7 @@ export function ToggleSource({
     }
 
     return (
-        <div className="flex flex-col gap-1.5 items-start">
+        <div className={`flex flex-col gap-1.5 items-start ${className ?? ''}`}>
             <div className="flex items-center gap-2">
                 <button
                     onClick={handleToggle}

@@ -1,7 +1,4 @@
 import clsx from "clsx";
-import { SHOW_COPILOT_MARQUEE } from "@/app/lib/feature_flags";
-import Image from "next/image";
-import mascot from "@/public/mascot.png";
 
 export function ActionButton({
     icon = null,
@@ -48,14 +45,11 @@ interface PanelProps {
 
 export function Panel({
     title,
-    subtitle,
-    icon,
     rightActions,
     actions,
     children,
     maxHeight,
     variant = 'default',
-    showWelcome = true,
     className,
     onClick,
     tourTarget,

@@ -1,5 +1,3 @@
-import { QuotaExceededError } from "@/src/entities/errors/common";
-
 export interface IUsageQuotaPolicy {
     /**
      * Asserts that the project has not exceeded its usage quota and consumes the action.

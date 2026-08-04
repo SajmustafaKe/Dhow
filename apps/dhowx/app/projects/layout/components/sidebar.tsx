@@ -11,7 +11,6 @@ import { UserButton } from "@/app/lib/components/user_button";
 import {
   SettingsIcon,
   WorkflowIcon,
-  PlayIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   Moon,
@@ -19,7 +18,6 @@ import {
   HelpCircle,
   MessageSquareIcon,
   LogsIcon,
-  Clock,
   ZapIcon
 } from "lucide-react";
 import { fetchProject } from "@/app/actions/project.actions";
@@ -46,7 +44,7 @@ const COLLAPSED_ICON_SIZE = 20; // DO NOT CHANGE THIS
 export default function Sidebar({ projectId, useAuth, collapsed = false, onToggleCollapse, useBilling }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [projectName, setProjectName] = useState<string>("Select Project");
+  const [, setProjectName] = useState<string>("Select Project");
   const [assistantName, setAssistantName] = useState("");
   const [assistantPrompt, setAssistantPrompt] = useState("");
   const [isCreatingAssistant, setIsCreatingAssistant] = useState(false);
@@ -125,18 +123,6 @@ export default function Sidebar({ projectId, useAuth, collapsed = false, onToggl
       icon: SettingsIcon,
     }
   ];
-
-  const projectsNavItems: Array<{
-    href: string;
-    label: string;
-    icon: any;
-    requiresProject: boolean;
-  }> = [];
-
-  const handleStartTour = () => {
-    localStorage.removeItem('user_product_tour_completed');
-    window.location.reload();
-  };
 
   return (
     <>

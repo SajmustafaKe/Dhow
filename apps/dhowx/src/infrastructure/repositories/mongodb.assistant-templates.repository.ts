@@ -4,25 +4,25 @@ import { db } from "@/app/lib/mongodb";
 import { AssistantTemplate, AssistantTemplateLike } from "@/src/entities/models/assistant-template";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 
-const DocSchema = AssistantTemplate.omit({ id: true });
-const LikeDocSchema = AssistantTemplateLike.omit({ id: true });
+type Doc = Omit<z.infer<typeof AssistantTemplate>, "id">;
+type LikeDoc = Omit<z.infer<typeof AssistantTemplateLike>, "id">;
 
 export class MongoDBAssistantTemplatesRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("assistant_templates");
-    private readonly likesCollection = db.collection<z.infer<typeof LikeDocSchema>>("assistant_template_likes");
+    private readonly collection = db.collection<Doc>("assistant_templates");
+    private readonly likesCollection = db.collection<LikeDoc>("assistant_template_likes");
 
     async create(data: Omit<z.infer<typeof AssistantTemplate>, 'id' | 'publishedAt' | 'lastUpdatedAt'>): Promise<z.infer<typeof AssistantTemplate>> {
         const now = new Date().toISOString();
         const _id = new ObjectId();
-        const doc: z.infer<typeof DocSchema> = { ...data, publishedAt: now, lastUpdatedAt: now } as any;
+        const doc: Doc = { ...data, publishedAt: now, lastUpdatedAt: now };
         await this.collection.insertOne({ ...doc, _id });
-        return { ...doc, id: _id.toString() } as any;
+        return { ...doc, id: _id.toString() };
     }
 
     async fetch(id: string): Promise<z.infer<typeof AssistantTemplate> | null> {
         const result = await this.collection.findOne({ _id: new ObjectId(id) });
         if (!result) return null;
-        return { ...result, id: result._id.toString() } as any;
+        return { ...result, id: result._id.toString() };
     }
 
     async list(filters: {
@@ -33,7 +33,7 @@ export class MongoDBAssistantTemplatesRepository {
         authorId?: string;
         source?: 'library' | 'community';
     } = {}, cursor?: string, limit: number = 20): Promise<z.infer<ReturnType<typeof PaginatedList<typeof AssistantTemplate>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = {};
+        const query: Filter<Doc> = {};
         if (filters.category) query.category = filters.category;
         if (filters.featured !== undefined) query.featured = filters.featured;
         if (filters.isPublic !== undefined) query.isPublic = filters.isPublic;
@@ -58,13 +58,13 @@ export class MongoDBAssistantTemplatesRepository {
         // Stable sort: newest first, with _id as tiebreaker to ensure deterministic pages
         const results = await this.collection
             .find(query)
-            .sort({ publishedAt: -1, _id: -1 } as any)
+            .sort({ publishedAt: -1, _id: -1 })
             .skip(skip)
             .limit(limit)
             .toArray();
         const items = results.map(r => ({ ...r, id: r._id.toString() }));
         const nextCursor = results.length === limit ? (skip + limit).toString() : null;
-        return { items, nextCursor } as any;
+        return { items, nextCursor };
     }
 
     async toggleLike(assistantId: string, userId: string, userEmail?: string): Promise<{ liked: boolean; likeCount: number }> {
@@ -75,7 +75,7 @@ export class MongoDBAssistantTemplatesRepository {
             return { liked: false, likeCount: await this.getLikeCount(assistantId) };
         } else {
             const now = new Date().toISOString();
-            await this.likesCollection.insertOne({ assistantId, userId, userEmail, createdAt: now } as any);
+            await this.likesCollection.insertOne({ assistantId, userId, userEmail, createdAt: now });
             await this.collection.updateOne({ _id: new ObjectId(assistantId) }, { $inc: { likeCount: 1 }, $addToSet: { likes: userId } });
             return { liked: true, likeCount: await this.getLikeCount(assistantId) };
         }
@@ -100,10 +100,10 @@ export class MongoDBAssistantTemplatesRepository {
     }
 
     async deleteByIdAndAuthor(id: string, authorId: string): Promise<boolean> {
-        const result = await this.collection.deleteOne({ _id: new ObjectId(id), authorId } as any);
+        const result = await this.collection.deleteOne({ _id: new ObjectId(id), authorId });
         if (result.deletedCount && result.deletedCount > 0) {
             // Clean up likes associated with this assistant template
-            await this.likesCollection.deleteMany({ assistantId: id } as any);
+            await this.likesCollection.deleteMany({ assistantId: id });
             return true;
         }
         return false;

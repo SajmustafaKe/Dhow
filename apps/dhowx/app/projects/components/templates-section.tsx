@@ -2,24 +2,34 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
+import { z } from 'zod';
 import { listTemplates } from "@/app/actions/project.actions";
 import { createProjectFromTemplate } from "../lib/project-creation-utils";
 import { PictureImg } from '@/components/ui/picture-img';
+import { WorkflowTool } from '../../lib/types/workflow_types';
 
-interface TemplatesSectionProps {}
+type TemplateTool = z.infer<typeof WorkflowTool>;
 
-export function TemplatesSection({}: TemplatesSectionProps) {
-    const [templates, setTemplates] = useState<any[]>([]);
+interface Template {
+    id: string;
+    name: string;
+    description: string;
+    category?: string;
+    tools?: TemplateTool[];
+}
+
+export function TemplatesSection() {
+    const [templates, setTemplates] = useState<Template[]>([]);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [templatesError, setTemplatesError] = useState<string | null>(null);
     const router = useRouter();
 
     // Extract unique tools from template - using same approach as ToolkitCard
-    const getUniqueTools = (template: any) => {
+    const getUniqueTools = (template: Template) => {
         if (!template.tools) return [];
         
         const uniqueToolsMap = new Map();
-        template.tools.forEach((tool: any) => {
+        template.tools.forEach((tool: TemplateTool) => {
             if (!uniqueToolsMap.has(tool.name)) {
                 // Include all tools, following the same pattern as Composio toolkit cards
                 const toolData = {
@@ -51,7 +61,7 @@ export function TemplatesSection({}: TemplatesSectionProps) {
     };
 
     // Handle template selection
-    const handleTemplateSelect = async (templateId: string, templateName: string) => {
+    const handleTemplateSelect = async (templateId: string) => {
         await createProjectFromTemplate(templateId, router);
     };
 
@@ -86,7 +96,7 @@ export function TemplatesSection({}: TemplatesSectionProps) {
                                     {templates.map((template) => (
                                     <button
                                         key={template.id}
-                                        onClick={() => handleTemplateSelect(template.id, template.name)}
+                                        onClick={() => handleTemplateSelect(template.id)}
                                         className="block p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all group hover:shadow-md text-left"
                                     >
                                         <div className="space-y-2">

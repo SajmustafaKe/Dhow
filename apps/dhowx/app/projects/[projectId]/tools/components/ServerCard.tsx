@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { PictureImg } from '@/components/ui/picture-img';
 import clsx from 'clsx';
 import { z } from 'zod';
 import { Badge } from '@/components/ui/badge';

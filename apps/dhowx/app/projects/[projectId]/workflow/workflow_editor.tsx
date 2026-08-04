@@ -1,6 +1,6 @@
 "use client";
-import React, { useReducer, Reducer, useState, useCallback, useEffect, useRef, createContext, useContext } from "react";
-import { MCPServer, Message, WithStringId } from "../../../lib/types/types";
+import React, { useReducer, useState, useCallback, useEffect, useRef, createContext, useContext } from "react";
+import { Message } from "../../../lib/types/types";
 import { Workflow, WorkflowTool, WorkflowPrompt, WorkflowAgent, WorkflowPipeline } from "../../../lib/types/workflow_types";
 import { DataSource } from "@/src/entities/models/data-source";
 import { TriggerSchemaForCopilot } from "@/src/entities/models/copilot";
@@ -22,8 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { PromptConfig } from "../entities/prompt_config";
 import { DataSourceConfig } from "../entities/datasource_config";
-import { RelativeTime } from "@primer/react";
-import { USE_PRODUCT_TOUR, USE_CHAT_WIDGET } from "@/app/lib/feature_flags";
+import { USE_PRODUCT_TOUR } from "@/app/lib/feature_flags";
 
 import {
     ResizableHandle,
@@ -35,8 +34,7 @@ import { publishWorkflow } from "@/app/actions/project.actions";
 import { saveWorkflow } from "@/app/actions/project.actions";
 import { updateProjectName } from "@/app/actions/project.actions";
 import { listProjects } from "@/app/actions/project.actions";
-import { BackIcon, HamburgerIcon, WorkflowIcon } from "../../../lib/components/icons";
-import { CopyIcon, ImportIcon, RadioIcon, RedoIcon, ServerIcon, Sparkles, UndoIcon, RocketIcon, PenLine, AlertTriangle, DownloadIcon, XIcon, SettingsIcon, ChevronDownIcon, PhoneIcon, MessageCircleIcon, ZapIcon } from "lucide-react";
+import { AlertTriangle, XIcon } from "lucide-react";
 import { EntityList } from "./entity_list";
 import { ProductTour } from "@/components/common/product-tour";
 import { ModelsResponse } from "@/app/lib/types/billing_types";
@@ -44,7 +42,6 @@ import { AgentGraphVisualizer } from "../entities/AgentGraphVisualizer";
 import { Panel } from "@/components/common/panel-common";
 import { Button as CustomButton } from "@/components/ui/button";
 
-import { InputField } from "@/app/lib/components/input-field";
 import { getDefaultTools } from "@/app/lib/default_tools";
 import { VoiceSection } from "../config/components/voice";
 import { TopBar } from "./components/TopBar";
@@ -81,13 +78,6 @@ const VIEW_MODE_RATIOS = {
         chatApp: 50,       // Chat panel takes 50% width
         copilot: 50        // Copilot panel takes 50% width
     }
-} as const;
-
-// Legacy PANEL_RATIOS for backward compatibility
-const PANEL_RATIOS = {
-    entityList: 25,    // Left panel
-    chatApp: 40,       // Middle panel
-    copilot: 35        // Right panel
 } as const;
 
 // Helper function to get panel ratios for current view mode
@@ -270,8 +260,6 @@ function reducer(state: State, action: Action): State {
         };
     }
 
-    const isLive = state.present.isLive;
-
     switch (action.type) {
         case "undo": {
             if (state.currentIndex <= 0) return state;
@@ -335,10 +323,6 @@ function reducer(state: State, action: Action): State {
             break;
         }
         case "reorder_agents": {
-            const newState = produce(state.present, draft => {
-                draft.workflow.agents = action.agents;
-                draft.lastUpdatedAt = new Date().toISOString();
-            });
             const [nextState, patches, inversePatches] = produceWithPatches(state.present, draft => {
                 draft.workflow.agents = action.agents;
                 draft.lastUpdatedAt = new Date().toISOString();
@@ -352,10 +336,6 @@ function reducer(state: State, action: Action): State {
             };
         }
         case "reorder_pipelines": {
-            const newState = produce(state.present, draft => {
-                draft.workflow.pipelines = action.pipelines;
-                draft.lastUpdatedAt = new Date().toISOString();
-            });
             const [nextState, patches, inversePatches] = produceWithPatches(state.present, draft => {
                 draft.workflow.pipelines = action.pipelines;
                 draft.lastUpdatedAt = new Date().toISOString();
@@ -987,7 +967,6 @@ export function WorkflowEditor({
     onDataSourcesUpdated,
     onProjectConfigUpdated,
     onTriggersUpdated,
-    chatWidgetHost,
 }: {
     projectId: string;
     dataSources: z.infer<typeof DataSource>[];
@@ -1103,7 +1082,7 @@ export function WorkflowEditor({
     const [showBuildModeBanner, setShowBuildModeBanner] = useState(false);
     const [isLeftPanelCollapsed, setIsLeftPanelCollapsed] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
-    const [pendingAction, setPendingAction] = useState<Action | null>(null);
+    const [, setPendingAction] = useState<Action | null>(null);
     const [configKey, setConfigKey] = useState(0);
     const [lastWorkflowId, setLastWorkflowId] = useState<string | null>(null);
     const [showTour, setShowTour] = useState(true);
@@ -1153,14 +1132,8 @@ export function WorkflowEditor({
 
     // Modal state for phone/Twilio configuration
     const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
-    const onPhoneModalOpen = useCallback(() => setIsPhoneModalOpen(true), []);
     const onPhoneModalClose = useCallback(() => setIsPhoneModalOpen(false), []);
 
-    // Modal state for chat widget configuration
-    const [isChatWidgetModalOpen, setIsChatWidgetModalOpen] = useState(false);
-    const onChatWidgetModalOpen = useCallback(() => setIsChatWidgetModalOpen(true), []);
-    const onChatWidgetModalClose = useCallback(() => setIsChatWidgetModalOpen(false), []);
-    
     // Project name state
     const [localProjectName, setLocalProjectName] = useState<string>(projectConfig.name || '');
     const [projectNameError, setProjectNameError] = useState<string | null>(null);
@@ -1444,14 +1417,6 @@ export function WorkflowEditor({
         dispatch({ type: "select_agent", name: newAgentName });
     }
 
-    function handleUpdateAgent(name: string, agent: Partial<z.infer<typeof WorkflowAgent>>) {
-        // Check if instructions are being changed
-        if (agent.instructions !== undefined) {
-            markAgentInstructionsChanged();
-        }
-        dispatch({ type: "update_agent", name, agent });
-    }
-
     function handleUpdatePipeline(name: string, pipeline: Partial<z.infer<typeof WorkflowPipeline>>) {
         dispatch({ type: "update_pipeline", name, pipeline });
     }
@@ -1478,10 +1443,6 @@ export function WorkflowEditor({
                 }
             }
         }
-    }
-
-    function handleUpdateTool(name: string, tool: Partial<z.infer<typeof WorkflowTool>>) {
-        dispatch({ type: "update_tool", name, tool });
     }
 
     async function handleDeleteTool(name: string) {
@@ -1751,15 +1712,6 @@ export function WorkflowEditor({
         setIsInitialState(false);
     }
 
-    // Centralized draft switch for any workflow modification while in live mode
-    const ensureDraftForModify = useCallback(() => {
-        if (isLive && !state.present.publishing) {
-            onChangeMode('draft');
-            setShowBuildModeBanner(true);
-            setTimeout(() => setShowBuildModeBanner(false), 5000);
-        }
-    }, [isLive, state.present.publishing, onChangeMode]);
-
     const WORKFLOW_MOD_ACTIONS = useRef(new Set([
         'add_agent','add_tool','add_prompt','add_pipeline','show_add_datasource_modal','show_add_variable_modal','show_add_agent_modal','show_add_tool_modal',
         'update_agent','update_tool','update_prompt','update_prompt_no_select','update_pipeline',
@@ -1769,14 +1721,14 @@ export function WorkflowEditor({
 
     const dispatchGuarded = useCallback((action: Action) => {
         // Intercept workflow modifications in live mode before they reach the reducer
-        if (WORKFLOW_MOD_ACTIONS.has((action as any).type) && isLive && !state.present.publishing) {
+        if (WORKFLOW_MOD_ACTIONS.has(action.type) && isLive && !state.present.publishing) {
             setPendingAction(action);
             setShowEditModal(true);
             return; // Block the action - it never reaches the reducer
         }
         
         // Handle modal show actions when not in live mode
-        const actionType = (action as any).type;
+        const actionType = action.type;
         if (actionType === "show_add_datasource_modal") {
             entityListRef.current?.openDataSourcesModal();
             return;
@@ -1873,10 +1825,6 @@ export function WorkflowEditor({
         }
     }
 
-    function handleToggleLeftPanel() {
-        setIsLeftPanelCollapsed(!isLeftPanelCollapsed);
-    }
-
     const validateProjectName = (value: string) => {
         if (value.length === 0) {
             setProjectNameError("Project name cannot be empty");
@@ -1909,7 +1857,7 @@ export function WorkflowEditor({
         try {
             // Validate uniqueness against other projects (case-insensitive)
             const projects = await listProjects();
-            const isDuplicate = projects.some(p => ((p as any).id ?? (p as any)._id) !== projectId && (p.name || '').trim().toLowerCase() === trimmed.toLowerCase());
+            const isDuplicate = projects.some(p => p.id !== projectId && (p.name || '').trim().toLowerCase() === trimmed.toLowerCase());
             if (isDuplicate) {
                 setProjectNameError("This name is already taken by another project");
                 return;
@@ -2225,7 +2173,7 @@ export function WorkflowEditor({
                                         tools={(() => {
                                             const { tools } = state.present.workflow;
                                             const defaults = getDefaultTools();
-                                            const map = new Map<string, any>();
+                                            const map = new Map<string, z.infer<typeof WorkflowTool>>();
                                             for (const t of tools) map.set(t.name, t);
                                             for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t);
                                             return Array.from(map.values());
@@ -2260,7 +2208,7 @@ export function WorkflowEditor({
                                         tools={(() => {
                                             const { tools } = state.present.workflow;
                                             const defaults = getDefaultTools();
-                                            const map = new Map<string, any>();
+                                            const map = new Map<string, z.infer<typeof WorkflowTool>>();
                                             for (const t of tools) map.set(t.name, t);
                                             for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t);
                                             return Array.from(map.values());
@@ -2280,7 +2228,7 @@ export function WorkflowEditor({
                                         key={`overlay-${state.present.selection.name}-${configKey}`}
                                         projectId={projectId}
                                         workflow={state.present.workflow}
-                                        pipeline={state.present.workflow.pipelines?.find((pipeline) => pipeline.name === state.present.selection!.name)!}
+                                        pipeline={(state.present.workflow.pipelines ?? []).find((pipeline) => pipeline.name === state.present.selection!.name)!}
                                         usedPipelineNames={new Set((state.present.workflow.pipelines || []).filter((pipeline) => pipeline.name !== state.present.selection!.name).map((pipeline) => pipeline.name))}
                                         usedAgentNames={new Set(state.present.workflow.agents.map((agent) => agent.name))}
                                         agents={state.present.workflow.agents}
@@ -2347,7 +2295,7 @@ export function WorkflowEditor({
                                         tools={(() => {
                                             const { tools } = state.present.workflow;
                                             const defaults = getDefaultTools();
-                                            const map = new Map<string, any>();
+                                            const map = new Map<string, z.infer<typeof WorkflowTool>>();
                                             for (const t of tools) map.set(t.name, t);
                                             for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t);
                                             return Array.from(map.values());
@@ -2382,7 +2330,7 @@ export function WorkflowEditor({
                                         tools={(() => {
                                             const { tools } = state.present.workflow;
                                             const defaults = getDefaultTools();
-                                            const map = new Map<string, any>();
+                                            const map = new Map<string, z.infer<typeof WorkflowTool>>();
                                             for (const t of tools) map.set(t.name, t);
                                             for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t);
                                             return Array.from(map.values());
@@ -2402,7 +2350,7 @@ export function WorkflowEditor({
                                         key={`overlay2-${state.present.selection.name}-${configKey}`}
                                         projectId={projectId}
                                         workflow={state.present.workflow}
-                                        pipeline={state.present.workflow.pipelines?.find((pipeline) => pipeline.name === state.present.selection!.name)!}
+                                        pipeline={(state.present.workflow.pipelines ?? []).find((pipeline) => pipeline.name === state.present.selection!.name)!}
                                         usedPipelineNames={new Set((state.present.workflow.pipelines || []).filter((pipeline) => pipeline.name !== state.present.selection!.name).map((pipeline) => pipeline.name))}
                                         usedAgentNames={new Set(state.present.workflow.agents.map((agent) => agent.name))}
                                         agents={state.present.workflow.agents}

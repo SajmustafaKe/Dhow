@@ -141,7 +141,7 @@ export function BillingPage({ customer, usage }: BillingPageProps) {
                                     e.preventDefault();
                                     try {
                                         await handleManageSubscription();
-                                    } catch (err) {
+                                    } catch {
                                         setUpgradeError("Failed to open subscription portal");
                                     }
                                 }}

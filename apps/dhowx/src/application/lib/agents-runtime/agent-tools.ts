@@ -37,6 +37,15 @@ const openai = createOpenAI({
 // Image generation (Gemini) defaults
 const DEFAULT_IMAGE_MODEL = "gemini-2.5-flash-image-preview";
 
+// Tool `execute` callbacks whose `parameters` is a raw JSON Schema (rather than
+// a Zod schema) receive `input: unknown` from the SDK, since the schema isn't
+// statically typed. Every schema here declares `type: 'object'`, so the SDK
+// always hands back a parsed object; this narrows that guarantee into a type
+// the rest of the tool body can index into.
+function asRecord(input: unknown): Record<string, unknown> {
+    return (typeof input === 'object' && input !== null) ? input as Record<string, unknown> : {};
+}
+
 // Helper to generate an image using Gemini
 export async function invokeGenerateImageTool(
     logger: PrefixLogger,
@@ -63,7 +72,7 @@ export async function invokeGenerateImageTool(
 
     log.log(`Generating image with model: ${modelName}`);
     const result = await model.generateContent(prompt);
-    const response = result.response as any;
+    const response = result.response;
 
     // Track usage if available
     try {
@@ -80,12 +89,12 @@ export async function invokeGenerateImageTool(
         // ignore usage tracking errors
     }
 
-    const candidates = (response?.candidates ?? []) as any[];
+    const candidates = response?.candidates ?? [];
     if (!candidates.length) {
         throw new Error("No candidates returned in response.");
     }
 
-    const parts = (candidates[0]?.content?.parts ?? []) as any[];
+    const parts = candidates[0]?.content?.parts ?? [];
     if (!parts.length) {
         throw new Error("No parts in candidate content.");
     }
@@ -272,7 +281,7 @@ export async function invokeWebhookTool(
     usageTracker: UsageTracker,
     projectId: string,
     name: string,
-    input: any,
+    input: Record<string, unknown>,
 ): Promise<unknown> {
     logger = logger.child(`invokeWebhookTool`);
     logger.log(`projectId: ${projectId}`);
@@ -352,7 +361,7 @@ export async function invokeMcpTool(
     usageTracker: UsageTracker,
     projectId: string,
     name: string,
-    input: any,
+    input: Record<string, unknown>,
     mcpServerName: string
 ) {
     logger = logger.child(`invokeMcpTool`);
@@ -391,7 +400,7 @@ export async function invokeComposioTool(
     projectId: string,
     name: string,
     composioData: z.infer<typeof WorkflowTool>['composioData'] & {},
-    input: any,
+    input: Record<string, unknown>,
 ) {
     logger = logger.child(`invokeComposioTool`);
     logger.log(`projectId: ${projectId}`);
@@ -480,7 +489,7 @@ export function createMockTool(
             required: config.parameters.required || [],
             additionalProperties: true,
         },
-        async execute(input: any) {
+        async execute(input: unknown) {
             try {
                 const result = await invokeMockTool(
                     logger,
@@ -522,9 +531,9 @@ export function createWebhookTool(
             required: parameters.required || [],
             additionalProperties: true,
         },
-        async execute(input: any) {
+        async execute(input: unknown) {
             try {
-                const result = await invokeWebhookTool(logger, usageTracker, projectId, name, input);
+                const result = await invokeWebhookTool(logger, usageTracker, projectId, name, asRecord(input));
                 return JSON.stringify({
                     result,
                 });
@@ -557,9 +566,9 @@ export function createMcpTool(
             required: parameters.required || [],
             additionalProperties: true,
         },
-        async execute(input: any) {
+        async execute(input: unknown) {
             try {
-                const result = await invokeMcpTool(logger, usageTracker, projectId, name, input, mcpServerName || '');
+                const result = await invokeMcpTool(logger, usageTracker, projectId, name, asRecord(input), mcpServerName || '');
                 return JSON.stringify({
                     result,
                 });
@@ -596,9 +605,9 @@ export function createComposioTool(
             required: parameters.required || [],
             additionalProperties: true,
         },
-        async execute(input: any) {
+        async execute(input: unknown) {
             try {
-                const result = await invokeComposioTool(logger, usageTracker, projectId, name, composioData, input);
+                const result = await invokeComposioTool(logger, usageTracker, projectId, name, composioData, asRecord(input));
                 return JSON.stringify({
                     result,
                 });
@@ -617,7 +626,7 @@ export function createGenerateImageTool(
     logger: PrefixLogger,
     usageTracker: UsageTracker,
     config: z.infer<typeof WorkflowTool>,
-    projectId: string,
+    _projectId: string,
 ): Tool {
     const { name, description, parameters } = config;
 
@@ -631,13 +640,14 @@ export function createGenerateImageTool(
             required: parameters.required || [],
             additionalProperties: true,
         },
-        async execute(input: any) {
+        async execute(input: unknown) {
             try {
-                const prompt: string = input?.prompt || '';
+                const args = asRecord(input);
+                const prompt = typeof args.prompt === 'string' ? args.prompt : '';
                 if (!prompt) {
                     return JSON.stringify({ error: "Missing required field: prompt" });
                 }
-                const modelName: string | undefined = input?.modelName;
+                const modelName = typeof args.modelName === 'string' ? args.modelName : undefined;
                 const result = await invokeGenerateImageTool(
                     logger,
                     usageTracker,
@@ -653,7 +663,7 @@ export function createGenerateImageTool(
                         credentials: process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY ? {
                             accessKeyId: process.env.AWS_ACCESS_KEY_ID,
                             secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                        } as any : undefined,
+                        } : undefined,
                     });
 
                     const images = await Promise.all(result.images.map(async (img) => {
@@ -679,7 +689,7 @@ export function createGenerateImageTool(
                         texts: result.texts,
                         images,
                         storage: 's3',
-                    } as any;
+                    };
                     return JSON.stringify(payload);
                 }
 
@@ -702,7 +712,7 @@ export function createGenerateImageTool(
                     images,
                     storage: 'temp',
                     expiresInSec: ttlSec,
-                } as any;
+                };
                 return JSON.stringify(payload);
             } catch (error) {
                 logger.log(`Error executing generate image tool ${name}:`, error);

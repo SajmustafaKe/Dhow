@@ -45,7 +45,7 @@ export function JobView({ projectId, jobId }: { projectId: string; jobId: string
         }
     };
 
-    const getReasonDisplay = (reason: any) => {
+    const getReasonDisplay = (reason: z.infer<typeof Job>["reason"]) => {
         if (reason.type === 'composio_trigger') {
             return {
                 type: 'Composio Trigger',

@@ -39,7 +39,7 @@ export function Chat({
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [billingError, setBillingError] = useState<string | null>(null);
-    const [lastAgenticRequest, setLastAgenticRequest] = useState<unknown | null>(null);
+    const [lastAgenticRequest] = useState<unknown | null>(null);
     const [lastAgenticResponse, setLastAgenticResponse] = useState<unknown | null>(null);
 
     // Optimistic messages for real-time streaming UX:
@@ -477,7 +477,7 @@ export function Chat({
 
                     <ComposeBoxPlayground
                         handleUserMessage={handleUserMessage}
-                        messages={messages.filter(msg => msg.content !== undefined) as any}
+                        messages={messages.filter(msg => msg.content !== undefined)}
                         loading={loading}
                         shouldAutoFocus={isLastInteracted}
                         onFocus={() => setIsLastInteracted(true)}

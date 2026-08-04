@@ -187,10 +187,10 @@ describe("PipelineStateManager", () => {
             const agents = agentsMap("extract", "validate", "charge");
 
             const first = await manager.handlePipelineExecution("extract", config, agents);
-            expect(first.context.isLastStep).toBe(false);
+            expect(first.context!.isLastStep).toBe(false);
 
             const second = await manager.handlePipelineExecution("validate", config, agents);
-            expect(second.context.isLastStep).toBe(true);
+            expect(second.context!.isLastStep).toBe(true);
             expect(second.nextAgent).toBe("charge");
         });
 
@@ -246,8 +246,8 @@ describe("PipelineStateManager", () => {
 
             expect(done.action).toBe("complete");
             expect(done.returnToAgent).toBe("orchestrator");
-            expect(done.results.pipelineName).toBe("billing_flow");
-            expect(done.results.stepResults).toEqual([{ ok: true }]);
+            expect(done.results!.pipelineName).toBe("billing_flow");
+            expect(done.results!.stepResults).toEqual([{ ok: true }]);
         });
 
         it("clears the finishing agent's state so the pipeline cannot re-run", async () => {
@@ -333,7 +333,7 @@ describe("PipelineStateManager", () => {
 
             expect(result.action).toBe("complete");
             expect(result.error).toBeUndefined();
-            expect(result.results.error).toBe("charge declined");
+            expect(result.results!.error).toBe("charge declined");
             expect(result.returnToAgent).toBe("orchestrator");
         });
 
@@ -374,7 +374,7 @@ describe("PipelineStateManager", () => {
             );
 
             const result = manager.handlePipelineError("a", "upstream timeout");
-            expect(result.results.error).toBe("upstream timeout");
+            expect(result.results!.error).toBe("upstream timeout");
         });
 
         it("yields a true error when told not to return to the caller", () => {

@@ -40,7 +40,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, RichTextareaProps>(({
 
   // Local state for validation mode
   const [localValue, setLocalValue] = useState(propValue as string);
-  const [validationError, setValidationError] = useState<string | undefined>();
+  const [_validationError, setValidationError] = useState<string | undefined>();
   const [isEditing, setIsEditing] = useState(false);
 
   // update local value when prop value changes

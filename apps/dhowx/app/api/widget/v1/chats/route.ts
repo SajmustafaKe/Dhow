@@ -16,7 +16,7 @@ export async function POST(
         let body;
         try {
             body = await req.json();
-        } catch (e) {
+        } catch {
             return Response.json({ error: "Invalid JSON in request body" }, { status: 400 });
         }
         const result = apiV1.ApiCreateChatRequest.safeParse(body);

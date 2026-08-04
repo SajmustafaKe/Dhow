@@ -16,8 +16,6 @@ export function App({
     onPanelClick,
     triggerCopilotChat,
     isLiveWorkflow,
-    activePanel,
-    onTogglePanel,
     onMessageSent,
 }: {
     hidden?: boolean;

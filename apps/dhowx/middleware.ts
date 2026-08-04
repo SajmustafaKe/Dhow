@@ -1,4 +1,4 @@
-import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const corsOptions = {
@@ -47,7 +47,7 @@ async function authCheck(request: NextRequest) {
   return response;
 }
 
-export async function middleware(request: NextRequest, event: NextFetchEvent) {
+export async function middleware(request: NextRequest) {
   // Check if the request path starts with /api/
   if (request.nextUrl.pathname.startsWith('/api/')) {
     // Handle preflighted requests

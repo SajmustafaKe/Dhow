@@ -1,20 +1,21 @@
 "use client";
 
 import { createProject, createProjectFromWorkflowJson } from "@/app/actions/project.actions";
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 export interface CreateProjectOptions {
   template?: string;
   prompt?: string;
-  router: any; // NextJS router instance
+  router: AppRouterInstance;
   onSuccess?: (projectId: string) => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
 }
 
 export interface CreateProjectFromJsonOptions {
   workflowJson: string;
-  router: any; // NextJS router instance
+  router: AppRouterInstance;
   onSuccess?: (projectId: string) => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
 }
 
 /**
@@ -50,7 +51,7 @@ export async function createProjectWithOptions(options: CreateProjectOptions): P
       options.router.push(`/projects/${response.id}/workflow`);
     } else {
       // Handle error response
-      const error = (response as any).billingError || 'Failed to create project';
+      const error = response.billingError || 'Failed to create project';
       if (options.onError) {
         options.onError(error);
       } else {
@@ -89,7 +90,7 @@ export async function createProjectFromJsonWithOptions(options: CreateProjectFro
       options.router.push(`/projects/${response.id}/workflow`);
     } else {
       // Handle error response
-      const error = (response as any).billingError || 'Failed to create project';
+      const error = response.billingError || 'Failed to create project';
       if (options.onError) {
         options.onError(error);
       } else {
@@ -111,8 +112,8 @@ export async function createProjectFromJsonWithOptions(options: CreateProjectFro
  */
 export async function createProjectFromTemplate(
   templateId: string,
-  router: any,
-  onError?: (error: any) => void
+  router: AppRouterInstance,
+  onError?: (error: unknown) => void
 ): Promise<void> {
   return createProjectWithOptions({
     template: templateId,

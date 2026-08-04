@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { SlidePanel } from '@/components/ui/slide-panel';
-import { Info, RefreshCw, RefreshCcw, Lock, Wrench } from 'lucide-react';
+import { RefreshCcw, Lock, Wrench } from 'lucide-react';
 import { clsx } from 'clsx';
 import { MCPServer, McpTool } from '@/app/lib/types/types';
 import type { z } from 'zod';
@@ -62,7 +62,7 @@ interface ServerOperationBannerProps {
   operation: 'setup' | 'delete' | 'checking-auth';
 }
 
-export function ServerOperationBanner({ serverName, operation }: ServerOperationBannerProps) {
+export function ServerOperationBanner({ operation }: ServerOperationBannerProps) {
   const getMessage = () => {
     switch (operation) {
       case 'setup':
@@ -114,7 +114,6 @@ interface ToolCardProps {
 
 export function ToolCard({ 
   tool, 
-  server, 
   isSelected, 
   onSelect, 
   showCheckbox = false,
@@ -384,7 +383,7 @@ export function ToolManagementPanel({
   isSaving,
   isSyncing
 }: ToolManagementPanelProps) {
-  const [testingTool, setTestingTool] = useState<McpToolType | null>(null);
+  const [, setTestingTool] = useState<McpToolType | null>(null);
   
   if (!server) return null;
 

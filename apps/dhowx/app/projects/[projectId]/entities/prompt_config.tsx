@@ -17,9 +17,6 @@ const valueTextareaStyles = "rounded-lg p-3 border border-gray-200 dark:border-g
 
 export function PromptConfig({
     prompt,
-    agents,
-    tools,
-    prompts,
     usedPromptNames,
     handleUpdate,
     handleClose,
@@ -40,12 +37,6 @@ export function PromptConfig({
         setShowSavedBanner(true);
         setTimeout(() => setShowSavedBanner(false), 2000);
     };
-
-    const atMentions = [
-        ...agents.map(a => ({ id: `agent:${a.name}`, value: `agent:${a.name}` })),
-        ...prompts.filter(p => p.name !== prompt.name).map(p => ({ id: `prompt:${p.name}`, value: `prompt:${p.name}` })),
-        ...tools.map(tool => ({ id: `tool:${tool.name}`, value: `tool:${tool.name}` }))
-    ];
 
     // Move validation function inside component to access props
     const validatePromptName = (value: string) => {

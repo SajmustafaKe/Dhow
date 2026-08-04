@@ -9,7 +9,12 @@ import { z } from "zod";
 import { WithStringId } from "../lib/types/types";
 import { projectAuthCheck } from "./project.actions";
 
-// Helper function to serialize MongoDB documents
+// Helper function to serialize MongoDB documents. `config` is a
+// WithId<z.infer<typeof TwilioConfig>>, but the exported getTwilioConfigs
+// return type (and the out-of-scope voice.tsx consumer) declare createdAt as
+// Date even though this converts it to a string for the client boundary;
+// narrowing here would require correcting that contract in an out-of-scope file.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function serializeConfig(config: any) {
     return {
         ...config,

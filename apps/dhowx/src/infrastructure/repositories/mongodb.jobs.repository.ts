@@ -11,9 +11,7 @@ import { PaginatedList } from "@/src/entities/common/paginated-list";
  * MongoDB document schema for Job.
  * Excludes the 'id' field as it's represented by MongoDB's '_id'.
  */
-const DocSchema = Job.omit({
-    id: true,
-});
+type Doc = Omit<z.infer<typeof Job>, "id">;
 
 /**
  * MongoDB implementation of the JobsRepository.
@@ -22,7 +20,7 @@ const DocSchema = Job.omit({
  * creating, polling, locking, updating, and releasing jobs for worker processing.
  */
 export class MongoDBJobsRepository implements IJobsRepository {
-    private readonly collection = db.collection<z.infer<typeof DocSchema>>("jobs");
+    private readonly collection = db.collection<Doc>("jobs");
 
     /**
      * Creates a new job in the system.
@@ -31,7 +29,7 @@ export class MongoDBJobsRepository implements IJobsRepository {
         const now = new Date().toISOString();
         const _id = new ObjectId();
 
-        const doc: z.infer<typeof DocSchema> = {
+        const doc: Doc = {
             ...data,
             status: "pending" as const,
             workerId: null,
@@ -206,7 +204,7 @@ export class MongoDBJobsRepository implements IJobsRepository {
         cursor?: string, 
         limit: number = 50
     ): Promise<z.infer<ReturnType<typeof PaginatedList<typeof ListedJobItem>>>> {
-        const query: Filter<z.infer<typeof DocSchema>> = { projectId };
+        const query: Filter<Doc> = { projectId };
 
         const _limit = Math.min(limit, 50);
 

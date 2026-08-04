@@ -5,16 +5,17 @@ import { authCheck } from "./auth.actions";
 import { MongoDBAssistantTemplatesRepository } from '@/src/infrastructure/repositories/mongodb.assistant-templates.repository';
 import { prebuiltTemplates } from '@/app/lib/prebuilt-cards';
 import { USE_AUTH } from '@/app/lib/feature_flags';
+import type { AssistantTemplate } from '@/src/entities/models/assistant-template';
 // import { ensureLibraryTemplatesSeeded } from '@/app/lib/assistant_templates_seed';
 
 const repo = new MongoDBAssistantTemplatesRepository();
 
 // Helper function to serialize MongoDB objects for client components
-function serializeTemplate(template: any) {
+function serializeTemplate<T>(template: T): T {
     return JSON.parse(JSON.stringify(template));
 }
 
-function serializeTemplates(templates: any[]) {
+function serializeTemplates<T>(templates: T[]): T[] {
     return templates.map(serializeTemplate);
 }
 
@@ -38,18 +39,44 @@ const CreateTemplateSchema = z.object({
     thumbnailUrl: z.string().url().optional(),
 });
 
-type ListResponse = { items: any[]; nextCursor: string | null };
+// Minimal shape of the bundled prebuilt workflow assets (app/lib/prebuilt-cards/*.json).
+// These are trusted build-time JSON assets, not request input; each JSON file's
+// TS-inferred type differs slightly (e.g. one omits `lastUpdatedAt`), so this
+// interface captures only the fields this module actually reads.
+interface PrebuiltTemplateAsset {
+    name: string;
+    description: string;
+    category: string;
+    tools: unknown[];
+    lastUpdatedAt?: string;
+    agents: Array<{ model: string;[key: string]: unknown }>;
+}
 
-function buildPrebuiltList(params: z.infer<typeof ListTemplatesSchema>): ListResponse {
-    const allPrebuilt = Object.entries(prebuiltTemplates).map(([key, tpl]) => ({
-        id: `prebuilt:${key}`,
-        name: (tpl as any).name || key,
-        description: (tpl as any).description || '',
-        category: (tpl as any).category || 'Other',
-        tools: (tpl as any).tools || [],
-        createdAt: (tpl as any).lastUpdatedAt || undefined,
-        source: 'library' as const,
-    }));
+interface PrebuiltListItem {
+    id: string;
+    name: string;
+    description: string;
+    category: string;
+    tools: unknown[];
+    createdAt?: string;
+    source: 'library';
+}
+
+type ListResponse = { items: ((PrebuiltListItem | AssistantTemplate) & { isLiked?: boolean })[]; nextCursor: string | null };
+
+function buildPrebuiltList(params: z.infer<typeof ListTemplatesSchema>): { items: PrebuiltListItem[]; nextCursor: string | null } {
+    const allPrebuilt: PrebuiltListItem[] = Object.entries(prebuiltTemplates).map(([key, tpl]) => {
+        const asset = tpl as PrebuiltTemplateAsset;
+        return {
+            id: `prebuilt:${key}`,
+            name: asset.name || key,
+            description: asset.description || '',
+            category: asset.category || 'Other',
+            tools: asset.tools || [],
+            createdAt: asset.lastUpdatedAt || undefined,
+            source: 'library' as const,
+        };
+    });
 
     let filtered = allPrebuilt;
     if (params.category) {
@@ -99,7 +126,7 @@ export async function listAssistantTemplates(request: z.infer<typeof ListTemplat
     }
 
     // No source: return prebuilt from code + first page of community from DB
-    const prebuilt = buildPrebuiltList({ ...params, source: 'library' } as any).items;
+    const prebuilt = buildPrebuiltList({ ...params, source: 'library' }).items;
     const communityPage = await repo.list({
         category: params.category,
         search: params.search,
@@ -113,18 +140,18 @@ export async function listAssistantTemplates(request: z.infer<typeof ListTemplat
 
 // Get a specific template by ID with model transformation
 export async function getAssistantTemplate(templateId: string) {
-    const user = await authCheck();
+    await authCheck();
     
     // Prebuilt: load directly from code
     if (templateId.startsWith('prebuilt:')) {
         const key = templateId.replace('prebuilt:', '');
-        const originalTemplate = prebuiltTemplates[key as keyof typeof prebuiltTemplates];
+        const originalTemplate = prebuiltTemplates[key as keyof typeof prebuiltTemplates] as PrebuiltTemplateAsset | undefined;
         if (!originalTemplate) throw new Error('Template not found');
 
         const defaultModel = process.env.PROVIDER_DEFAULT_MODEL || 'gpt-4.1';
-        const transformedWorkflow = JSON.parse(JSON.stringify(originalTemplate));
+        const transformedWorkflow = serializeTemplate(originalTemplate);
         if (transformedWorkflow.agents && Array.isArray(transformedWorkflow.agents)) {
-            transformedWorkflow.agents.forEach((agent: any) => {
+            transformedWorkflow.agents.forEach((agent) => {
                 if (agent.model === '') {
                     agent.model = defaultModel;
                 }
@@ -134,9 +161,9 @@ export async function getAssistantTemplate(templateId: string) {
         // Return minimal shape expected by callers
         const result = {
             id: templateId,
-            name: (originalTemplate as any).name || key,
-            description: (originalTemplate as any).description || '',
-            category: (originalTemplate as any).category || 'Other',
+            name: originalTemplate.name || key,
+            description: originalTemplate.description || '',
+            category: originalTemplate.category || 'Other',
             workflow: transformedWorkflow,
             source: 'library' as const,
         };
@@ -150,7 +177,7 @@ export async function getAssistantTemplate(templateId: string) {
 }
 
 export async function getAssistantTemplateCategories() {
-    const user = await authCheck();
+    await authCheck();
     
     const categories = await repo.getCategories();
     return { items: categories };
@@ -215,7 +242,7 @@ export async function deleteAssistantTemplate(id: string) {
     }
 
     // Disallow deleting library/prebuilt items
-    if ((item as any).source === 'library' || item.authorId === 'dhow-system') {
+    if (item.source === 'library' || item.authorId === 'dhow-system') {
         throw new Error('Not allowed to delete this template');
     }
 
@@ -246,8 +273,8 @@ export async function getCurrentUser() {
 }
 
 // Helper function to add isLiked status to templates
-async function addLikeStatusToTemplates(templates: any[], userId: string) {
-    if (templates.length === 0) return templates;
+async function addLikeStatusToTemplates(templates: AssistantTemplate[], userId: string): Promise<(AssistantTemplate & { isLiked: boolean })[]> {
+    if (templates.length === 0) return [];
     
     // Get all template IDs
     const templateIds = templates.map(t => t.id);

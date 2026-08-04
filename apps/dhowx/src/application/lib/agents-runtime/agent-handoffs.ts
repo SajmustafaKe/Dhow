@@ -1,5 +1,5 @@
 // Agent handoffs using OpenAI Agents SDK native capabilities
-import { Agent, handoff, Handoff } from "@openai/agents";
+import { Agent, handoff, Handoff, HandoffInputData, RunItem } from "@openai/agents";
 import { z } from "zod";
 import { PrefixLogger } from "@/app/lib/utils";
 import { WorkflowAgent } from "@/app/lib/types/workflow_types";
@@ -10,25 +10,17 @@ import {
     PipelineExecutionState 
 } from "./agents";
 
-// Types for handoff input data (from SDK)
-export interface HandoffInputData {
-    inputHistory: string | any[];
-    preHandoffItems: any[];
-    newItems: any[];
-    runContext?: any;
-}
-
 export type HandoffContextType = 'pipeline' | 'task' | 'direct';
 
 export interface AgentHandoffConfig {
-    inputSchema?: z.ZodObject<any>;
-    onHandoff?: (context: any, input: any) => void;
+    inputSchema?: z.ZodObject;
+    onHandoff?: (context: unknown, input: unknown) => void;
     inputFilter?: (data: HandoffInputData) => HandoffInputData;
     logger?: PrefixLogger;
 }
 
 // Get default schema based on context type
-function getDefaultSchemaForContext(contextType: HandoffContextType): z.ZodObject<any> {
+function getDefaultSchemaForContext(contextType: HandoffContextType): z.ZodObject {
     switch (contextType) {
         case 'pipeline':
             return PipelineContext;
@@ -66,11 +58,17 @@ function filterForPipeline(data: HandoffInputData): HandoffInputData {
             ? data.inputHistory.slice(-maxHistoryItems)
             : data.inputHistory,
         // Filter out non-pipeline related tool calls
-        preHandoffItems: data.preHandoffItems.filter(item => 
-            !item.type || 
-            item.type === 'message' || 
-            item.type === 'tool_call' && item.name?.includes('pipeline')
-        )
+        preHandoffItems: data.preHandoffItems.filter((item) => {
+            // `type` here is one of the SDK's real RunItem discriminants (e.g.
+            // 'tool_call_item'), never the legacy 'message' | 'tool_call' values this
+            // predicate was written against, and RunItem never carried a `.name` field.
+            // Both clauses were therefore already unreachable for any real handoff item;
+            // String()-widening keeps that exact always-false result instead of "fixing"
+            // it to match today's SDK, which would change what a pipeline handoff
+            // forwards — a behavior change out of scope for this cleanup.
+            const itemType = String(item.type);
+            return !itemType || itemType === 'message' || itemType === 'tool_call';
+        })
     };
 }
 
@@ -173,7 +171,7 @@ export function createPipelineHandoff(
     
     return createAgentHandoff(targetAgent, 'pipeline', {
         inputSchema: PipelineContext,
-        onHandoff: (context, input) => {
+        onHandoff: () => {
             logger?.log(`Pipeline step ${pipelineState.currentStep + 1}/${pipelineState.totalSteps} - handing off to ${targetAgent.name}`);
             
             // Store pipeline state for the target agent
@@ -182,16 +180,36 @@ export function createPipelineHandoff(
         inputFilter: (data) => {
             // Inject pipeline context into the conversation
             const contextMessage = createPipelineContextMessage(pipelineContext);
-            
+
+            // BOUNDARY CAST -- audited, kept. `@openai/agents-core`'s exported
+            // `RunItem` union is exactly: RunMessageOutputItem | RunToolCallItem |
+            // RunToolSearchCallItem | RunToolSearchOutputItem | RunReasoningItem |
+            // RunHandoffCallItem | RunToolCallOutputItem | RunHandoffOutputItem |
+            // RunToolApprovalItem -- nine concrete classes, none representing an
+            // injected system message. The structurally closest one,
+            // RunMessageOutputItem, requires `rawItem: protocol.AssistantMessageItem`
+            // (a fixed `role: 'assistant'` literal), which does not admit this
+            // payload's `role: 'system'`; the SDK's own `protocol.SystemMessageItem`
+            // type exists but is never accepted as any RunItem's `rawItem`. Building
+            // a real instance would mean either lying about the role (silently
+            // turning this handoff-context message into an assistant turn in the
+            // transcript forwarded to the next agent) or minting a `role: 'assistant'`
+            // message with system-prompt content -- both are behavior changes to what
+            // handoff context is actually sent to the model, out of scope for this
+            // lint cleanup. No active eslint rule fires on `as unknown as X` (only
+            // `as any` trips `@typescript-eslint/no-explicit-any`), so there is
+            // nothing to `eslint-disable`; this comment is the durable record instead.
+            const pipelineContextItem = {
+                type: 'message',
+                role: 'system',
+                content: contextMessage
+            } as unknown as RunItem;
+
             return {
                 ...data,
                 newItems: [
                     ...data.newItems,
-                    {
-                        type: 'message',
-                        role: 'system',
-                        content: contextMessage
-                    }
+                    pipelineContextItem
                 ]
             };
         },
@@ -207,13 +225,13 @@ export function createTaskHandoff(
         priority: 'low' | 'medium' | 'high';
         parentAgent: string;
         requirements?: string[];
-        resources?: Record<string, any>;
+        resources?: Record<string, unknown>;
     },
     logger?: PrefixLogger
 ): Handoff {
     return createAgentHandoff(targetAgent, 'task', {
         inputSchema: TaskContext,
-        onHandoff: (context, input) => {
+        onHandoff: () => {
             logger?.log(`Task delegation to ${targetAgent.name}:`, {
                 taskType: taskContext.taskType,
                 priority: taskContext.priority
@@ -224,7 +242,7 @@ export function createTaskHandoff(
 }
 
 // Get schema based on agent configuration
-export function getSchemaForAgent(agentConfig: z.infer<typeof WorkflowAgent>): z.ZodObject<any> {
+export function getSchemaForAgent(_agentConfig: z.infer<typeof WorkflowAgent>): z.ZodObject {
     // Always start with basic HandoffContext - more specific contexts are used
     // only when explicitly creating pipeline or task handoffs
     return HandoffContext;
@@ -234,7 +252,7 @@ export function getSchemaForAgent(agentConfig: z.infer<typeof WorkflowAgent>): z
 }
 
 // Create context filter based on agent configuration
-export function createContextFilterForAgent(agentConfig: z.infer<typeof WorkflowAgent>) {
+export function createContextFilterForAgent(_agentConfig: z.infer<typeof WorkflowAgent>) {
     return (data: HandoffInputData): HandoffInputData => {
         // Use basic passthrough filtering for regular handoffs
         // Specific filtering is handled by createPipelineHandoff and createTaskHandoff
@@ -246,7 +264,7 @@ export function createContextFilterForAgent(agentConfig: z.infer<typeof Workflow
 function logHandoffEvent(
     targetAgent: string,
     contextType: string,
-    input: any,
+    input: Record<string, unknown>,
     logger?: PrefixLogger
 ) {
     logger?.log(`🔄 SDK HANDOFF: -> ${targetAgent} (${contextType})`, {
@@ -272,7 +290,14 @@ export function getPipelineStateForAgent(
     return pipelineStates.get(agentName) || null;
 }
 
-function createPipelineContextMessage(context: any): string {
+function createPipelineContextMessage(context: {
+    pipelineName: string;
+    currentStep: number;
+    totalSteps: number;
+    isLastStep: boolean;
+    pipelineData: z.infer<typeof PipelineExecutionState>['pipelineData'];
+    stepResults: z.infer<typeof PipelineExecutionState>['stepResults'];
+}): string {
     return `## Pipeline Execution Context
 Pipeline: ${context.pipelineName}
 Step: ${context.currentStep + 1}/${context.totalSteps}

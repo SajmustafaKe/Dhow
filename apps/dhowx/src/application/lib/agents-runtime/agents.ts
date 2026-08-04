@@ -1,5 +1,5 @@
 // External dependencies
-import { Agent, AgentInputItem, run, RunRawModelStreamEvent, Tool } from "@openai/agents";
+import { Agent, AgentInputItem, Handoff, run, RunItemStreamEvent, RunRawModelStreamEvent, Tool } from "@openai/agents";
 import { RECOMMENDED_PROMPT_PREFIX } from "@openai/agents-core/extensions";
 import { aisdk } from "@openai/agents-extensions/ai-sdk";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -22,7 +22,6 @@ import { PipelineStateManager } from "./pipeline-state-manager";
 // Provider configuration
 const PROVIDER_API_KEY = process.env.PROVIDER_API_KEY || process.env.OPENAI_API_KEY || '';
 const PROVIDER_BASE_URL = process.env.PROVIDER_BASE_URL || undefined;
-const MODEL = process.env.PROVIDER_DEFAULT_MODEL || 'gpt-4.1';
 
 // Feature flags
 const USE_NATIVE_HANDOFFS = process.env.USE_NATIVE_HANDOFFS === 'true';
@@ -76,16 +75,24 @@ interface AgentState {
     pendingToolCalls: number;
 }
 
+// Pipeline agents get transient scheduling metadata bolted directly onto their
+// SDK `Agent` instance (by createAgentsWithNativeHandoffs / createAgentsLegacy,
+// read back by handlePipelineAgentExecution) rather than tracked in a side map,
+// matching this file's existing in-place agent registry pattern. `Agent` itself
+// has no such fields.
+interface PipelineAgentMetadata {
+    pipelineName?: string;
+    pipelineIndex?: number;
+    isLastInPipeline?: boolean;
+}
+type PipelineTaggedAgent = Agent & PipelineAgentMetadata;
+
 const openai = createOpenAI({
     apiKey: PROVIDER_API_KEY,
     baseURL: PROVIDER_BASE_URL,
 });
 
-const ZOutMessage = z.union([
-    AssistantMessage,
-    AssistantMessageWithToolCalls,
-    ToolMessage,
-]);
+type ZOutMessage = z.infer<typeof AssistantMessage> | z.infer<typeof AssistantMessageWithToolCalls> | z.infer<typeof ToolMessage>;
 
 // Helper to create an agent
 function createAgent(
@@ -95,7 +102,6 @@ function createAgent(
     config: z.infer<typeof WorkflowAgent>,
     tools: Record<string, Tool>,
     workflow: z.infer<typeof Workflow>,
-    promptConfig: Record<string, z.infer<typeof WorkflowPrompt>>,
 ): { agent: Agent, entities: z.infer<typeof ConnectedEntity>[] } {
     const agentLogger = logger.child(`createAgent: ${config.name}`);
 
@@ -137,7 +143,8 @@ ${'-'.repeat(100)}
 ${CHILD_TRANSFER_RELATED_INSTRUCTIONS}
 `;
 
-    let { sanitized, entities } = sanitizeTextWithMentions(instructions, workflow, config);
+    const { sanitized: sanitizedInitial, entities } = sanitizeTextWithMentions(instructions, workflow, config);
+    let sanitized = sanitizedInitial;
 
     // Remove agent transfer instructions for pipeline agents
     if (config.type === 'pipeline') {
@@ -275,8 +282,8 @@ function getStartOfTurnAgentName(
 // Logs an event and then yields it
 async function* emitEvent(
     logger: PrefixLogger,
-    event: z.infer<typeof ZOutMessage>,
-): AsyncIterable<z.infer<typeof ZOutMessage>> {
+    event: ZOutMessage,
+): AsyncIterable<ZOutMessage> {
     logger.log(`-> emitting event: ${JSON.stringify(event)}`);
     yield event;
     return;
@@ -366,7 +373,7 @@ function mapConfig(workflow: z.infer<typeof Workflow>): {
         const defaults = getDefaultTools();
         const map = new Map<string, z.infer<typeof WorkflowTool>>();
         for (const t of workflow.tools) map.set(t.name, t);
-        for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t as any);
+        for (const t of defaults) if (!map.has(t.name)) map.set(t.name, t);
         return Array.from(map.values());
     })();
     const toolConfig: Record<string, z.infer<typeof WorkflowTool>> = mergedTools.reduce((acc, tool) => ({
@@ -386,7 +393,7 @@ function mapConfig(workflow: z.infer<typeof Workflow>): {
     return { agentConfig, toolConfig, promptConfig, pipelineConfig };
 }
 
-async function* emitGreetingTurn(logger: PrefixLogger, workflow: z.infer<typeof Workflow>): AsyncIterable<z.infer<typeof ZOutMessage>> {
+async function* emitGreetingTurn(logger: PrefixLogger, workflow: z.infer<typeof Workflow>): AsyncIterable<ZOutMessage> {
     // find the greeting prompt
     const prompt = workflow.prompts.find(p => p.type === 'greeting')?.prompt || 'How can I help you today?';
     logger.log(`greeting turn: ${prompt}`);
@@ -411,12 +418,12 @@ function createAgentsWithNativeHandoffs(
     tools: Record<string, Tool>,
     promptConfig: Record<string, z.infer<typeof WorkflowPrompt>>,
     pipelineConfig: Record<string, z.infer<typeof WorkflowPipeline>>,
-): { agents: Record<string, Agent>, mentions: Record<string, z.infer<typeof ConnectedEntity>[]>, originalInstructions: Record<string, string>, originalHandoffs: Record<string, any[]> } {
+): { agents: Record<string, Agent>, mentions: Record<string, z.infer<typeof ConnectedEntity>[]>, originalInstructions: Record<string, string>, originalHandoffs: Record<string, Handoff[]> } {
     const agentsLogger = logger.child('createAgentsWithNativeHandoffs');
     const agents: Record<string, Agent> = {};
     const mentions: Record<string, z.infer<typeof ConnectedEntity>[]> = {};
     const originalInstructions: Record<string, string> = {};
-    const originalHandoffs: Record<string, any[]> = {};
+    const originalHandoffs: Record<string, Handoff[]> = {};
 
     agentsLogger.log(`=== CREATING ${Object.keys(agentConfig).length} AGENTS WITH NATIVE HANDOFFS ===`);
 
@@ -440,7 +447,6 @@ function createAgentsWithNativeHandoffs(
             config,
             tools,
             workflow,
-            promptConfig,
         );
         agents[agentName] = agent;
         
@@ -474,7 +480,7 @@ function createAgentsWithNativeHandoffs(
         }
         
         // Create SDK handoffs for connected agents
-        const agentHandoffs: any[] = [];
+        const agentHandoffs: Handoff[] = [];
         
         // Regular agent handoffs
         for (const targetAgentName of connectedAgentNames) {
@@ -490,7 +496,7 @@ function createAgentsWithNativeHandoffs(
             
             const handoff = createAgentHandoff(targetAgent, handoffType, {
                 inputSchema: getSchemaForAgent(targetConfig),
-                onHandoff: (context, input) => {
+                onHandoff: () => {
                     agentsLogger.log(`🔄 SDK Handoff: ${agentName} -> ${targetAgentName} (${handoffType})`);
                 },
                 inputFilter: createContextFilterForAgent(targetConfig),
@@ -509,7 +515,7 @@ function createAgentsWithNativeHandoffs(
                 
                 if (firstAgent && !agentHandoffs.some(h => h.agent.name === firstAgentName)) {
                     const pipelineHandoff = createAgentHandoff(firstAgent, 'pipeline', {
-                        onHandoff: (context, input) => {
+                        onHandoff: () => {
                             agentsLogger.log(`🔄 Pipeline Handoff: ${agentName} -> ${pipelineName} (starting with ${firstAgentName})`);
                             // TODO: Initialize pipeline state here
                         },
@@ -535,9 +541,9 @@ function createAgentsWithNativeHandoffs(
             const currentAgent = agents[currentAgentName];
             
             if (currentAgent) {
-                (currentAgent as any).pipelineName = pipelineName;
-                (currentAgent as any).pipelineIndex = i;
-                (currentAgent as any).isLastInPipeline = i === pipeline.agents.length - 1;
+                (currentAgent as PipelineTaggedAgent).pipelineName = pipelineName;
+                (currentAgent as PipelineTaggedAgent).pipelineIndex = i;
+                (currentAgent as PipelineTaggedAgent).isLastInPipeline = i === pipeline.agents.length - 1;
                 agentsLogger.log(`pipeline agent ${currentAgentName} metadata: pipeline=${pipelineName}, index=${i}`);
             }
         }
@@ -590,7 +596,6 @@ function createAgentsLegacy(
             config,
             tools,
             workflow,
-            promptConfig,
         );
         agents[agentName] = agent;
 
@@ -667,9 +672,9 @@ function createAgentsLegacy(
             currentAgent.handoffs = [];
 
             // Add pipeline metadata to the agent for easy lookup
-            (currentAgent as any).pipelineName = pipelineName;
-            (currentAgent as any).pipelineIndex = i;
-            (currentAgent as any).isLastInPipeline = i === pipeline.agents.length - 1;
+            (currentAgent as PipelineTaggedAgent).pipelineName = pipelineName;
+            (currentAgent as PipelineTaggedAgent).pipelineIndex = i;
+            (currentAgent as PipelineTaggedAgent).isLastInPipeline = i === pipeline.agents.length - 1;
 
             // Update originalHandoffs to reflect the final pipeline state
             originalHandoffs[currentAgentName] = [];
@@ -720,7 +725,7 @@ function maybeInjectGiveUpControlInstructions(
     parentAgentName: string,
     logger: PrefixLogger,
     originalInstructions: Record<string, string>,
-    originalHandoffs: Record<string, Agent[]>
+    originalHandoffs: Record<string, (Agent | Handoff)[]>
 ) {
     // Reset to original before injecting
     agents[childAgentName].instructions = originalInstructions[childAgentName];
@@ -763,7 +768,7 @@ async function* handleRawModelStreamEvent(
     usageTracker: UsageTracker,
     eventLogger: PrefixLogger,
     getAgentState?: (agentName: string) => AgentState
-): AsyncIterable<z.infer<typeof ZOutMessage>> {
+): AsyncIterable<ZOutMessage> {
     // check response visibility - could be an agent or pipeline
     const agentConfigObj = agentConfig[agentName];
     const pipelineConfigObj = pipelineConfig[agentName];
@@ -830,7 +835,7 @@ async function* handleRawModelStreamEvent(
 
 // Handle native SDK handoff events
 async function* handleNativeHandoffEvent(
-    event: any,
+    event: RunItemStreamEvent,
     agentName: string,
     agentConfig: Record<string, z.infer<typeof WorkflowAgent>>,
     agents: Record<string, Agent>,
@@ -840,19 +845,24 @@ async function* handleNativeHandoffEvent(
     transferCounter: AgentTransferCounter,
     pipelineStateManager: PipelineStateManager,
     originalInstructions: Record<string, string>,
-    originalHandoffs: Record<string, any[]>,
+    originalHandoffs: Record<string, (Agent | Handoff)[]>,
     eventLogger: PrefixLogger,
     loopLogger: PrefixLogger
-): AsyncIterable<z.infer<typeof ZOutMessage> | { newAgentName: string; shouldContinue?: boolean }> {
-    eventLogger.log(`🔄 NATIVE HANDOFF EVENT: ${agentName} -> ${event.item.targetAgent.name}`);
+): AsyncIterable<ZOutMessage | { newAgentName: string; shouldContinue?: boolean }> {
+    if (event.item.type !== 'handoff_output_item') {
+        return;
+    }
+    const handoffItem = event.item;
+
+    eventLogger.log(`🔄 NATIVE HANDOFF EVENT: ${agentName} -> ${handoffItem.targetAgent.name}`);
 
     // skip if its the same agent
-    if (agentName === event.item.targetAgent.name) {
+    if (agentName === handoffItem.targetAgent.name) {
         eventLogger.log(`⚠️ SKIPPING: handoff to same agent: ${agentName}`);
         return;
     }
 
-    const targetAgentName = event.item.targetAgent.name;
+    const targetAgentName = handoffItem.targetAgent.name;
     const targetAgentConfig = agentConfig[targetAgentName];
 
     // Check if this is a pipeline-related handoff
@@ -877,7 +887,7 @@ async function* handleNativeHandoffEvent(
         
         if (targetPipeline) {
             // Initialize pipeline state
-            const pipelineState = pipelineStateManager!.initializePipelineExecution(
+            pipelineStateManager!.initializePipelineExecution(
                 targetPipelineName,
                 agentName,
                 targetPipeline,
@@ -942,7 +952,7 @@ async function* handleNativeHandoffEvent(
 
 // Handle handoff events (legacy)
 async function* handleHandoffEvent(
-    event: any,
+    event: RunItemStreamEvent,
     agentName: string,
     agentConfig: Record<string, z.infer<typeof WorkflowAgent>>,
     agents: Record<string, Agent>,
@@ -950,35 +960,40 @@ async function* handleHandoffEvent(
     turnMsgs: z.infer<typeof Message>[],
     transferCounter: AgentTransferCounter,
     originalInstructions: Record<string, string>,
-    originalHandoffs: Record<string, Agent[]>,
+    originalHandoffs: Record<string, (Agent | Handoff)[]>,
     eventLogger: PrefixLogger,
     loopLogger: PrefixLogger
-): AsyncIterable<z.infer<typeof ZOutMessage> | { newAgentName: string }> {
-    eventLogger.log(`🔄 HANDOFF EVENT: ${agentName} -> ${event.item.targetAgent.name}`);
+): AsyncIterable<ZOutMessage | { newAgentName: string }> {
+    if (event.item.type !== 'handoff_output_item') {
+        return;
+    }
+    const handoffItem = event.item;
+
+    eventLogger.log(`🔄 HANDOFF EVENT: ${agentName} -> ${handoffItem.targetAgent.name}`);
 
     // skip if its the same agent
-    if (agentName === event.item.targetAgent.name) {
+    if (agentName === handoffItem.targetAgent.name) {
         eventLogger.log(`⚠️ SKIPPING: handoff to same agent: ${agentName}`);
         return;
     }
 
     // Only apply max calls limit to internal agents (task agents)
-    const targetAgentConfig = agentConfig[event.item.targetAgent.name];
+    const targetAgentConfig = agentConfig[handoffItem.targetAgent.name];
     if (targetAgentConfig?.outputVisibility === 'internal') {
         const maxCalls = targetAgentConfig?.maxCallsPerParentAgent || 1;
-        const currentCalls = transferCounter.get(agentName, event.item.targetAgent.name);
+        const currentCalls = transferCounter.get(agentName, handoffItem.targetAgent.name);
         if (currentCalls >= maxCalls) {
-            eventLogger.log(`⚠️ SKIPPING: handoff to ${event.item.targetAgent.name} - max calls ${maxCalls} exceeded from ${agentName}`);
+            eventLogger.log(`⚠️ SKIPPING: handoff to ${handoffItem.targetAgent.name} - max calls ${maxCalls} exceeded from ${agentName}`);
             return;
         }
-        eventLogger.log(`📊 TRANSFER COUNT: ${agentName} -> ${event.item.targetAgent.name} = ${currentCalls}/${maxCalls}`);
+        eventLogger.log(`📊 TRANSFER COUNT: ${agentName} -> ${handoffItem.targetAgent.name} = ${currentCalls}/${maxCalls}`);
     }
 
     // inject give up control instructions if needed (parent handing off to child)
     maybeInjectGiveUpControlInstructions(
         agents,
         agentConfig,
-        event.item.targetAgent.name, // child
+        handoffItem.targetAgent.name, // child
         agentName, // parent
         eventLogger,
         originalInstructions,
@@ -986,7 +1001,7 @@ async function* handleHandoffEvent(
     );
 
     // emit transfer tool call invocation
-    const [transferStart, transferComplete] = createTransferEvents(agentName, event.item.targetAgent.name);
+    const [transferStart, transferComplete] = createTransferEvents(agentName, handoffItem.targetAgent.name);
 
     // add messages to turn
     turnMsgs.push(transferStart);
@@ -997,9 +1012,9 @@ async function* handleHandoffEvent(
     yield* emitEvent(eventLogger, transferComplete);
 
     // update transfer counter
-    transferCounter.increment(agentName, event.item.targetAgent.name);
+    transferCounter.increment(agentName, handoffItem.targetAgent.name);
 
-    const newAgentName = event.item.targetAgent.name;
+    const newAgentName = handoffItem.targetAgent.name;
 
     loopLogger.log(`🔄 AGENT SWITCH: ${agentName} -> ${newAgentName} (reason: handoff)`);
 
@@ -1017,15 +1032,24 @@ async function* handleHandoffEvent(
 
 // Handle tool call result events
 async function* handleToolCallResult(
-    event: any,
+    event: RunItemStreamEvent,
     turnMsgs: z.infer<typeof Message>[],
     eventLogger: PrefixLogger
-): AsyncIterable<z.infer<typeof ZOutMessage>> {
+): AsyncIterable<ZOutMessage> {
+    if (event.item.type !== 'tool_call_output_item' || event.item.rawItem.type !== 'function_call_result') {
+        return;
+    }
+    const { rawItem } = event.item;
+    const { output } = rawItem;
+    const text = typeof output === 'object' && output !== null && !Array.isArray(output) && output.type === 'text'
+        ? output.text
+        : '';
+
     const m: z.infer<typeof Message> = {
         role: 'tool',
-        content: event.item.rawItem.output.text,
-        toolCallId: event.item.rawItem.callId,
-        toolName: event.item.rawItem.name,
+        content: text,
+        toolCallId: rawItem.callId,
+        toolName: rawItem.name,
     };
 
     // add message to turn
@@ -1037,7 +1061,7 @@ async function* handleToolCallResult(
 
 // Handle message output events and internal agent switching
 async function* handleMessageOutput(
-    event: any,
+    event: RunItemStreamEvent,
     agentName: string,
     agentConfig: Record<string, z.infer<typeof WorkflowAgent>>,
     agents: Record<string, Agent>,
@@ -1049,7 +1073,7 @@ async function* handleMessageOutput(
     eventLogger: PrefixLogger,
     loopLogger: PrefixLogger,
     getAgentState: (agentName: string) => AgentState
-): AsyncIterable<z.infer<typeof ZOutMessage> | { newAgentName: string | null; shouldContinue: boolean }> {
+): AsyncIterable<ZOutMessage | { newAgentName: string | null; shouldContinue: boolean }> {
     // check response visibility - could be an agent or pipeline
     const agentConfigObj = agentConfig[agentName];
     const pipelineConfigObj = pipelineConfig[agentName];
@@ -1195,9 +1219,9 @@ function handlePipelineAgentExecution(
     transferCounter: AgentTransferCounter,
     createTransferEvents: (fromAgent: string, toAgent: string) => [z.infer<typeof AssistantMessageWithToolCalls>, z.infer<typeof ToolMessage>]
 ): { nextAgentName: string | null; shouldContinue: boolean; transferEvents?: [z.infer<typeof AssistantMessageWithToolCalls>, z.infer<typeof ToolMessage>] } {
-    const pipelineName = (currentAgent as any).pipelineName;
-    const pipelineIndex = (currentAgent as any).pipelineIndex;
-    const isLastInPipeline = (currentAgent as any).isLastInPipeline;
+    const pipelineName = (currentAgent as PipelineTaggedAgent).pipelineName;
+    const pipelineIndex = (currentAgent as PipelineTaggedAgent).pipelineIndex;
+    const isLastInPipeline = (currentAgent as PipelineTaggedAgent).isLastInPipeline;
 
     if (!pipelineName || pipelineIndex === undefined) {
         logger.log(`warning: pipeline agent ${currentAgentName} missing pipeline metadata`);
@@ -1256,7 +1280,7 @@ export async function* streamResponse(
     workflow: z.infer<typeof Workflow>,
     messages: z.infer<typeof Message>[],
     usageTracker: UsageTracker,
-): AsyncIterable<z.infer<typeof ZOutMessage>> {
+): AsyncIterable<ZOutMessage> {
     // Divider log for tracking agent loop start
     console.log('-------------------- AGENT LOOP START --------------------');
     // set up logging
@@ -1322,16 +1346,6 @@ export async function* streamResponse(
         return agentStates.get(agentName)!;
     };
     
-    // Helper function to check if agent can switch
-    const canSwitchAgent = (fromAgent: string, reason: string): boolean => {
-        const state = getAgentState(fromAgent);
-        if (state.pendingToolCalls > 0) {
-            console.log(`🚫 Blocking agent switch: ${fromAgent} has ${state.pendingToolCalls} pending tool calls (reason: ${reason})`);
-            return false;
-        }
-        return true;
-    };
-
     logger.log('🎬 STARTING AGENT TURN');
 
     // stack-based agent execution loop
@@ -1552,12 +1566,12 @@ export async function* streamResponse(
 
 // this is a sync version of streamResponse
 export async function getResponse(
-    projectId: string,
-    workflow: z.infer<typeof Workflow>,
-    messages: z.infer<typeof Message>[],
+    _projectId: string,
+    _workflow: z.infer<typeof Workflow>,
+    _messages: z.infer<typeof Message>[],
 ): Promise<{
-    messages: z.infer<typeof ZOutMessage>[],
-    usage: any,
+    messages: ZOutMessage[],
+    usage: unknown,
 }> {
     throw new Error("Not implemented!");
     /*

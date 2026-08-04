@@ -2,7 +2,7 @@ import { NotFoundError } from '@/src/entities/errors/common';
 import { IConversationsRepository } from "@/src/application/repositories/conversations.repository.interface";
 import { z } from "zod";
 import { ICacheService } from '@/src/application/services/cache.service.interface';
-import { CachedTurnRequest, Turn } from '@/src/entities/models/turn';
+import { CachedTurnRequest } from '@/src/entities/models/turn';
 import { IUsageQuotaPolicy } from '../../policies/usage-quota.policy.interface';
 import { IProjectActionAuthorizationPolicy } from '../../policies/project-action-authorization.policy';
 

@@ -30,11 +30,16 @@ export async function dropAllIndexes(database: Db): Promise<void> {
         try {
             // Drops all non-_id indexes for the collection
             await database.collection(collectionName).dropIndexes();
-        } catch (err: any) {
+        } catch (err: unknown) {
             // Ignore errors for non-existent collections or missing indexes
-            const codeName = err?.codeName;
-            const code = err?.code;
-            const message: string | undefined = err?.message;
+            const info = (typeof err === "object" && err !== null ? err : {}) as {
+                codeName?: unknown;
+                code?: unknown;
+                message?: unknown;
+            };
+            const codeName = info.codeName;
+            const code = info.code;
+            const message = typeof info.message === "string" ? info.message : undefined;
 
             if (
                 codeName === "NamespaceNotFound" ||

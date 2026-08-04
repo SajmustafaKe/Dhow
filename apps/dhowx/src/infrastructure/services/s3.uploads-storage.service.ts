@@ -62,10 +62,7 @@ export class S3UploadsStorageService implements IUploadsStorageService {
             Key: file.data.s3Key,
         });
         const response = await this.s3Client.send(command);
-        const chunks: Uint8Array[] = [];
-        for await (const chunk of response.Body as any) {
-            chunks.push(chunk);
-        }
-        return Buffer.concat(chunks);
+        const bytes = await response.Body!.transformToByteArray();
+        return Buffer.from(bytes);
     }
 }

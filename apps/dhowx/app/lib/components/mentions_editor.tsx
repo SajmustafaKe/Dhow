@@ -4,7 +4,6 @@ import Quill, { Delta, Op } from 'quill';
 import { Mention, MentionBlot, MentionBlotData } from "quill-mention";
 import "quill/dist/quill.snow.css";
 import "./mentions-editor.css";
-import { CopyIcon } from 'lucide-react';
 import { CopyButton } from '../../../components/common/copy-button';
 
 export type Match = {
@@ -16,7 +15,7 @@ export type Match = {
 };
 
 class CustomMentionBlot extends MentionBlot {
-    static render(data: any) {
+    static render(data: MentionBlotData & { invalid?: boolean; label?: string }) {
         const element = document.createElement('span');
         element.className = data.invalid ? 'invalid' : '';
         element.textContent = data.invalid ? `${data.label || data.value} (!)` : (data.label || data.value);
@@ -109,7 +108,7 @@ export default function MentionEditor({
         // generate markdown representation of content
         const delta = quillRef.current.getContents() as unknown as Delta;
         // Quill Delta has .ops
-        const ops: any[] = (delta as any).ops || [];
+        const ops: Op[] = delta.ops || [];
         const markdown = ops.map((op) => {
             if (op.insert && typeof op.insert === 'object' && 'mention' in op.insert) {
                 const mentionOp = op.insert as { mention: Match };
@@ -191,7 +190,7 @@ export default function MentionEditor({
             const parts = markdownToParts(externalValueRef.current, atValuesRef.current);
             insertPartsIntoQuill(quill, parts);
 
-            quill.on(Quill.events.TEXT_CHANGE, (delta: Delta, oldDelta: Delta, source: string) => {
+            quill.on(Quill.events.TEXT_CHANGE, () => {
                 if (isApplyingExternalRef.current) {
                     return;
                 }

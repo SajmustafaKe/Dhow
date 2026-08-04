@@ -3,7 +3,6 @@ import { z } from "zod";
 import { WorkflowPrompt, WorkflowAgent, WorkflowTool, WorkflowPipeline, Workflow } from "../../../lib/types/workflow_types";
 import { Project } from "@/src/entities/models/project";
 import { DataSource } from "@/src/entities/models/data-source";
-import { WithStringId } from "../../../lib/types/types";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -11,7 +10,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useRef, useEffect, useState } from "react";
-import { EllipsisVerticalIcon, ImportIcon, PlusIcon, Brain, Boxes, Wrench, PenLine, Library, ChevronDown, ChevronRight, ServerIcon, Component, ScrollText, GripVertical, Users, Cog, CheckCircle2, LinkIcon, UnlinkIcon, MoreVertical, Eye, Trash2, AlertTriangle, Circle, Database, Image as ImageIcon } from "lucide-react";
+import { EllipsisVerticalIcon, ImportIcon, PlusIcon, Brain, Boxes, Wrench, PenLine, ChevronDown, ChevronRight, Component, ScrollText, GripVertical, Users, Cog, UnlinkIcon, MoreVertical, Eye, Trash2, AlertTriangle, Circle, Database, Image as ImageIcon } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { DndContext, DragEndEvent, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -35,15 +34,6 @@ import { SHOW_PROMPTS_SECTION, SHOW_VISUALIZATION } from '../../../lib/feature_f
 
 // Reduced gap size to match Cursor's UI
 const GAP_SIZE = 4; // 1 unit * 4px (tailwind's default spacing unit)
-
-// Panel height ratios
-const PANEL_RATIOS = {
-    expanded: {
-        agents: 50,
-        tools: 50,
-        prompts: 20
-    }
-} as const;
 
 // Common classes
 const headerClasses = "font-semibold text-zinc-700 dark:text-zinc-300 flex items-center justify-between w-full";
@@ -356,9 +346,7 @@ const PipelineCard = ({
     onDeleteAgent,
     onAddAgentToPipeline,
     onSetMainAgent,
-    selectedRef,
     startAgentName,
-    isLive,
     dragHandle,
 }: PipelineCardProps) => {
     // Get agents that belong to this pipeline
@@ -517,17 +505,14 @@ export const EntityList = forwardRef<
     isLive,
     onSelectAgent,
     onSelectTool,
-    onSelectPrompt,
     onSelectPipeline,
     onSelectDataSource,
     onAddAgent,
     onAddTool,
-    onAddPrompt,
     onShowAddDataSourceModal,
     onShowAddVariableModal,
     onShowAddAgentModal,
     onShowAddToolModal,
-    onUpdatePrompt,
     onAddPromptFromModal,
     onUpdatePromptFromModal,
     onAddPipeline,
@@ -573,7 +558,7 @@ export const EntityList = forwardRef<
     };
     const selectedRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [containerHeight, setContainerHeight] = useState<number>(0);
+    const [, setContainerHeight] = useState<number>(0);
 
     // collect composio tools
     const composioTools: Record<string, ComposioToolkit> = {};
@@ -955,7 +940,7 @@ export const EntityList = forwardRef<
                                         const defaults = getDefaultTools();
                                         const toolMap = new Map<string, z.infer<typeof WorkflowTool>>();
                                         for (const t of tools) toolMap.set(t.name, t);
-                                        for (const t of defaults) if (!toolMap.has(t.name)) toolMap.set(t.name, t as any);
+                                        for (const t of defaults) if (!toolMap.has(t.name)) toolMap.set(t.name, t);
                                         const toolsForDisplay = Array.from(toolMap.values());
 
                                         if (toolsForDisplay.length > 0) {
@@ -1445,13 +1430,9 @@ const ComposioCard = ({
     selectedEntity,
     onSelectTool,
     onDeleteTool,
-    selectedRef,
     projectConfig,
     projectId,
-    workflow,
     onProjectToolsUpdated,
-    setSelectedToolkitSlug,
-    setShowToolsModal,
 }: ComposioCardProps & { setSelectedToolkitSlug: (slug: string) => void, setShowToolsModal: (open: boolean) => void }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -1475,7 +1456,7 @@ const ComposioCard = ({
                 if (connectedAccountId) {
                     await deleteConnectedAccount(projectId, card.slug);
                 }
-            } catch (err) {
+            } catch {
                 // ignore error, continue to remove tools
             }
         }
@@ -1498,7 +1479,7 @@ const ComposioCard = ({
                 await deleteConnectedAccount(projectId, card.slug);
                 onProjectToolsUpdated?.();
             }
-        } catch (err: any) {
+        } catch (err) {
             console.error('Disconnect failed:', err);
         } finally {
             setIsProcessingAuth(false);
@@ -1509,16 +1490,6 @@ const ComposioCard = ({
         setShowAuthModal(false);
         onProjectToolsUpdated?.();
     };
-
-    // Status dot
-    const statusDot = (
-        <InfoTooltip content={isToolkitConnected ? "Connected" : "Disconnected"}>
-            <Circle className={clsx(
-                "w-3 h-3",
-                isToolkitConnected ? "text-green-500" : "text-red-500"
-            )} fill="currentColor" />
-        </InfoTooltip>
-    );
 
     let statusPill = null;
     if (!isToolkitConnected && hasToolkitWithAuth) {
@@ -1556,7 +1527,7 @@ const ComposioCard = ({
                     {hasToolkitWithAuth && isToolkitConnected ? (
                         <DropdownMenuItem
                             disabled={isProcessingAuth}
-                            onSelect={() => { handleDisconnect && handleDisconnect(); }}
+                            onSelect={() => { handleDisconnect(); }}
                         >
                             {isProcessingAuth ? (
                                 <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-600"></div>

@@ -1,4 +1,3 @@
-import { NotFoundError } from "@/src/entities/errors/common";
 import { z } from "zod";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 import { ScheduledJobRule } from "@/src/entities/models/scheduled-job-rule";

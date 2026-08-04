@@ -2,7 +2,6 @@
 
 import { z } from "zod";
 import { Message, AssistantMessageWithToolCalls } from "@/app/lib/types/types";
-import Link from "next/link";
 
 function ToolCallDisplay({ toolCall }: { toolCall: z.infer<typeof AssistantMessageWithToolCalls>['toolCalls'][number] }) {
     return (

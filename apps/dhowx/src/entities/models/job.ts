@@ -1,5 +1,4 @@
 import { Message } from "@/app/lib/types/types";
-import { Workflow } from "@/app/lib/types/workflow_types";
 import { z } from "zod";
 
 const composioTriggerReason = z.object({

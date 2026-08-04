@@ -1,4 +1,4 @@
-import { BadRequestError, NotFoundError } from '@/src/entities/errors/common';
+import { NotFoundError } from '@/src/entities/errors/common';
 import { z } from "zod";
 import { IUsageQuotaPolicy } from '../../policies/usage-quota.policy.interface';
 import { IProjectActionAuthorizationPolicy } from '../../policies/project-action-authorization.policy';

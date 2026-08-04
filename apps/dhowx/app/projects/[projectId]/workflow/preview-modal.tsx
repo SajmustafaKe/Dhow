@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import clsx from "clsx";
 import MarkdownContent from "../../../lib/components/markdown-content";
-import React, { PureComponent } from 'react';
+import React from 'react';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { XIcon, EyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";

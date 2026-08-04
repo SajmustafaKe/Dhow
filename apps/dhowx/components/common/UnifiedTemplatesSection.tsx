@@ -191,9 +191,6 @@ export function UnifiedTemplatesSection({
     // Show "View more" when there are more items than visible OR
     // when we filled the current page and can load more
     const hasMore = filteredTemplates.length > visibleCount || (!!onLoadMore && filteredTemplates.length >= visibleCount);
-    const remainingItems = Math.max(filteredTemplates.length - visibleCount, 0);
-    const remainingRows = Math.ceil(remainingItems / itemsPerRow);
-
     const visibleTemplates = filteredTemplates.slice(0, visibleCount);
 
     // Handle category toggle
@@ -329,7 +326,7 @@ export function UnifiedTemplatesSection({
                         <div className="relative">
                             <select
                                 value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value as any)}
+                                onChange={(e) => setSortBy(e.target.value as 'popular' | 'newest' | 'alphabetical')}
                                 className="w-44 h-8 px-4 pr-10 border border-gray-300 dark:border-gray-700 rounded-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 appearance-none text-sm hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                             >
                                 {selectedType === 'community' && (

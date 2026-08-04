@@ -6,7 +6,6 @@ import { ComposioConnectedAccount } from "@/src/entities/models/project";
 import { listAuthConfigs, createAuthConfig, createConnectedAccount } from "@/src/application/lib/composio/composio";
 import { ZCreateConnectedAccountResponse } from "../../lib/composio/types";
 import { ZCreateAuthConfigResponse } from "../../lib/composio/types";
-import { ZAuthScheme } from "../../lib/composio/types";
 
 export const InputSchema = z.object({
     caller: z.enum(["user", "api"]),

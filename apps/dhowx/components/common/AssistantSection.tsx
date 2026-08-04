@@ -105,8 +105,6 @@ export function AssistantSection({
         return filtered;
     }, [items, searchQuery, selectedCategory]);
 
-    const isCommunity = items.length > 0 && items[0].authorName !== undefined;
-
     if (loading) {
         return (
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">

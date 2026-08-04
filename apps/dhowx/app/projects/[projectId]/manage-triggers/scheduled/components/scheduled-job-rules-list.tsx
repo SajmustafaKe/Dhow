@@ -68,7 +68,7 @@ export function ScheduledJobRulesList({ projectId }: { projectId: string }) {
             await deleteScheduledJobRule({ projectId, ruleId });
             // Remove the deleted item from the list
             setItems(prev => prev.filter(item => item.id !== ruleId));
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Error deleting one-time trigger:', err);
             alert('Failed to delete one-time trigger. Please try again.');
         } finally {
@@ -90,7 +90,7 @@ export function ScheduledJobRulesList({ projectId }: { projectId: string }) {
                 setItems(response.items);
                 setCursor(response.nextCursor);
                 setHasMore(Boolean(response.nextCursor));
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error('Error loading triggers:', err);
             } finally {
                 setLoading(false);

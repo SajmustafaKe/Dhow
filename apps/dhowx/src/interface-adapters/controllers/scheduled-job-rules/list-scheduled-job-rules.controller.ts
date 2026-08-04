@@ -1,7 +1,6 @@
 import { BadRequestError } from "@/src/entities/errors/common";
 import z from "zod";
 import { IListScheduledJobRulesUseCase } from "@/src/application/use-cases/scheduled-job-rules/list-scheduled-job-rules.use-case";
-import { ScheduledJobRule } from "@/src/entities/models/scheduled-job-rule";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 import { ListedRuleItem } from "@/src/application/repositories/scheduled-job-rules.repository.interface";
 

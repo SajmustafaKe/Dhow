@@ -59,11 +59,12 @@ export async function composioApiCall<T extends z.ZodTypeAny>(
         let data: unknown;
         try {
             data = contentType.includes('application/json') ? JSON.parse(rawText) : (() => { throw new Error('Expected JSON but received non-JSON response'); })();
-        } catch (e: any) {
-            throw new Error(`Failed to parse Composio JSON response (url: ${url}): ${e?.message || e}. Body preview: ${rawText.slice(0, 500)}`);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            throw new Error(`Failed to parse Composio JSON response (url: ${url}): ${message}. Body preview: ${rawText.slice(0, 500)}`);
         }
 
-        if (typeof data === 'object' && data !== null && 'error' in (data as any)) {
+        if (typeof data === 'object' && data !== null && 'error' in data) {
             const parsedError = ZErrorResponse.parse(data);
             throw new Error(`(code: ${parsedError.error.error_code}): ${parsedError.error.message}: ${parsedError.error.suggested_fix}: ${parsedError.error.errors?.join(', ')}`);
         }
@@ -116,10 +117,10 @@ export async function listTools(toolkitSlug: string, searchQuery: string | null 
         throw new Error(`Failed to fetch tools list: ${toolsResponse.status} ${toolsResponse.statusText}`);
     }
     
-    const toolsData = await toolsResponse.json();
+    const toolsData: unknown = await toolsResponse.json();
     
     // Check for error response
-    if ('error' in toolsData) {
+    if (typeof toolsData === 'object' && toolsData !== null && 'error' in toolsData) {
         const response = ZErrorResponse.parse(toolsData);
         throw new Error(`(code: ${response.error.error_code}): ${response.error.message}: ${response.error.suggested_fix}: ${response.error.errors?.join(', ')}`);
     }
@@ -136,17 +137,21 @@ export async function listTools(toolkitSlug: string, searchQuery: string | null 
         throw new Error(`Failed to fetch toolkit: ${toolkitResponse.status} ${toolkitResponse.statusText}`);
     }
     
-    const toolkitData = await toolkitResponse.json();
+    const toolkitData = ZGetToolkitResponse.parse(await toolkitResponse.json());
     
     // Compute no_auth from toolkit data
-    const no_auth = toolkitData.composio_managed_auth_schemes?.includes('NO_AUTH') || 
-                    toolkitData.auth_config_details?.some((config: any) => config.mode === 'NO_AUTH') || 
+    const no_auth = toolkitData.composio_managed_auth_schemes.includes('NO_AUTH') ||
+                    toolkitData.auth_config_details?.some((config) => config.mode === 'NO_AUTH') ||
                     false;
     
+    // Parse the pre-enrichment tools list (the API omits `no_auth`; it's computed
+    // per-toolkit above, since it isn't part of the individual tool payload).
+    const parsedToolsData = ZListResponse(ZTool.omit({ no_auth: true })).parse(toolsData);
+
     // Enrich all tools in the list with computed no_auth
     const enrichedToolsData = {
-        ...toolsData,
-        items: toolsData.items.map((tool: any) => ({
+        ...parsedToolsData,
+        items: parsedToolsData.items.map((tool) => ({
             ...tool,
             no_auth
         }))
@@ -170,19 +175,20 @@ export async function getTool(toolSlug: string): Promise<z.infer<typeof ZTool>> 
         throw new Error(`Failed to fetch tool: ${toolResponse.status} ${toolResponse.statusText}`);
     }
     
-    const toolData = await toolResponse.json();
+    const toolData: unknown = await toolResponse.json();
     
     // Check for error response
-    if ('error' in toolData) {
+    if (typeof toolData === 'object' && toolData !== null && 'error' in toolData) {
         const response = ZErrorResponse.parse(toolData);
         throw new Error(`(code: ${response.error.error_code}): ${response.error.message}: ${response.error.suggested_fix}: ${response.error.errors?.join(', ')}`);
     }
     
+    // Parse the pre-enrichment tool (the API omits `no_auth`; it's computed
+    // below per-toolkit, since it isn't part of the individual tool payload).
+    const parsedToolData = ZTool.omit({ no_auth: true }).parse(toolData);
+
     // Get toolkit data to compute no_auth
-    const toolkitSlug = toolData.toolkit?.slug;
-    if (!toolkitSlug) {
-        throw new Error(`Tool response missing toolkit slug: ${JSON.stringify(toolData)}`);
-    }
+    const toolkitSlug = parsedToolData.toolkit.slug;
     
     const toolkitUrl = new URL(`${BASE_URL}/toolkits/${toolkitSlug}`);
     const toolkitResponse = await fetch(toolkitUrl.toString(), {
@@ -195,21 +201,18 @@ export async function getTool(toolSlug: string): Promise<z.infer<typeof ZTool>> 
         throw new Error(`Failed to fetch toolkit: ${toolkitResponse.status} ${toolkitResponse.statusText}`);
     }
     
-    const toolkitData = await toolkitResponse.json();
+    const toolkitData = ZGetToolkitResponse.parse(await toolkitResponse.json());
     
     // Compute no_auth from toolkit data
-    const no_auth = toolkitData.composio_managed_auth_schemes?.includes('NO_AUTH') || 
-                    toolkitData.auth_config_details?.some((config: any) => config.mode === 'NO_AUTH') || 
+    const no_auth = toolkitData.composio_managed_auth_schemes.includes('NO_AUTH') ||
+                    toolkitData.auth_config_details?.some((config) => config.mode === 'NO_AUTH') ||
                     false;
     
     // Inject computed no_auth into tool data
-    const enrichedToolData = {
-        ...toolData,
+    return ZTool.parse({
+        ...parsedToolData,
         no_auth
-    };
-    
-    // Now parse with our schema
-    return ZTool.parse(enrichedToolData);
+    });
 }
 
 export async function listAuthConfigs(toolkitSlug: string, cursor: string | null = null, managedOnly: boolean = false): Promise<z.infer<ReturnType<typeof ZListResponse<typeof ZAuthConfig>>>> {

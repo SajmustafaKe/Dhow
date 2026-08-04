@@ -43,7 +43,7 @@ export function TriggersTab({ projectId }: { projectId: string }) {
     try {
       const config = await fetchProject(projectId);
       setProjectConfig(config);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error fetching project config:', err);
     }
   }, [projectId]);
@@ -73,7 +73,7 @@ export function TriggersTab({ projectId }: { projectId: string }) {
       setTriggers(response.items);
       setCursor(response.nextCursor);
       setHasMore(Boolean(response.nextCursor));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading triggers:', err);
       setError('Failed to load triggers. Please try again.');
     } finally {
@@ -89,7 +89,7 @@ export function TriggersTab({ projectId }: { projectId: string }) {
       setTriggers(prev => [...prev, ...response.items]);
       setCursor(response.nextCursor);
       setHasMore(Boolean(response.nextCursor));
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error loading more triggers:', err);
     } finally {
       setLoadingMore(false);
@@ -105,7 +105,7 @@ export function TriggersTab({ projectId }: { projectId: string }) {
       setDeletingTrigger(deploymentId);
       await deleteComposioTriggerDeployment({ projectId, deploymentId });
       await loadTriggers(); // Reload the list
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deleting trigger:', err);
       setError('Failed to delete trigger. Please try again.');
     } finally {
@@ -187,7 +187,7 @@ export function TriggersTab({ projectId }: { projectId: string }) {
         return;
       }
       handleBackToList();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error creating trigger:', err);
       setError('Failed to create trigger. Please try again.');
     } finally {

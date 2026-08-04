@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { db } from "@/app/lib/mongodb";
 import { prebuiltTemplates } from "@/app/lib/prebuilt-cards";
 
@@ -17,9 +18,9 @@ export async function ensureLibraryTemplatesSeeded(): Promise<void> {
         const currentPrebuiltKeys = new Set<string>(entries.map(([key]) => key));
         for (const [prebuiltKey, tpl] of entries) {
             // minimal guard; only ingest valid workflow-like objects
-            if (!(tpl as any)?.agents || !Array.isArray((tpl as any).agents)) continue;
+            if (!tpl?.agents || !Array.isArray(tpl.agents)) continue;
 
-            const name = (tpl as any).name || prebuiltKey;
+            const name = tpl.name || prebuiltKey;
 
             // Upsert to avoid race-condition duplicates
             const filter = {
@@ -29,13 +30,13 @@ export async function ensureLibraryTemplatesSeeded(): Promise<void> {
             } as const;
             const doc = {
                 name,
-                description: (tpl as any).description || "",
-                category: (tpl as any).category || "Other",
+                description: tpl.description || "",
+                category: tpl.category || "Other",
                 authorId: "dhow-system",
                 authorName: "Dhow",
                 authorEmail: undefined,
                 isAnonymous: false,
-                workflow: tpl as any,
+                workflow: tpl,
                 tags: ["__library__", `prebuilt:${prebuiltKey}`].filter(Boolean),
                 publishedAt: now,
                 lastUpdatedAt: now,
@@ -44,14 +45,14 @@ export async function ensureLibraryTemplatesSeeded(): Promise<void> {
                 featured: false,
                 isPublic: true,
                 likes: [] as string[],
-                copilotPrompt: (tpl as any).copilotPrompt || undefined,
+                copilotPrompt: tpl.copilotPrompt || undefined,
                 thumbnailUrl: undefined,
                 source: 'library' as const,
             } as const;
             await collection.updateOne(
-                filter as any,
-                { $setOnInsert: doc } as any,
-                { upsert: true } as any
+                filter,
+                { $setOnInsert: doc },
+                { upsert: true }
             );
         }
 
@@ -63,13 +64,13 @@ export async function ensureLibraryTemplatesSeeded(): Promise<void> {
                 tags: { $in: ["__library__"] },
             }, { projection: { _id: 1, tags: 1, name: 1, publishedAt: 1 } });
 
-            type DocLite = { _id: any; tags?: string[]; name?: string; publishedAt?: string };
+            type DocLite = { _id: ObjectId; tags?: string[]; name?: string; publishedAt?: string };
             const keyToDocs = new Map<string, DocLite[]>();
-            const orphans: any[] = [];
+            const orphans: ObjectId[] = [];
             const orphanNames: string[] = [];
 
-            for await (const doc of libCursor as any as AsyncIterable<DocLite>) {
-                const prebuiltTag = (doc.tags || []).find(t => typeof t === 'string' && t.startsWith('prebuilt:'));
+            for await (const doc of libCursor) {
+                const prebuiltTag = (doc.tags || []).find((t: string) => typeof t === 'string' && t.startsWith('prebuilt:'));
                 if (!prebuiltTag) {
                     orphans.push(doc._id);
                     if (doc.name) orphanNames.push(doc.name);
@@ -88,20 +89,20 @@ export async function ensureLibraryTemplatesSeeded(): Promise<void> {
 
             // Delete orphans (no key or key not in code)
             if (orphans.length > 0) {
-                await collection.deleteMany({ _id: { $in: orphans } } as any);
+                await collection.deleteMany({ _id: { $in: orphans } });
                 console.log(`[PrebuiltTemplates] Reconciled by deleting ${orphans.length} orphans/removed templates:`, orphanNames);
             }
 
             // For each key, keep newest by publishedAt; delete others
-            const dupRemovals: any[] = [];
-            for (const [key, docs] of keyToDocs.entries()) {
+            const dupRemovals: ObjectId[] = [];
+            for (const [, docs] of keyToDocs.entries()) {
                 if (docs.length <= 1) continue;
                 const sorted = [...docs].sort((a, b) => String(b.publishedAt || '').localeCompare(String(a.publishedAt || '')));
                 const extras = sorted.slice(1).map(d => d._id);
                 dupRemovals.push(...extras);
             }
             if (dupRemovals.length > 0) {
-                await collection.deleteMany({ _id: { $in: dupRemovals } } as any);
+                await collection.deleteMany({ _id: { $in: dupRemovals } });
                 console.log(`[PrebuiltTemplates] De-duplicated ${dupRemovals.length} duplicate templates`);
             }
         } catch (reconcileErr) {
@@ -128,7 +129,7 @@ export async function ensureTemplateSeeded(prebuiltKey: string): Promise<void> {
     try {
         const collection = db.collection("assistant_templates");
         const now = new Date().toISOString();
-        const name = (tpl as any).name || prebuiltKey;
+        const name = tpl.name || prebuiltKey;
 
         // Check if already exists
         const existing = await collection.findOne({ 
@@ -140,11 +141,11 @@ export async function ensureTemplateSeeded(prebuiltKey: string): Promise<void> {
         if (existing) {
             // Update existing template with current model configuration
             const defaultModel = process.env.PROVIDER_DEFAULT_MODEL || 'gpt-4.1';
-            const updatedWorkflow = JSON.parse(JSON.stringify(tpl));
+            const updatedWorkflow = JSON.parse(JSON.stringify(tpl)) as typeof tpl;
             
             // Apply model transformation
             if (updatedWorkflow.agents && Array.isArray(updatedWorkflow.agents)) {
-                updatedWorkflow.agents.forEach((agent: any) => {
+                updatedWorkflow.agents.forEach((agent) => {
                     if (agent.model === '') {
                         agent.model = defaultModel;
                     }
@@ -164,11 +165,11 @@ export async function ensureTemplateSeeded(prebuiltKey: string): Promise<void> {
         } else {
             // Create new template with model transformation
             const defaultModel = process.env.PROVIDER_DEFAULT_MODEL || 'gpt-4.1';
-            const transformedWorkflow = JSON.parse(JSON.stringify(tpl));
+            const transformedWorkflow = JSON.parse(JSON.stringify(tpl)) as typeof tpl;
             
             // Apply model transformation
             if (transformedWorkflow.agents && Array.isArray(transformedWorkflow.agents)) {
-                transformedWorkflow.agents.forEach((agent: any) => {
+                transformedWorkflow.agents.forEach((agent) => {
                     if (agent.model === '') {
                         agent.model = defaultModel;
                     }
@@ -177,8 +178,8 @@ export async function ensureTemplateSeeded(prebuiltKey: string): Promise<void> {
 
             const doc = {
                 name,
-                description: (tpl as any).description || "",
-                category: (tpl as any).category || "Other",
+                description: tpl.description || "",
+                category: tpl.category || "Other",
                 authorId: "dhow-system",
                 authorName: "Dhow",
                 authorEmail: undefined,
@@ -192,12 +193,12 @@ export async function ensureTemplateSeeded(prebuiltKey: string): Promise<void> {
                 featured: false,
                 isPublic: true,
                 likes: [] as string[],
-                copilotPrompt: (tpl as any).copilotPrompt || undefined,
+                copilotPrompt: tpl.copilotPrompt || undefined,
                 thumbnailUrl: undefined,
                 source: 'library' as const,
             } as const;
 
-            await collection.insertOne(doc as any);
+            await collection.insertOne(doc);
             console.log(`[PrebuiltTemplates] Created template: ${name}`);
         }
 

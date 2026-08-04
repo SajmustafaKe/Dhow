@@ -1,21 +1,20 @@
 import { useCallback, useRef, useState } from "react";
 import { getCopilotResponseStream } from "@/app/actions/copilot.actions";
-import { CopilotMessage } from "@/src/entities/models/copilot";
+import { CopilotChatContext, CopilotMessage } from "@/src/entities/models/copilot";
 import { Workflow } from "@/app/lib/types/workflow_types";
 import { DataSource } from "@/src/entities/models/data-source";
 import { TriggerSchemaForCopilot } from "@/src/entities/models/copilot";
 import { z } from "zod";
-import { WithStringId } from "@/app/lib/types/types";
 
 interface UseCopilotParams {
     projectId: string;
     workflow: z.infer<typeof Workflow>;
-    context: any;
+    context: z.infer<typeof CopilotChatContext> | null | undefined;
     dataSources?: z.infer<typeof DataSource>[];
     triggers?: z.infer<typeof TriggerSchemaForCopilot>[];
 }
 
-interface UseCopilotResult {
+export interface UseCopilotResult {
     streamingResponse: string;
     loading: boolean;
     toolCalling: boolean;
@@ -100,7 +99,7 @@ export function useCopilot({ projectId, workflow, context, dataSources, triggers
                     const { content } = JSON.parse(event.data);
                     responseRef.current += content;
                     setStreamingResponse(prev => prev + content);
-                } catch (e) {
+                } catch {
                     setError('Failed to parse stream message');
                 }
             };
@@ -110,13 +109,13 @@ export function useCopilot({ projectId, workflow, context, dataSources, triggers
                     const data = JSON.parse(event.data);
                     setToolCalling(true);
                     setToolQuery(data.query || null);
-                } catch (e) {
+                } catch {
                     setToolCalling(true);
                     setToolQuery(null);
                 }
             });
 
-            eventSource.addEventListener('tool-result', (event) => {
+            eventSource.addEventListener('tool-result', () => {
                 setToolCalling(false);
             });
 

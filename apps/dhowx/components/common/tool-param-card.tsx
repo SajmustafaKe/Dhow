@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,

@@ -1,17 +1,40 @@
 // Pipeline State Manager for handling complex pipeline execution flow
-import { Agent } from "@openai/agents";
+import { Agent, Handoff } from "@openai/agents";
 import { z } from "zod";
-import { WorkflowPipeline, WorkflowAgent } from "@/app/lib/types/workflow_types";
+import { WorkflowPipeline } from "@/app/lib/types/workflow_types";
 import { PipelineExecutionState } from "./agents";
 import { PrefixLogger } from "@/app/lib/utils";
 import { createPipelineHandoff } from "./agent-handoffs";
 
+export interface PipelineHandoffContext {
+    reason: 'pipeline_execution';
+    pipelineName: string;
+    currentStep: number;
+    totalSteps: number;
+    isLastStep: boolean;
+    pipelineData: z.infer<typeof PipelineExecutionState>['pipelineData'];
+    stepResults: z.infer<typeof PipelineExecutionState>['stepResults'];
+}
+
+export interface PipelineExecutionResults {
+    pipelineName: string;
+    totalSteps: number;
+    stepResults: z.infer<typeof PipelineExecutionState>['stepResults'];
+    // Present when produced by handlePipelineExecution's completion branch.
+    finalData?: z.infer<typeof PipelineExecutionState>['pipelineData'];
+    completionTime?: string;
+    duration?: number;
+    // Present when produced by handlePipelineError's recoverable-failure branch.
+    error?: string;
+    completedSteps?: number;
+}
+
 export interface PipelineExecutionResult {
     action: 'handoff' | 'complete' | 'error';
     nextAgent?: string;
-    handoff?: any; // SDK Handoff object
-    context?: any;
-    results?: any;
+    handoff?: Handoff; // SDK Handoff object
+    context?: PipelineHandoffContext;
+    results?: PipelineExecutionResults;
     returnToAgent?: string;
     error?: string;
 }
@@ -29,7 +52,7 @@ export class PipelineStateManager {
         pipelineName: string,
         callingAgent: string,
         pipelineConfig: z.infer<typeof WorkflowPipeline>,
-        initialData?: Record<string, any>
+        initialData?: Record<string, unknown>
     ): z.infer<typeof PipelineExecutionState> {
         const state: z.infer<typeof PipelineExecutionState> = {
             pipelineName,
@@ -60,7 +83,7 @@ export class PipelineStateManager {
         currentAgentName: string,
         pipelineConfig: Record<string, z.infer<typeof WorkflowPipeline>>,
         agents: Record<string, Agent>,
-        stepResult?: Record<string, any>
+        stepResult?: Record<string, unknown>
     ): Promise<PipelineExecutionResult> {
         const state = this.getPipelineState(currentAgentName);
         

@@ -61,8 +61,6 @@ function UrlList({ sourceId, onDelete }: {
     const [page, setPage] = useState(1);
     const [total, setTotal] = useState(0);
 
-    const totalPages = Math.ceil(total / 10);
-
     useEffect(() => {
         let ignore = false;
 

@@ -1,11 +1,6 @@
 import { NextRequest } from "next/server";
-import { clientIdCheck } from "../../utils";
-import { SignJWT, jwtVerify } from "jose";
-import { z } from "zod";
-import { Session } from "../../utils";
-import * as apiV1 from "@/src/entities/models/api-v1";
 
-export async function POST(req: NextRequest): Promise<Response> {
+export async function POST(_req: NextRequest): Promise<Response> {
     return new Response('Not implemented', { status: 501 });
     /*
     return await clientIdCheck(req, async (projectId) => {

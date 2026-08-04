@@ -1,6 +1,4 @@
 import { Job } from "@/src/entities/models/job";
-import { JobAcquisitionError } from "@/src/entities/errors/job-errors";
-import { NotFoundError } from "@/src/entities/errors/common";
 import { z } from "zod";
 import { PaginatedList } from "@/src/entities/common/paginated-list";
 
