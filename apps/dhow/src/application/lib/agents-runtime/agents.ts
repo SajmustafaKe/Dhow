@@ -10,7 +10,7 @@ import crypto from "crypto";
 import { createTools, createRagTool } from "./agent-tools";
 import { ConnectedEntity, sanitizeTextWithMentions, Workflow, WorkflowAgent, WorkflowPipeline, WorkflowPrompt, WorkflowTool } from "@/app/lib/types/workflow_types";
 import { getDefaultTools } from "@/app/lib/default_tools";
-import { CHILD_TRANSFER_RELATED_INSTRUCTIONS, CONVERSATION_TYPE_INSTRUCTIONS, PIPELINE_TYPE_INSTRUCTIONS, RAG_INSTRUCTIONS, TASK_TYPE_INSTRUCTIONS, VARIABLES_CONTEXT_INSTRUCTIONS } from "./agent_instructions";
+import { CHILD_TRANSFER_RELATED_INSTRUCTIONS, CONVERSATION_TYPE_INSTRUCTIONS, PIPELINE_TYPE_INSTRUCTIONS, RAG_INSTRUCTIONS, TASK_TYPE_INSTRUCTIONS, TRANSFER_GIVE_UP_CONTROL_INSTRUCTIONS, VARIABLES_CONTEXT_INSTRUCTIONS } from "./agent_instructions";
 import { PrefixLogger } from "@/app/lib/utils";
 import { Message, AssistantMessage, AssistantMessageWithToolCalls, ToolMessage } from "@/app/lib/types/types";
 import { UsageTracker } from "@/app/lib/billing";
@@ -703,8 +703,10 @@ function getGiveUpControlInstructions(
     }
     // Only include the @mention for the parent, not the tool call format
     const parentBlock = `@agent:${parentAgentName}`;
-    // Import the template
-    const { TRANSFER_GIVE_UP_CONTROL_INSTRUCTIONS } = require('./agent_instructions');
+    // Statically imported at the top of this file. This was a CommonJS
+    // `require('./agent_instructions')` inline here, which only resolved
+    // because Next's bundler shims require() into ESM output — under plain ESM
+    // it throws "Cannot find module", and it sits on the agent-transfer path.
     dynamicInstructions = dynamicInstructions + '\n\n' + TRANSFER_GIVE_UP_CONTROL_INSTRUCTIONS(parentBlock);
     // For tracking
     logger.log(`Added give up control instructions for ${agent.name} with parent ${parentAgentName}`);

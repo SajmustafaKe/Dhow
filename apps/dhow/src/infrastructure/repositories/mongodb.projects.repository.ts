@@ -1,6 +1,6 @@
 import { db } from "@/app/lib/mongodb";
 import { CreateSchema, IProjectsRepository, AddComposioConnectedAccountSchema, AddCustomMcpServerSchema } from "@/src/application/repositories/projects.repository.interface";
-import { NotFoundError } from "@/src/entities/errors/common";
+import { BadRequestError, NotFoundError } from "@/src/entities/errors/common";
 import { Project } from "@/src/entities/models/project";
 import { z } from "zod";
 import { IProjectMembersRepository } from "@/src/application/repositories/project-members.repository.interface";
@@ -84,7 +84,7 @@ export class MongodbProjectsRepository implements IProjectsRepository {
     }
 
     async addComposioConnectedAccount(projectId: string, data: z.infer<typeof AddComposioConnectedAccountSchema>): Promise<z.infer<typeof Project>> {
-        const key = `composioConnectedAccounts.${data.toolkitSlug}`;
+        const key = `composioConnectedAccounts.${assertPlainKey(data.toolkitSlug, 'toolkitSlug')}`;
         const result = await this.collection.findOneAndUpdate(
             { _id: projectId },
             {
@@ -107,14 +107,14 @@ export class MongodbProjectsRepository implements IProjectsRepository {
             _id: projectId,
         }, {
             $unset: {
-                [`composioConnectedAccounts.${toolkitSlug}`]: "",
+                [`composioConnectedAccounts.${assertPlainKey(toolkitSlug, 'toolkitSlug')}`]: "",
             }
         });
         return result.modifiedCount > 0;
     }
 
     async addCustomMcpServer(projectId: string, data: z.infer<typeof AddCustomMcpServerSchema>): Promise<z.infer<typeof Project>> {
-        const key = `customMcpServers.${data.name}`;
+        const key = `customMcpServers.${assertPlainKey(data.name, 'name')}`;
         const result = await this.collection.findOneAndUpdate(
             { _id: projectId },
             {
@@ -137,7 +137,7 @@ export class MongodbProjectsRepository implements IProjectsRepository {
             _id: projectId,
         }, {
             $unset: {
-                [`customMcpServers.${name}`]: "",
+                [`customMcpServers.${assertPlainKey(name, 'name')}`]: "",
             }
         });
         return result.modifiedCount > 0;
@@ -237,4 +237,23 @@ export class MongodbProjectsRepository implements IProjectsRepository {
         const result = await this.collection.deleteOne({ _id: projectId });
         return result.deletedCount > 0;
     }
+}
+
+/**
+ * Guard a caller-supplied value before it becomes part of a Mongo field path.
+ *
+ * `composioConnectedAccounts.${toolkitSlug}` and `customMcpServers.${name}` are
+ * built by interpolation, so a value containing a dot silently deepens the
+ * write path — `a.b` targets `customMcpServers.a.b`, a different document
+ * location than the one the caller named. A leading `$` is refused for the same
+ * reason: field paths and operators share a namespace.
+ *
+ * Throws rather than sanitising. Rewriting the key would write to a location the
+ * caller did not ask for, which is the failure being prevented.
+ */
+function assertPlainKey(value: string, field: string): string {
+    if (!value || value.includes('.') || value.startsWith('$')) {
+        throw new BadRequestError(`Invalid ${field}: must be non-empty and contain no '.' or leading '$'`);
+    }
+    return value;
 }

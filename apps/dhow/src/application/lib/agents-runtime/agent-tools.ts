@@ -727,7 +727,16 @@ export function createTools(
     toolLogger.log(`=== CREATING ${Object.keys(toolConfig).length} TOOLS ===`);
 
     for (const [toolName, config] of Object.entries(toolConfig)) {
-        toolLogger.log(`creating tool: ${toolName} (type: ${config.mockTool ? 'mock' : config.isMcp ? 'mcp' : config.isComposio ? 'composio' : config.isGeminiImage ? 'gemini-image' : 'webhook'})`);
+        // Must mirror the if/else chain below exactly. This previously fell
+        // through to 'webhook' for an unflagged tool while the chain built a
+        // mock, so the log announced a webhook that was never created.
+        const plannedType = config.mockTool ? 'mock'
+            : config.isMcp ? 'mcp'
+            : config.isComposio ? 'composio'
+            : config.isGeminiImage ? 'gemini-image'
+            : config.isWebhook ? 'webhook'
+            : 'mock';
+        toolLogger.log(`creating tool: ${toolName} (type: ${plannedType})`);
         
         if (config.mockTool) {
             tools[toolName] = createMockTool(logger, usageTracker, config);

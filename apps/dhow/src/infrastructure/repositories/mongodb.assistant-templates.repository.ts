@@ -40,10 +40,17 @@ export class MongoDBAssistantTemplatesRepository {
         if (filters.authorId) query.authorId = filters.authorId;
         if (filters.source) query.source = filters.source;
         if (filters.search) {
+            // Escaped before it reaches $regex. Raw user input compiled as a
+            // pattern let an unbalanced parenthesis throw SyntaxError straight
+            // out of list() (an uncaught-crash DoS from ordinary search text),
+            // and let a crafted pattern drive catastrophic backtracking.
+            // Search here is a substring match, so regex metacharacters have no
+            // meaning to the caller and losing them costs nothing.
+            const search = escapeRegExp(filters.search);
             query.$or = [
-                { name: { $regex: filters.search, $options: 'i' } },
-                { description: { $regex: filters.search, $options: 'i' } },
-                { tags: { $in: [new RegExp(filters.search, 'i')] } },
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+                { tags: { $in: [new RegExp(search, 'i')] } },
             ];
         }
 
@@ -101,6 +108,18 @@ export class MongoDBAssistantTemplatesRepository {
         }
         return false;
     }
+}
+
+/**
+ * Neutralise regex metacharacters in caller-supplied search text.
+ *
+ * `list()` treats `search` as a substring match, but passed it to `$regex`
+ * verbatim. Any string is a valid substring; not every string is a valid
+ * pattern. `foo(` threw a SyntaxError out of the repository, and a pattern like
+ * `(a+)+$` invites catastrophic backtracking against Mongo.
+ */
+function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 

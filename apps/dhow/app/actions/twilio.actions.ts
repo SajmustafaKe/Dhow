@@ -177,8 +177,18 @@ export async function deleteTwilioConfig(projectId: string, configId: string) {
     return result;
 }
 
-// Mock implementation for testing/development
+// Mock implementation for testing/development.
+//
+// "Mock" describes the Twilio side only — it skips the real provider call but
+// still writes account_sid and auth_token to twilioConfigsCollection for the
+// caller-supplied project_id. Exported from a 'use server' module, so it is a
+// browser-reachable RPC endpoint no matter what this comment says.
+//
+// It previously ran with no authorization at all, unlike its three siblings
+// above, which meant any caller could plant or overwrite Twilio credentials on
+// any project. Gated 2026-08-03.
 export async function mockConfigureTwilioNumber(params: z.infer<typeof TwilioConfigParams>): Promise<TwilioConfigResponse> {
+    await projectAuthCheck(params.project_id);
     await new Promise(resolve => setTimeout(resolve, 1000));
     await saveTwilioConfig(params);
     return { success: true };

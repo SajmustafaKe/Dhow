@@ -414,7 +414,13 @@ async function runDeletionPipeline(_logger: PrefixLogger, job: z.infer<typeof Da
                         type: "use_credits",
                     });
 
-                    if ('error' in authResponse) {
+                    // Was `if ('error' in authResponse)`. AuthorizeResponse.error is
+                    // z.string().optional(), so a denial of the form {success:false}
+                    // with no error key has no `error` property at all — the guard
+                    // never fired and document processing ran on a refused credit
+                    // check. Every other call site tests `!result.success`; this one
+                    // was the outlier. Fixed 2026-08-03.
+                    if (!authResponse.success) {
                         throw new BillingError(authResponse.error || "Unknown billing error")
                     }
                 }
