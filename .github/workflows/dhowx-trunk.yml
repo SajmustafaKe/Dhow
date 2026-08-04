@@ -41,6 +41,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # next-env.d.ts is gitignored and generated, and it is what supplies the
+      # module declarations for image imports (`@/public/logo.png`) via
+      # next/image-types/global. A dev machine always has one lying around from
+      # an earlier `next dev`, so `tsc` passes locally and fails here -- which
+      # is exactly how this went unnoticed for two commits. `next typegen`
+      # regenerates it (plus .next/types/routes.d.ts) without a full build.
+      - name: Generate Next types
+        run: npx next typegen
+
       - name: Typecheck
         run: npm run typecheck
 
