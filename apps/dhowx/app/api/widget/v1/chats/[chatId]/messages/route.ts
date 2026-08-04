@@ -44,7 +44,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ chatId: s
         }
 
         // Fetch messages from the database
-        let messages = await chatMessagesCollection
+        const messages = await chatMessagesCollection
             .find(query)
             .sort({ _id: previous ? -1 : 1 })  // Sort based on direction
             .limit(limit + 1)  // Fetch one extra to determine if there are more results

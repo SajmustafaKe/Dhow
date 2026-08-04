@@ -361,13 +361,13 @@ export async function getEditAgentInstructionsResponse(
     const currentWorkflowPrompt = getCurrentWorkflowPrompt(workflow);
 
     // set context prompt
-    let contextPrompt = getContextPrompt(context);
+    const contextPrompt = getContextPrompt(context);
 
     // set time prompt
-    let timePrompt = getCurrentTimePrompt();
+    const timePrompt = getCurrentTimePrompt();
 
     // set triggers prompt
-    let triggersPrompt = getTriggersPrompt(triggers);
+    const triggersPrompt = getTriggersPrompt(triggers);
 
     // add the above prompts to the last user message
     updateLastUserMessage(messages, currentWorkflowPrompt, contextPrompt, '', timePrompt, triggersPrompt);
@@ -459,16 +459,16 @@ export async function* streamMultiAgentResponse(
     const currentWorkflowPrompt = getCurrentWorkflowPrompt(workflow);
 
     // set context prompt
-    let contextPrompt = getContextPrompt(context);
+    const contextPrompt = getContextPrompt(context);
 
     // set data sources prompt
-    let dataSourcesPrompt = getDataSourcesPrompt(dataSources);
+    const dataSourcesPrompt = getDataSourcesPrompt(dataSources);
 
     // set time prompt
-    let timePrompt = getCurrentTimePrompt();
+    const timePrompt = getCurrentTimePrompt();
 
     // set triggers prompt
-    let triggersPrompt = getTriggersPrompt(triggers);
+    const triggersPrompt = getTriggersPrompt(triggers);
 
     // add the above prompts to the last user message
     updateLastUserMessage(messages, currentWorkflowPrompt, contextPrompt, dataSourcesPrompt, timePrompt, triggersPrompt);

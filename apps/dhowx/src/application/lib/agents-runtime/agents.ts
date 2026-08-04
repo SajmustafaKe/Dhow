@@ -108,7 +108,7 @@ function createAgent(
         }));
 
     // Combine instructions and examples
-    let instructions = `${RECOMMENDED_PROMPT_PREFIX}
+    const instructions = `${RECOMMENDED_PROMPT_PREFIX}
 
 ## Your Name
 ${config.name}
@@ -1260,7 +1260,7 @@ export async function* streamResponse(
     // Divider log for tracking agent loop start
     console.log('-------------------- AGENT LOOP START --------------------');
     // set up logging
-    let logger = new PrefixLogger(`agent-loop`)
+    const logger = new PrefixLogger(`agent-loop`)
     logger.log('projectId', projectId);
 
     // ensure valid system message

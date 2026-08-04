@@ -9,9 +9,12 @@ volumes:
       device: ./data/uploads
 
 services:
+  # Service name stays `dhow` -- it is the hostname other services resolve
+  # (see the commented DHOW_API_HOST entries below). Only the build context
+  # moved, from the deleted apps/dhow to the trunk.
   dhow:
     build:
-      context: ./apps/dhow
+      context: ./apps/dhowx
       dockerfile: Dockerfile
     ports:
       - "${PORT:-3000}:3000"

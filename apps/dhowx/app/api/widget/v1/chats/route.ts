@@ -75,7 +75,7 @@ export async function GET(
         }
 
         // Fetch chats from the database
-        let chats = await chatsCollection
+        const chats = await chatsCollection
             .find(query)
             .sort({ _id: -1 })  // Sort in descending order
             .limit(limit + 1)  // Fetch one extra to determine if there are more results

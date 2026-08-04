@@ -827,7 +827,7 @@ export function Messages({
             // if (!userMessageSeen) {
             //     latency = 0;
             // }
-            let latency = 0;
+            const latency = 0;
 
             // First check for tool calls
             if ('toolCalls' in message) {

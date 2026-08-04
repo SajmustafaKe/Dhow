@@ -33,7 +33,7 @@ export const MICROSOFT_OAUTH_CLIENT_ID = process.env.DHOW_MICROSOFT_CLIENT_ID ||
  *
  * Includes the `/api` segment: the endpoint is a Next.js app-router route
  * served at `/api/v1/config`, not `/v1/config`. Overridable so a local
- * `apps/dhow` dev server can be pointed at without rebuilding.
+ * `apps/dhowx` dev server can be pointed at without rebuilding.
  */
 export const API_URL = process.env.DHOW_API_URL || 'https://dhow.io/api';
 

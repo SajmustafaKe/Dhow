@@ -391,7 +391,7 @@ export function BuildAssistantSection() {
         setImportError(null);
         try {
             const text = await file.text();
-            let parsed = Workflow.safeParse(JSON.parse(text));
+            const parsed = Workflow.safeParse(JSON.parse(text));
             if (!parsed.success) {
                 setImportError('Invalid workflow JSON: ' + JSON.stringify(parsed.error.issues));
                 setImportLoading(false);

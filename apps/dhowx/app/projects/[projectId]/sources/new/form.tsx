@@ -25,7 +25,7 @@ export function Form({
 }) {
     const [sourceType, setSourceType] = useState("");
 
-    let dropdownOptions = [
+    const dropdownOptions = [
         {
             key: "text",
             label: "Text",
