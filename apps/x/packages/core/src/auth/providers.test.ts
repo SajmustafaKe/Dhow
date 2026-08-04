@@ -139,7 +139,12 @@ describe("dhow provider (Supabase GoTrue via runtime bootstrap)", { timeout: TIM
     expect(second.discovery).toMatchObject({ issuer: expect.stringContaining("project-b.supabase.co") });
   });
 
-  it("does not request offline_access — GoTrue issues refresh tokens without it", async () => {
+  it("requests offline_access so GoTrue issues a refresh token", async () => {
+    // Verified against the live tenant's discovery document, which lists
+    // offline_access in scopes_supported. An earlier revision dropped it as an
+    // "Auth0-ism"; that was wrong. Without a refresh token the desktop signs
+    // the user out whenever the access token expires, and the failure is
+    // delayed and confusing rather than immediate.
     const { getProviderConfig } = await import("./providers.js");
     const dhowApi = await import("../config/dhow-api.js");
     vi.spyOn(dhowApi, "getDhowApiConfig").mockResolvedValue({
@@ -148,7 +153,7 @@ describe("dhow provider (Supabase GoTrue via runtime bootstrap)", { timeout: TIM
     });
 
     const dhow = await getProviderConfig("dhow");
-    expect(dhow.scopes).toEqual(["openid", "email", "profile"]);
+    expect(dhow.scopes).toEqual(["openid", "email", "profile", "offline_access"]);
   });
 
   it("propagates a bootstrap failure instead of silently falling back", async () => {

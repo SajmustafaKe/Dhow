@@ -84,7 +84,15 @@ const providerConfigs: ProviderConfig = {
     client: {
       mode: 'dcr',
     },
-    scopes: ['openid', 'email', 'profile'],
+    // `offline_access` is restored after checking the live tenant: GoTrue's
+    // discovery document at
+    // https://<ref>.supabase.co/auth/v1/.well-known/openid-configuration
+    // lists it in `scopes_supported`. It was dropped earlier as an
+    // "Auth0-ism", which was wrong — it is the standard OIDC way to request a
+    // refresh token, and the risk is asymmetric: including it when
+    // unnecessary costs nothing, omitting it when required means no refresh
+    // token and users silently signed out when the access token expires.
+    scopes: ['openid', 'email', 'profile', 'offline_access'],
   },
   google: {
     discovery: {
