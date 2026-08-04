@@ -1,0 +1,108 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Form } from '../../sources/new/form';
+import { FilesSource } from '../../sources/components/files-source';
+import { getDataSource } from '../../../../actions/data-source.actions';
+import { DataSource } from "@/src/entities/models/data-source";
+import { z } from 'zod';
+
+interface DataSourcesModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  projectId: string;
+  onDataSourceAdded?: () => void;
+  useRagUploads: boolean;
+  useRagS3Uploads: boolean;
+  useRagScraping: boolean;
+}
+
+export function DataSourcesModal({
+  isOpen,
+  onClose,
+  projectId,
+  onDataSourceAdded,
+  useRagUploads,
+  useRagS3Uploads,
+  useRagScraping
+}: DataSourcesModalProps) {
+  const [currentView, setCurrentView] = useState<'form' | 'upload'>('form');
+  const [createdSource, setCreatedSource] = useState<z.infer<typeof DataSource> | null>(null);
+
+  const handleDataSourceCreated = async (sourceId: string) => {
+    // Get the created data source
+    const source = await getDataSource(sourceId);
+    
+    // If it's a files data source, show the upload interface
+    if (source.data.type === 'files_local' || source.data.type === 'files_s3') {
+      setCreatedSource(source);
+      setCurrentView('upload');
+    } else {
+      // For other types (text, urls), close the modal
+      onDataSourceAdded?.();
+      onClose();
+    }
+  };
+
+  const handleFilesUploaded = () => {
+    // Just refresh the data sources list, don't close the modal
+    // User can continue uploading more files or close manually
+    onDataSourceAdded?.();
+  };
+
+  const handleModalClose = () => {
+    setCurrentView('form');
+    setCreatedSource(null);
+    onClose();
+  };
+
+  // Reset view when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentView('form');
+      setCreatedSource(null);
+    }
+  }, [isOpen]);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleModalClose(); }}>
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-semibold">
+            {currentView === 'form' ? 'Add data source' : 'Upload files'}
+          </DialogTitle>
+        </DialogHeader>
+        {currentView === 'form' ? (
+          <Form
+            projectId={projectId}
+            useRagUploads={useRagUploads}
+            useRagS3Uploads={useRagS3Uploads}
+            useRagScraping={useRagScraping}
+            onSuccess={handleDataSourceCreated}
+            hidePanel={true}
+          />
+        ) : (
+          createdSource && (
+            <FilesSource
+              dataSource={createdSource}
+              handleReload={handleFilesUploaded}
+              type={createdSource.data.type as 'files_local' | 'files_s3'}
+            />
+          )
+        )}
+        {currentView === 'upload' && (
+          <DialogFooter>
+            <Button
+              variant="default"
+              onClick={handleModalClose}
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
