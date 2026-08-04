@@ -119,7 +119,7 @@ const CopilotStreamToolCallEvent = z.object({
     type: z.literal('tool-call'),
     toolName: z.string(),
     toolCallId: z.string(),
-    args: z.record(z.any()),
+    args: z.record(z.string(), z.any()),
     query: z.string().optional(),
 });
 

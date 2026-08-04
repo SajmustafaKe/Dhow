@@ -29,11 +29,6 @@ type ToolUIPartApproval =
     }
   | {
       id: string;
-      approved: true;
-      reason?: string;
-    }
-  | {
-      id: string;
       approved: false;
       reason?: string;
     }
@@ -97,7 +92,6 @@ export const ConfirmationRequest = ({ children }: ConfirmationRequestProps) => {
   const { state } = useConfirmation();
 
   // Only show when approval is requested
-  // @ts-expect-error state only available in AI SDK v6
   if (state !== "approval-requested") {
     return null;
   }
@@ -117,9 +111,7 @@ export const ConfirmationAccepted = ({
   // Only show when approved and in response states
   if (
     !approval?.approved ||
-        // @ts-expect-error state only available in AI SDK v6
     (state !== "approval-responded" &&
-        // @ts-expect-error state only available in AI SDK v6
       state !== "output-denied" &&
       state !== "output-available")
   ) {
@@ -141,9 +133,7 @@ export const ConfirmationRejected = ({
   // Only show when rejected and in response states
   if (
     approval?.approved !== false ||
-        // @ts-expect-error state only available in AI SDK v6
     (state !== "approval-responded" &&
-        // @ts-expect-error state only available in AI SDK v6
       state !== "output-denied" &&
       state !== "output-available")
   ) {
@@ -162,7 +152,6 @@ export const ConfirmationActions = ({
   const { state } = useConfirmation();
 
   // Only show when approval is requested
-  // @ts-expect-error state only available in AI SDK v6
   if (state !== "approval-requested") {
     return null;
   }

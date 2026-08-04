@@ -53,7 +53,7 @@ export const Message = z.union([
 
 export const McpToolInputSchema = z.object({
     type: z.literal('object'),
-    properties: z.record(z.object({
+    properties: z.record(z.string(), z.object({
         type: z.string(),
         description: z.string(),
         enum: z.array(z.any()).optional(),
@@ -86,7 +86,7 @@ export const McpTool = z.object({
     description: z.string(),
     parameters: z.object({
         type: z.literal('object'),
-        properties: z.record(z.object({
+        properties: z.record(z.string(), z.object({
             type: z.string(),
             description: z.string(),
         })),

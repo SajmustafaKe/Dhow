@@ -38,6 +38,12 @@ const eslintConfig = [
     files: ["src/**", "app/lib/**", "app/api/**", "app/actions/**"],
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
+      // Same reasoning, same deal. 12 occurrences, all trivially auto-fixable
+      // with --fix, and every one of them a genuine improvement. But applying
+      // it now breaks byte-identity with apps/dhow for no behavioural gain,
+      // and byte-identity is what makes the 850 carried tests a real check on
+      // the move. Run --fix over these paths the day apps/dhow is deleted.
+      "prefer-const": "warn",
     },
   },
 ];
