@@ -34,7 +34,7 @@ vi.mock("@/app/lib/mongodb", () => ({
     db: { collection: vi.fn(() => ({ insertOne, findOne })) },
 }));
 
-const user = { id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
+const user = { id: "u1", authId: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
 
 function validWorkflow() {
     return {

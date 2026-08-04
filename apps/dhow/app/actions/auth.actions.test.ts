@@ -28,7 +28,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const usersRepository = {
-    fetchBySupabaseId: vi.fn(),
+    fetchByAuthId: vi.fn(),
     updateEmail: vi.fn(),
     create: vi.fn(),
     fetch: vi.fn(),
@@ -54,7 +54,7 @@ async function loadWithAuth(useAuth: boolean) {
 }
 
 beforeEach(() => {
-    usersRepository.fetchBySupabaseId.mockReset();
+    usersRepository.fetchByAuthId.mockReset();
     usersRepository.updateEmail.mockReset();
     getSession.mockReset();
 });
@@ -66,13 +66,13 @@ describe("authCheck", () => {
 
         expect(user).toEqual({
             id: "guest_user",
-            supabaseId: "guest_user",
+            authId: "guest_user",
             name: "Guest",
             email: "guest@dhow.local",
             createdAt: expect.any(String),
         });
         expect(getSession).not.toHaveBeenCalled();
-        expect(usersRepository.fetchBySupabaseId).not.toHaveBeenCalled();
+        expect(usersRepository.fetchByAuthId).not.toHaveBeenCalled();
     });
 
     it("USE_AUTH=true, no session: throws 'User not authenticated', never queries the DB", async () => {
@@ -80,7 +80,7 @@ describe("authCheck", () => {
         const { authCheck } = await loadWithAuth(true);
 
         await expect(authCheck()).rejects.toThrow("User not authenticated");
-        expect(usersRepository.fetchBySupabaseId).not.toHaveBeenCalled();
+        expect(usersRepository.fetchByAuthId).not.toHaveBeenCalled();
     });
 
     it("USE_AUTH=true, session with no `user` field: also throws 'User not authenticated'", async () => {
@@ -95,23 +95,23 @@ describe("authCheck", () => {
 
     it("USE_AUTH=true, session but no matching DB user: throws a distinct 'User record not found'", async () => {
         getSession.mockResolvedValue({ user: { id: "supabase|abc123" } });
-        usersRepository.fetchBySupabaseId.mockResolvedValue(null);
+        usersRepository.fetchByAuthId.mockResolvedValue(null);
         const { authCheck } = await loadWithAuth(true);
 
         await expect(authCheck()).rejects.toThrow("User record not found");
-        expect(usersRepository.fetchBySupabaseId).toHaveBeenCalledWith("supabase|abc123");
+        expect(usersRepository.fetchByAuthId).toHaveBeenCalledWith("supabase|abc123");
     });
 
     it("USE_AUTH=true, session and DB user: returns the DB user", async () => {
         getSession.mockResolvedValue({ user: { id: "supabase|abc123" } });
         const dbUser = {
             id: "u_1",
-            supabaseId: "supabase|abc123",
+            authId: "supabase|abc123",
             name: "Real User",
             email: "real@example.com",
             createdAt: "2024-01-01T00:00:00.000Z",
         };
-        usersRepository.fetchBySupabaseId.mockResolvedValue(dbUser);
+        usersRepository.fetchByAuthId.mockResolvedValue(dbUser);
         const { authCheck } = await loadWithAuth(true);
 
         await expect(authCheck()).resolves.toEqual(dbUser);
@@ -141,7 +141,7 @@ describe("updateUserEmail", () => {
 
     it("USE_AUTH=true, authenticated, whitespace-only email: throws 'Email is required' before Zod runs", async () => {
         getSession.mockResolvedValue({ user: { id: "s1" } });
-        usersRepository.fetchBySupabaseId.mockResolvedValue({ id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
+        usersRepository.fetchByAuthId.mockResolvedValue({ id: "u1", authId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
         const { updateUserEmail } = await loadWithAuth(true);
 
         await expect(updateUserEmail("   ")).rejects.toThrow("Email is required");
@@ -150,7 +150,7 @@ describe("updateUserEmail", () => {
 
     it("USE_AUTH=true, authenticated, malformed (non-empty) email: throws 'Invalid email'", async () => {
         getSession.mockResolvedValue({ user: { id: "s1" } });
-        usersRepository.fetchBySupabaseId.mockResolvedValue({ id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
+        usersRepository.fetchByAuthId.mockResolvedValue({ id: "u1", authId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
         const { updateUserEmail } = await loadWithAuth(true);
 
         await expect(updateUserEmail("not-an-email")).rejects.toThrow("Invalid email");
@@ -159,7 +159,7 @@ describe("updateUserEmail", () => {
 
     it("USE_AUTH=true, authenticated, valid email: writes user.id + email, returns undefined", async () => {
         getSession.mockResolvedValue({ user: { id: "s1" } });
-        usersRepository.fetchBySupabaseId.mockResolvedValue({ id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
+        usersRepository.fetchByAuthId.mockResolvedValue({ id: "u1", authId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
         usersRepository.updateEmail.mockResolvedValue({ id: "u1" });
         const { updateUserEmail } = await loadWithAuth(true);
 

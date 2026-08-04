@@ -14,7 +14,7 @@ export const GUEST_SESSION = {
 
 export const GUEST_DB_USER: z.infer<typeof User> = {
     id: "guest_user",
-    supabaseId: "guest_user",
+    authId: "guest_user",
     name: "Guest",
     email: "guest@dhow.local",
     createdAt: new Date().toISOString(),
@@ -49,7 +49,7 @@ export async function requireAuth(): Promise<z.infer<typeof User>> {
     // if db user does not exist, create one
     if (!dbUser) {
         dbUser = await usersRepository.create({
-            supabaseId: user.id,
+            authId: user.id,
             email: user.email,
         });
         console.log(`created new user id ${dbUser.id} for session id ${user.id}`);
@@ -64,5 +64,5 @@ export async function getUserFromSessionId(sessionUserId: string): Promise<z.inf
     }
 
     const usersRepository = container.resolve<IUsersRepository>("usersRepository");
-    return await usersRepository.fetchBySupabaseId(sessionUserId);
+    return await usersRepository.fetchByAuthId(sessionUserId);
 }

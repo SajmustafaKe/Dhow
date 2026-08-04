@@ -40,7 +40,7 @@ async function loadWithBilling(useBilling: boolean) {
     return await import("./billing.actions");
 }
 
-const user = { id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z", billingCustomerId: "cus_1" };
+const user = { id: "u1", authId: "s1", createdAt: "2024-01-01T00:00:00.000Z", billingCustomerId: "cus_1" };
 
 beforeEach(() => {
     vi.clearAllMocks();

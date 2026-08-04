@@ -2,7 +2,7 @@ import { z } from "zod";
 import { User } from "@/src/entities/models/user";
 
 export const CreateSchema = User.pick({
-    supabaseId: true,
+    authId: true,
     email: true,
 });
 
@@ -11,7 +11,7 @@ export interface IUsersRepository {
 
     fetch(id: string): Promise<z.infer<typeof User> | null>;
 
-    fetchBySupabaseId(supabaseId: string): Promise<z.infer<typeof User> | null>;
+    fetchByAuthId(authId: string): Promise<z.infer<typeof User> | null>;
 
     updateEmail(id: string, email: string): Promise<z.infer<typeof User>>;
 

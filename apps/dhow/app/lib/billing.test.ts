@@ -172,7 +172,7 @@ beforeEach(() => {
     });
     authMocks.requireAuth.mockResolvedValue({
         id: "user_1",
-        supabaseId: "user_1",
+        authId: "user_1",
         email: "user@x.com",
         createdAt: new Date().toISOString(),
     });
@@ -542,7 +542,7 @@ describe("getCustomerIdForProject(projectId)", () => {
 
 describe("requireBillingCustomer() with USE_BILLING=false", () => {
     it("returns the hardcoded guest customer (id ALWAYS 'guest-user') with userId swapped to the real authenticated user's id", async () => {
-        authMocks.requireAuth.mockResolvedValue({ id: "real-user-42", supabaseId: "x", createdAt: new Date().toISOString() });
+        authMocks.requireAuth.mockResolvedValue({ id: "real-user-42", authId: "x", createdAt: new Date().toISOString() });
         const usersResolve = vi.fn();
         withRepos({ usersRepository: { fetch: usersResolve } });
 
@@ -572,13 +572,13 @@ describe("requireBillingCustomer() with USE_BILLING=false", () => {
 
 describe("requireBillingCustomer() with USE_BILLING=true", () => {
     it("no email on the authenticated user: redirects to /onboarding before touching billing", async () => {
-        authMocks.requireAuth.mockResolvedValue({ id: "u1", supabaseId: "u1", createdAt: new Date().toISOString() }); // no email
+        authMocks.requireAuth.mockResolvedValue({ id: "u1", authId: "u1", createdAt: new Date().toISOString() }); // no email
         await expect(billingOn.requireBillingCustomer()).rejects.toThrow("REDIRECT:/onboarding");
         expect(requests).toHaveLength(0);
     });
 
     it("user already has a billingCustomerId: fetches the existing Customer, does not create one", async () => {
-        authMocks.requireAuth.mockResolvedValue({ id: "u1", supabaseId: "u1", email: "u1@x.com", billingCustomerId: "cust_existing", createdAt: new Date().toISOString() });
+        authMocks.requireAuth.mockResolvedValue({ id: "u1", authId: "u1", email: "u1@x.com", billingCustomerId: "cust_existing", createdAt: new Date().toISOString() });
         const customer = validCustomer({ id: "cust_existing" });
         handler = () => ({ status: 200, body: customer });
 
@@ -591,7 +591,7 @@ describe("requireBillingCustomer() with USE_BILLING=true", () => {
     });
 
     it("user has no billingCustomerId: creates a customer (POST /api/customers with {userId, email}), then persists the id via usersRepository.updateBillingCustomerId, and returns the created Customer", async () => {
-        authMocks.requireAuth.mockResolvedValue({ id: "u1", supabaseId: "u1", email: "u1@x.com", createdAt: new Date().toISOString() }); // no billingCustomerId
+        authMocks.requireAuth.mockResolvedValue({ id: "u1", authId: "u1", email: "u1@x.com", createdAt: new Date().toISOString() }); // no billingCustomerId
         const updateBillingCustomerId = vi.fn().mockResolvedValue(undefined);
         withRepos({ usersRepository: { updateBillingCustomerId } });
         const created = validCustomer({ id: "cust_new" });
@@ -612,7 +612,7 @@ describe("requireBillingCustomer() with USE_BILLING=true", () => {
         // "no billingCustomerId yet" branch) but shares the exact same
         // fetch/!response.ok/throw shape as every other function here --
         // pinned through its only caller.
-        authMocks.requireAuth.mockResolvedValue({ id: "u1", supabaseId: "u1", email: "u1@x.com", createdAt: new Date().toISOString() });
+        authMocks.requireAuth.mockResolvedValue({ id: "u1", authId: "u1", email: "u1@x.com", createdAt: new Date().toISOString() });
         const updateBillingCustomerId = vi.fn();
         withRepos({ usersRepository: { updateBillingCustomerId } });
         handler = () => ({ status: 500, raw: "db unavailable" });
@@ -638,7 +638,7 @@ describe("requireActiveBillingSubscription()", () => {
     it.each(["active", "past_due"] as const)(
         "USE_BILLING=true, subscriptionStatus='%s': returns the customer, does not redirect",
         async (status) => {
-            authMocks.requireAuth.mockResolvedValue({ id: "u1", supabaseId: "u1", email: "u1@x.com", billingCustomerId: "cust_1", createdAt: new Date().toISOString() });
+            authMocks.requireAuth.mockResolvedValue({ id: "u1", authId: "u1", email: "u1@x.com", billingCustomerId: "cust_1", createdAt: new Date().toISOString() });
             handler = () => ({ status: 200, body: validCustomer({ subscriptionStatus: status }) });
 
             const result = await billingOn.requireActiveBillingSubscription();
@@ -649,7 +649,7 @@ describe("requireActiveBillingSubscription()", () => {
     );
 
     it("USE_BILLING=true, subscriptionStatus missing (neither active nor past_due): redirects to /billing", async () => {
-        authMocks.requireAuth.mockResolvedValue({ id: "u1", supabaseId: "u1", email: "u1@x.com", billingCustomerId: "cust_1", createdAt: new Date().toISOString() });
+        authMocks.requireAuth.mockResolvedValue({ id: "u1", authId: "u1", email: "u1@x.com", billingCustomerId: "cust_1", createdAt: new Date().toISOString() });
         handler = () => ({ status: 200, body: validCustomer() }); // subscriptionStatus omitted (optional field)
 
         await expect(billingOn.requireActiveBillingSubscription()).rejects.toThrow("REDIRECT:/billing");

@@ -115,13 +115,13 @@ describe("requireAuth", () => {
 
         const existingUser = {
             id: "u1",
-            supabaseId: "supabase|123",
+            authId: "supabase|123",
             email: "a@b.com",
             createdAt: "2024-01-01T00:00:00.000Z",
         };
-        const fetchBySupabaseId = vi.fn().mockResolvedValue(existingUser);
+        const fetchByAuthId = vi.fn().mockResolvedValue(existingUser);
         const create = vi.fn();
-        const resolve = vi.fn(() => ({ fetchBySupabaseId, create }));
+        const resolve = vi.fn(() => ({ fetchByAuthId, create }));
         vi.doMock("@/di/container", () => ({ container: { resolve } }));
 
         const { requireAuth } = await import("@/app/lib/auth");
@@ -132,7 +132,7 @@ describe("requireAuth", () => {
         expect(resolve).toHaveBeenCalledWith("usersRepository");
     });
 
-    it("authenticated, first login (no db user yet): auto-provisions via usersRepository.create({ supabaseId, email }) — no allowlist/invite gate beyond a valid Supabase session, and the session's `name` is silently dropped", async () => {
+    it("authenticated, first login (no db user yet): auto-provisions via usersRepository.create({ authId, email }) — no allowlist/invite gate beyond a valid Supabase session, and the session's `name` is silently dropped", async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
 
@@ -144,21 +144,21 @@ describe("requireAuth", () => {
 
         const createdUser = {
             id: "u_new",
-            supabaseId: "supabase|new-user",
+            authId: "supabase|new-user",
             email: "new@example.com",
             createdAt: "2024-01-01T00:00:00.000Z",
         };
-        const fetchBySupabaseId = vi.fn().mockResolvedValue(null);
+        const fetchByAuthId = vi.fn().mockResolvedValue(null);
         const create = vi.fn().mockResolvedValue(createdUser);
-        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchBySupabaseId, create })) } }));
+        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchByAuthId, create })) } }));
 
         const { requireAuth } = await import("@/app/lib/auth");
         const user = await requireAuth();
 
         expect(user).toEqual(createdUser);
-        // Exact shape pin: only supabaseId + email are forwarded to create(). If
+        // Exact shape pin: only authId + email are forwarded to create(). If
         // a port adds `name` to this call, or drops `email`, this fails.
-        expect(create).toHaveBeenCalledWith({ supabaseId: "supabase|new-user", email: "new@example.com" });
+        expect(create).toHaveBeenCalledWith({ authId: "supabase|new-user", email: "new@example.com" });
         expect(create).toHaveBeenCalledTimes(1);
     });
 
@@ -194,9 +194,9 @@ describe("getUserFromSessionId", () => {
     it('USE_AUTH=true, found: returns the repository result verbatim, resolved by exactly "usersRepository"', async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
-        const found = { id: "u1", supabaseId: "supabase|123", createdAt: "2024-01-01T00:00:00.000Z" };
-        const fetchBySupabaseId = vi.fn().mockResolvedValue(found);
-        const resolve = vi.fn(() => ({ fetchBySupabaseId }));
+        const found = { id: "u1", authId: "supabase|123", createdAt: "2024-01-01T00:00:00.000Z" };
+        const fetchByAuthId = vi.fn().mockResolvedValue(found);
+        const resolve = vi.fn(() => ({ fetchByAuthId }));
         vi.doMock("@/di/container", () => ({ container: { resolve } }));
         vi.doMock("@/app/lib/supabase", () => ({ getSession: vi.fn() }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
@@ -205,15 +205,15 @@ describe("getUserFromSessionId", () => {
         const user = await getUserFromSessionId("supabase|123");
 
         expect(user).toEqual(found);
-        expect(fetchBySupabaseId).toHaveBeenCalledWith("supabase|123");
+        expect(fetchByAuthId).toHaveBeenCalledWith("supabase|123");
         expect(resolve).toHaveBeenCalledWith("usersRepository");
     });
 
     it("USE_AUTH=true, not found: RETURNS null — it does not throw. app/actions/auth.actions.ts:22-25 and requireAuth's own auto-provision check (auth.ts:50) both branch on this being a falsy return, not a caught exception", async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
-        const fetchBySupabaseId = vi.fn().mockResolvedValue(null);
-        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchBySupabaseId })) } }));
+        const fetchByAuthId = vi.fn().mockResolvedValue(null);
+        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchByAuthId })) } }));
         vi.doMock("@/app/lib/supabase", () => ({ getSession: vi.fn() }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
 

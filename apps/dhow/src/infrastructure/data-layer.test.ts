@@ -712,12 +712,12 @@ describe("MongoDBRecurringJobRulesRepository", () => {
 // MongoDBUsersRepository
 // =============================================================================
 
-describe("MongoDBUsersRepository.fetchBySupabaseId", () => {
-    it("looks up by the external supabaseId field, not by _id", async () => {
+describe("MongoDBUsersRepository.fetchByAuthId", () => {
+    it("looks up by the external authId field, not by _id", async () => {
         const repo = new MongoDBUsersRepository();
-        await repo.fetchBySupabaseId("supabase-uid-abc123");
+        await repo.fetchByAuthId("supabase-uid-abc123");
         const { collection } = collectionFor("users");
-        expect(collection.findOne).toHaveBeenCalledWith({ supabaseId: "supabase-uid-abc123" });
+        expect(collection.findOne).toHaveBeenCalledWith({ authId: "supabase-uid-abc123" });
     });
 });
 
