@@ -92,12 +92,12 @@ function expectRequiredKeys(
 // user.ts
 // ---------------------------------------------------------------------------
 describe("User", () => {
-    it("requires id, auth0Id and createdAt; parse({}) throws", () => {
+    it("requires id, supabaseId and createdAt; parse({}) throws", () => {
         expect(User.safeParse({}).success).toBe(false);
     });
 
     it("accepts the minimal required shape with every optional field omitted", () => {
-        const r = User.safeParse({ id: "u1", auth0Id: "a1", createdAt: iso() });
+        const r = User.safeParse({ id: "u1", supabaseId: "a1", createdAt: iso() });
         expect(r.success).toBe(true);
     });
 
@@ -105,7 +105,7 @@ describe("User", () => {
     // non-ISO value must be rejected, otherwise storage round-trips silently
     // accept garbage timestamps.
     it("rejects a non-ISO createdAt", () => {
-        const r = User.safeParse({ id: "u1", auth0Id: "a1", createdAt: "not-a-date" });
+        const r = User.safeParse({ id: "u1", supabaseId: "a1", createdAt: "not-a-date" });
         expect(r.success).toBe(false);
     });
 });
@@ -887,7 +887,7 @@ describe("Chat / ApiCreateChatRequest / session schemas", () => {
 // ---------------------------------------------------------------------------
 describe("required-field completeness (isolates each field, not just parse({}))", () => {
     it("User", () => {
-        expectRequiredKeys(User, { id: "u1", auth0Id: "a1", createdAt: iso() }, ["id", "auth0Id", "createdAt"]);
+        expectRequiredKeys(User, { id: "u1", supabaseId: "a1", createdAt: iso() }, ["id", "supabaseId", "createdAt"]);
     });
 
     it("Project", () => {

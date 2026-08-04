@@ -83,3 +83,79 @@ describe("provider credentials", { timeout: TIMEOUT }, () => {
     await expect(getProviderConfig("nope")).rejects.toThrow(/Unknown OAuth provider/);
   });
 });
+
+/**
+ * The "dhow" entry is the one provider whose issuer is not known until
+ * runtime: it comes from the hosted app's bootstrap config
+ * (`GET ${API_URL}/v1/config` -> supabaseUrl), the same mechanism RowBoat
+ * used for its own hosted app. Unlike the credential-mode tests above,
+ * these exercise getProviderConfig's dhow-specific branch directly.
+ */
+describe("dhow provider (Supabase GoTrue via runtime bootstrap)", { timeout: TIMEOUT }, () => {
+  it("uses dynamic client registration — there is no build-time client id under DCR", async () => {
+    const { getProviderConfig } = await import("./providers.js");
+    const dhowApi = await import("../config/dhow-api.js");
+    vi.spyOn(dhowApi, "getDhowApiConfig").mockResolvedValue({
+      appUrl: "https://dhow.example.test",
+      supabaseUrl: "https://project-ref.supabase.co",
+    });
+
+    const dhow = await getProviderConfig("dhow");
+    expect(dhow.client.mode).toBe("dcr");
+  });
+
+  it("resolves the issuer from the bootstrap config's supabaseUrl at call time", async () => {
+    const { getProviderConfig } = await import("./providers.js");
+    const dhowApi = await import("../config/dhow-api.js");
+    vi.spyOn(dhowApi, "getDhowApiConfig").mockResolvedValue({
+      appUrl: "https://dhow.example.test",
+      supabaseUrl: "https://project-ref.supabase.co",
+    });
+
+    const dhow = await getProviderConfig("dhow");
+    expect(dhow.discovery).toEqual({
+      mode: "issuer",
+      issuer: "https://project-ref.supabase.co/auth/v1/.well-known/oauth-authorization-server",
+    });
+  });
+
+  it("re-resolves the issuer on every call, so a bootstrap change never needs a rebuild", async () => {
+    const { getProviderConfig } = await import("./providers.js");
+    const dhowApi = await import("../config/dhow-api.js");
+    const bootstrap = vi.spyOn(dhowApi, "getDhowApiConfig");
+
+    bootstrap.mockResolvedValueOnce({
+      appUrl: "https://dhow.example.test",
+      supabaseUrl: "https://project-a.supabase.co",
+    });
+    const first = await getProviderConfig("dhow");
+    expect(first.discovery).toMatchObject({ issuer: expect.stringContaining("project-a.supabase.co") });
+
+    bootstrap.mockResolvedValueOnce({
+      appUrl: "https://dhow.example.test",
+      supabaseUrl: "https://project-b.supabase.co",
+    });
+    const second = await getProviderConfig("dhow");
+    expect(second.discovery).toMatchObject({ issuer: expect.stringContaining("project-b.supabase.co") });
+  });
+
+  it("does not request offline_access — GoTrue issues refresh tokens without it", async () => {
+    const { getProviderConfig } = await import("./providers.js");
+    const dhowApi = await import("../config/dhow-api.js");
+    vi.spyOn(dhowApi, "getDhowApiConfig").mockResolvedValue({
+      appUrl: "https://dhow.example.test",
+      supabaseUrl: "https://project-ref.supabase.co",
+    });
+
+    const dhow = await getProviderConfig("dhow");
+    expect(dhow.scopes).toEqual(["openid", "email", "profile"]);
+  });
+
+  it("propagates a bootstrap failure instead of silently falling back", async () => {
+    const { getProviderConfig } = await import("./providers.js");
+    const dhowApi = await import("../config/dhow-api.js");
+    vi.spyOn(dhowApi, "getDhowApiConfig").mockRejectedValue(new Error("fetch failed"));
+
+    await expect(getProviderConfig("dhow")).rejects.toThrow(/fetch failed/);
+  });
+});

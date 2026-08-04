@@ -1,27 +1,53 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
-import { auth0 } from "./app/lib/auth0";
+import { createServerClient } from "@supabase/ssr";
 
 const corsOptions = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, x-client-id, Authorization',
 }
 
+/**
+ * Refreshes the Supabase session cookie for the current request (the
+ * `@supabase/ssr` middleware pattern) and reports whether a user is signed
+ * in. `response` carries the refreshed Set-Cookie headers and must be
+ * returned (or its cookies copied onto whatever is returned) so the browser
+ * picks up the renewed token.
+ */
+async function refreshSession(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        },
+      },
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  return { response, user };
+}
+
 async function authCheck(request: NextRequest) {
-  const session = await auth0.getSession(request);
-  const loginUrl = new URL('/auth/login', request.url);
-  loginUrl.searchParams.set('returnTo', request.nextUrl.pathname + request.nextUrl.search);
-  if (!session) {
+  const { response, user } = await refreshSession(request);
+  if (!user) {
+    const loginUrl = new URL('/auth/login', request.url);
+    loginUrl.searchParams.set('returnTo', request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
-  return auth0.middleware(request);
+  return response;
 }
 
 export async function middleware(request: NextRequest, event: NextFetchEvent) {
-  // Check if the request path starts with /api/auth/
-  if (request.nextUrl.pathname.startsWith('/auth')) {
-    return await auth0.middleware(request);
-  }
-
   // Check if the request path starts with /api/
   if (request.nextUrl.pathname.startsWith('/api/')) {
     // Handle preflighted requests
@@ -55,7 +81,11 @@ export async function middleware(request: NextRequest, event: NextFetchEvent) {
     }
   }
 
-  return NextResponse.next();
+  // Refresh the session cookie on every other route too (including /auth/*)
+  // so the browser client always has a fresh token; the route itself (e.g.
+  // app/auth/callback/route.ts) owns the actual sign-in/out flow.
+  const { response } = await refreshSession(request);
+  return response;
 }
 
 export const config = {

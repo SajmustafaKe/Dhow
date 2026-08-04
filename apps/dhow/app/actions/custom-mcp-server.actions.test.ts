@@ -36,7 +36,7 @@ const listTools = vi.fn();
 const getMcpClient = vi.fn();
 vi.mock("../lib/mcp", () => ({ getMcpClient }));
 
-const user = { id: "u1", auth0Id: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
+const user = { id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
 
 beforeEach(() => {
     authCheck.mockReset();

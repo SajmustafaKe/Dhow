@@ -23,25 +23,19 @@ export const GOOGLE_OAUTH_CLIENT_SECRET = process.env.DHOW_GOOGLE_CLIENT_SECRET 
 export const MICROSOFT_OAUTH_CLIENT_ID = process.env.DHOW_MICROSOFT_CLIENT_ID || undefined;
 
 /**
- * Dhow account (hosted sign-in) OAuth registration.
+ * Base URL of the hosted Dhow web app's API, used to bootstrap the desktop
+ * client's identity provider at runtime: `GET ${API_URL}/v1/config` returns
+ * `{ appUrl, supabaseUrl }`, and `supabaseUrl` is what auth/providers.ts
+ * resolves the "dhow" OIDC issuer from. This is the mechanism RowBoat used
+ * for its own hosted app (historical config/rowboat.ts) — resolving the
+ * issuer at runtime means changing identity provider, or rotating the
+ * Supabase project, never requires shipping a new desktop build.
  *
- * The desktop client for the Dhow account is a Native/public client: PKCE,
- * no secret — same reasoning as the mail providers above. Unset by default,
- * which leaves "Sign in with Dhow" unavailable and the app bring-your-own-key
- * throughout. Set at build time to enable the hosted account.
- *
- * DHOW_ISSUER is the tenant that mints account tokens. It defaults to the
- * production custom domain; point it at a development tenant locally. The
- * default is only ever reached once DHOW_ACCOUNT_CLIENT_ID is also set, so an
- * unprovisioned domain cannot surface as a confusing discovery failure.
- *
- * DHOW_API_AUDIENCE must match the API identifier registered in the tenant.
- * Without an audience Auth0 issues an opaque access token, which the model
- * gateway cannot validate — so this is required, not cosmetic.
+ * Includes the `/api` segment: the endpoint is a Next.js app-router route
+ * served at `/api/v1/config`, not `/v1/config`. Overridable so a local
+ * `apps/dhow` dev server can be pointed at without rebuilding.
  */
-export const DHOW_ACCOUNT_CLIENT_ID = process.env.DHOW_ACCOUNT_CLIENT_ID || undefined;
-export const DHOW_ISSUER = process.env.DHOW_ISSUER || 'https://auth.dhow.io';
-export const DHOW_API_AUDIENCE = process.env.DHOW_API_AUDIENCE || 'https://api.dhow.io';
+export const API_URL = process.env.DHOW_API_URL || 'https://dhow.io/api';
 
 /**
  * Hosted model gateway. OpenAI-compatible, bearer-authorized by the Dhow

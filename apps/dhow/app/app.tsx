@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import logo from "@/public/logo.png";
-import { useUser } from "@auth0/nextjs-auth0";
+import { useUser } from "./providers/user-provider";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@heroui/react";
 

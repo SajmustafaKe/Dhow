@@ -27,7 +27,7 @@ vi.mock("@/di/container", () => ({
 const authCheck = vi.fn();
 vi.mock("./auth.actions", () => ({ authCheck }));
 
-const user = { id: "u1", auth0Id: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
+const user = { id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
 
 beforeEach(() => {
     authCheck.mockReset();

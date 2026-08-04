@@ -1,5 +1,6 @@
 import container from '../di/container.js';
 import { IOAuthRepo, LEGACY_ACCOUNT_ID } from './repo.js';
+import { IClientRegistrationRepo } from './client-repo.js';
 import { getProviderConfig } from './providers.js';
 import * as oauthClient from './oauth-client.js';
 import type { Configuration } from './oauth-client.js';
@@ -35,18 +36,22 @@ export class DhowAuthRequiredError extends Error {
  */
 async function resolveRefreshConfiguration(): Promise<Configuration> {
     const providerConfig = await getProviderConfig(PROVIDER_NAME);
-    // The dhow entry is always issuer+static (see auth/providers.ts); these
+    // The dhow entry is always issuer+dcr (see auth/providers.ts); these
     // guards exist so a future edit that changes that fails loudly here
     // rather than refreshing against the wrong endpoints.
-    if (providerConfig.discovery.mode !== 'issuer' || providerConfig.client.mode !== 'static') {
-        throw new Error('Dhow provider must use issuer discovery with a static client.');
+    if (providerConfig.discovery.mode !== 'issuer' || providerConfig.client.mode !== 'dcr') {
+        throw new Error('Dhow provider must use issuer discovery with a dynamically registered client.');
     }
-    if (!providerConfig.client.clientId) {
+
+    const clientRepo = container.resolve<IClientRegistrationRepo>('clientRegistrationRepo');
+    const registration = await clientRepo.getClientRegistration(PROVIDER_NAME);
+    if (!registration) {
         throw new DhowAuthRequiredError();
     }
+
     return oauthClient.discoverConfiguration(
         providerConfig.discovery.issuer,
-        providerConfig.client.clientId,
+        registration.client_id,
     );
 }
 
@@ -73,13 +78,13 @@ export async function getDhowStatus(): Promise<{ signedIn: boolean; email?: stri
 /**
  * In-flight refresh, shared by concurrent callers.
  *
- * The Auth0 client is configured with ROTATING refresh tokens, so a refresh
- * consumes the token it presents. Two model calls racing an expired session
- * would otherwise both refresh: the second presents an already-rotated token,
- * Auth0 treats that as replay, and the whole grant can be revoked — signing
- * the user out. Rowboat guarded the same way (historical
- * packages/core/src/auth/tokens.ts, `refreshInFlight`), and rotation makes it
- * mandatory here rather than merely wasteful.
+ * GoTrue rotates refresh tokens by default, so a refresh consumes the token
+ * it presents. Two model calls racing an expired session would otherwise
+ * both refresh: the second presents an already-rotated token, GoTrue treats
+ * that as replay, and the whole grant can be revoked — signing the user
+ * out. Rowboat guarded the same way (historical
+ * packages/core/src/auth/tokens.ts, `refreshInFlight`), and rotation makes
+ * it mandatory here rather than merely wasteful.
  */
 let refreshInFlight: Promise<string> | null = null;
 
@@ -116,9 +121,9 @@ export async function getDhowAccessToken(): Promise<string> {
         return tokens.access_token;
     }
     if (!tokens.refresh_token) {
-        // Without "Allow Offline Access" on the API the grant cannot be
-        // renewed, and the only fix is fresh consent — record why, so the UI
-        // can say that instead of showing a bare expiry.
+        // No refresh token means the grant cannot be renewed — the only
+        // fix is fresh consent. Record why, so the UI can say that instead
+        // of showing a bare expiry.
         await oauthRepo.upsertAccount(PROVIDER_NAME, id, {
             error: 'Dhow session expired and cannot be refreshed. Sign in again.',
         });

@@ -15,8 +15,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *     for a template the caller doesn't own — a deliberate
  *     existence-hiding pattern, distinct from the ownership-mismatch case
  *     for library/system templates, which DOES say "Not allowed".
- *   - `createAssistantTemplate` resolves author identity from Auth0 only
- *     when USE_AUTH is on, and swallows any Auth0 lookup failure back to
+ *   - `createAssistantTemplate` resolves author identity from Supabase only
+ *     when USE_AUTH is on, and swallows any Supabase lookup failure back to
  *     the 'Anonymous' default rather than failing the whole call.
  *
  * `@/app/lib/prebuilt-cards` is real static JSON — no mocking needed, no I/O.
@@ -41,9 +41,9 @@ vi.mock("@/src/infrastructure/repositories/mongodb.assistant-templates.repositor
 }));
 
 const getSession = vi.fn();
-vi.mock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+vi.mock("@/app/lib/supabase", () => ({ getSession }));
 
-const user = { id: "u1", auth0Id: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
+const user = { id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" };
 
 beforeEach(() => {
     authCheck.mockReset();
@@ -204,7 +204,7 @@ describe("createAssistantTemplate", () => {
         expect(repo.create).not.toHaveBeenCalled();
     });
 
-    it("USE_AUTH=false: authorName defaults to 'Anonymous', authorEmail undefined — auth0 is never consulted", async () => {
+    it("USE_AUTH=false: authorName defaults to 'Anonymous', authorEmail undefined — supabase is never consulted", async () => {
         repo.create.mockResolvedValue({ id: "t1" });
         const { createAssistantTemplate } = await loadWithAuth(false);
 
@@ -214,7 +214,7 @@ describe("createAssistantTemplate", () => {
         expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ authorName: "Anonymous", authorEmail: undefined }));
     });
 
-    it("USE_AUTH=true: resolves authorName/authorEmail from the Auth0 session", async () => {
+    it("USE_AUTH=true: resolves authorName/authorEmail from the Supabase session", async () => {
         getSession.mockResolvedValue({ user: { name: "Real Name", email: "real@example.com" } });
         repo.create.mockResolvedValue({ id: "t1" });
         const { createAssistantTemplate } = await loadWithAuth(true);
@@ -224,7 +224,7 @@ describe("createAssistantTemplate", () => {
         expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ authorName: "Real Name", authorEmail: "real@example.com" }));
     });
 
-    it("USE_AUTH=true, isAnonymous:true: overrides the Auth0-derived name/email back to Anonymous/undefined", async () => {
+    it("USE_AUTH=true, isAnonymous:true: overrides the Supabase-derived name/email back to Anonymous/undefined", async () => {
         getSession.mockResolvedValue({ user: { name: "Real Name", email: "real@example.com" } });
         repo.create.mockResolvedValue({ id: "t1" });
         const { createAssistantTemplate } = await loadWithAuth(true);
@@ -234,8 +234,8 @@ describe("createAssistantTemplate", () => {
         expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({ authorName: "Anonymous", authorEmail: undefined, isAnonymous: true }));
     });
 
-    it("USE_AUTH=true, Auth0 lookup throws: swallows the error and falls back to the Anonymous default instead of failing the call", async () => {
-        getSession.mockRejectedValue(new Error("auth0 down"));
+    it("USE_AUTH=true, Supabase lookup throws: swallows the error and falls back to the Anonymous default instead of failing the call", async () => {
+        getSession.mockRejectedValue(new Error("supabase down"));
         repo.create.mockResolvedValue({ id: "t1" });
         const { createAssistantTemplate } = await loadWithAuth(true);
 

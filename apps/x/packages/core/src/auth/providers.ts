@@ -1,7 +1,6 @@
 import { z } from 'zod';
+import * as dhowApi from '../config/dhow-api.js';
 import {
-  DHOW_ACCOUNT_CLIENT_ID,
-  DHOW_ISSUER,
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
   MICROSOFT_OAUTH_CLIENT_ID,
@@ -68,20 +67,24 @@ const providerConfigs: ProviderConfig = {
   // account/mailbox distinction is visible at a glance: every other entry
   // below authorizes access to a third-party inbox or transcript service.
   //
-  // Auth0 publishes OIDC discovery metadata, so `issuer` mode needs no
-  // endpoint wiring. Public client: PKCE only, no secret (see config/env.ts).
+  // Supabase Auth (GoTrue) is the identity provider for both desktop and
+  // web — one IdP, one user table. The issuer is not known at build time:
+  // it is resolved at call time in getProviderConfig from the hosted app's
+  // runtime bootstrap (config/dhow-api.ts), exactly as RowBoat resolved its
+  // own issuer (historical config/rowboat.ts). That is deliberate: it means
+  // changing IdP or Supabase project never requires shipping a new build.
+  // Dynamic Client Registration replaces the static client id for the same
+  // reason — a desktop build carries no registration to ship.
   dhow: {
     discovery: {
       mode: 'issuer',
-      issuer: DHOW_ISSUER,
+      // Overwritten in getProviderConfig before this is ever read.
+      issuer: 'TBD',
     },
     client: {
-      mode: 'static',
-      clientId: DHOW_ACCOUNT_CLIENT_ID,
+      mode: 'dcr',
     },
-    // offline_access is what makes Auth0 return a refresh token; it also
-    // requires "Allow Offline Access" on the API in the tenant.
-    scopes: ['openid', 'profile', 'email', 'offline_access'],
+    scopes: ['openid', 'email', 'profile'],
   },
   google: {
     discovery: {
@@ -152,7 +155,13 @@ export async function getProviderConfig(providerName: string): Promise<ProviderC
   if (!config) {
     throw new Error(`Unknown OAuth provider: ${providerName}`);
   }
-
+  if (providerName === 'dhow') {
+    const { supabaseUrl } = await dhowApi.getDhowApiConfig();
+    config.discovery = {
+      mode: 'issuer',
+      issuer: `${supabaseUrl}/auth/v1/.well-known/oauth-authorization-server`,
+    };
+  }
   return config;
 }
 

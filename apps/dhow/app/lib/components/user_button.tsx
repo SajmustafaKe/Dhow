@@ -1,5 +1,5 @@
 'use client';
-import { useUser } from '@auth0/nextjs-auth0';
+import { useUser } from '@/app/providers/user-provider';
 import { Avatar, Dropdown, DropdownItem, DropdownSection, DropdownTrigger, DropdownMenu } from "@heroui/react";
 import { useRouter } from 'next/navigation';
 

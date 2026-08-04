@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { auth0 } from "./auth0";
+import { getSession } from "./supabase";
 import { User } from "@/src/entities/models/user";
 import { USE_AUTH } from "./feature_flags";
 import { redirect } from "next/navigation";
@@ -14,7 +14,7 @@ export const GUEST_SESSION = {
 
 export const GUEST_DB_USER: z.infer<typeof User> = {
     id: "guest_user",
-    auth0Id: "guest_user",
+    supabaseId: "guest_user",
     name: "Guest",
     email: "guest@dhow.local",
     createdAt: new Date().toISOString(),
@@ -37,22 +37,22 @@ export async function requireAuth(): Promise<z.infer<typeof User>> {
         return GUEST_DB_USER;
     }
 
-    const { user } = await auth0.getSession() || {};
+    const { user } = await getSession() || {};
     if (!user) {
         redirect('/auth/login');
     }
 
     // fetch db user
     const usersRepository = container.resolve<IUsersRepository>("usersRepository");
-    let dbUser = await getUserFromSessionId(user.sub);
+    let dbUser = await getUserFromSessionId(user.id);
 
     // if db user does not exist, create one
     if (!dbUser) {
         dbUser = await usersRepository.create({
-            auth0Id: user.sub,
+            supabaseId: user.id,
             email: user.email,
         });
-        console.log(`created new user id ${dbUser.id} for session id ${user.sub}`);
+        console.log(`created new user id ${dbUser.id} for session id ${user.id}`);
     }
 
     return dbUser;
@@ -64,5 +64,5 @@ export async function getUserFromSessionId(sessionUserId: string): Promise<z.inf
     }
 
     const usersRepository = container.resolve<IUsersRepository>("usersRepository");
-    return await usersRepository.fetchByAuth0Id(sessionUserId);
+    return await usersRepository.fetchBySupabaseId(sessionUserId);
 }

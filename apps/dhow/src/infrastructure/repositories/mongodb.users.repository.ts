@@ -42,8 +42,8 @@ export class MongoDBUsersRepository implements IUsersRepository {
         };
     }
 
-    async fetchByAuth0Id(auth0Id: string): Promise<z.infer<typeof User> | null> {
-        const result = await this.collection.findOne({ auth0Id });
+    async fetchBySupabaseId(supabaseId: string): Promise<z.infer<typeof User> | null> {
+        const result = await this.collection.findOne({ supabaseId });
         if (!result) return null;
 
         return {

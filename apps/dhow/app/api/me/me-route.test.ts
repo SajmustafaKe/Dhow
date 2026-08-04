@@ -49,7 +49,7 @@ describe("me (GET) — USE_AUTH=true", () => {
 
     it("401s with a generic { error: 'Unauthorized' } when authCheck rejects, not the underlying message", async () => {
         process.env.USE_AUTH = "true";
-        authCheckMock.mockRejectedValue(new Error("no auth0 session cookie"));
+        authCheckMock.mockRejectedValue(new Error("no supabase session cookie"));
         vi.resetModules();
         const { GET } = await import("./route");
         const res = await GET(req());

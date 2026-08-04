@@ -8,7 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * `app/actions` surface:
  *   - USE_AUTH=false (local/dev/demo mode): every caller silently becomes the
  *     same GUEST_DB_USER, no session lookup at all.
- *   - USE_AUTH=true, no auth0 session: throws a plain Error (not a redirect,
+ *   - USE_AUTH=true, no Supabase session: throws a plain Error (not a redirect,
  *     not a typed error) — callers that don't wrap this in try/catch surface a
  *     raw 500 to the browser.
  *   - USE_AUTH=true, session but no DB user record: throws a *different*
@@ -20,7 +20,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * and dynamically re-imports after `vi.resetModules()` — the pattern already
  * established in agents-runtime/agent-loop.test.ts.
  *
- * `@/di/container` and `../lib/auth0` are mocked per the task contract.
+ * `@/di/container` and `../lib/supabase` are mocked per the task contract.
  * `../lib/auth` (getUserFromSessionId, GUEST_DB_USER) is deliberately left
  * real: it is the shared plumbing every other action file's auth also goes
  * through, so exercising the real implementation here is more valuable than a
@@ -28,7 +28,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  */
 
 const usersRepository = {
-    fetchByAuth0Id: vi.fn(),
+    fetchBySupabaseId: vi.fn(),
     updateEmail: vi.fn(),
     create: vi.fn(),
     fetch: vi.fn(),
@@ -43,8 +43,8 @@ vi.mock("@/di/container", () => ({
 
 const getSession = vi.fn();
 
-vi.mock("../lib/auth0", () => ({
-    auth0: { getSession },
+vi.mock("../lib/supabase", () => ({
+    getSession,
 }));
 
 async function loadWithAuth(useAuth: boolean) {
@@ -54,25 +54,25 @@ async function loadWithAuth(useAuth: boolean) {
 }
 
 beforeEach(() => {
-    usersRepository.fetchByAuth0Id.mockReset();
+    usersRepository.fetchBySupabaseId.mockReset();
     usersRepository.updateEmail.mockReset();
     getSession.mockReset();
 });
 
 describe("authCheck", () => {
-    it("USE_AUTH=false: returns the static guest user without touching auth0 or the DB", async () => {
+    it("USE_AUTH=false: returns the static guest user without touching supabase or the DB", async () => {
         const { authCheck } = await loadWithAuth(false);
         const user = await authCheck();
 
         expect(user).toEqual({
             id: "guest_user",
-            auth0Id: "guest_user",
+            supabaseId: "guest_user",
             name: "Guest",
             email: "guest@dhow.local",
             createdAt: expect.any(String),
         });
         expect(getSession).not.toHaveBeenCalled();
-        expect(usersRepository.fetchByAuth0Id).not.toHaveBeenCalled();
+        expect(usersRepository.fetchBySupabaseId).not.toHaveBeenCalled();
     });
 
     it("USE_AUTH=true, no session: throws 'User not authenticated', never queries the DB", async () => {
@@ -80,11 +80,11 @@ describe("authCheck", () => {
         const { authCheck } = await loadWithAuth(true);
 
         await expect(authCheck()).rejects.toThrow("User not authenticated");
-        expect(usersRepository.fetchByAuth0Id).not.toHaveBeenCalled();
+        expect(usersRepository.fetchBySupabaseId).not.toHaveBeenCalled();
     });
 
     it("USE_AUTH=true, session with no `user` field: also throws 'User not authenticated'", async () => {
-        // auth0.getSession() resolving to a session object that just lacks
+        // getSession() resolving to a session object that just lacks
         // `.user` (as opposed to resolving to null/undefined) takes the same
         // `{} ` fallback path.
         getSession.mockResolvedValue({});
@@ -94,24 +94,24 @@ describe("authCheck", () => {
     });
 
     it("USE_AUTH=true, session but no matching DB user: throws a distinct 'User record not found'", async () => {
-        getSession.mockResolvedValue({ user: { sub: "auth0|abc123" } });
-        usersRepository.fetchByAuth0Id.mockResolvedValue(null);
+        getSession.mockResolvedValue({ user: { id: "supabase|abc123" } });
+        usersRepository.fetchBySupabaseId.mockResolvedValue(null);
         const { authCheck } = await loadWithAuth(true);
 
         await expect(authCheck()).rejects.toThrow("User record not found");
-        expect(usersRepository.fetchByAuth0Id).toHaveBeenCalledWith("auth0|abc123");
+        expect(usersRepository.fetchBySupabaseId).toHaveBeenCalledWith("supabase|abc123");
     });
 
     it("USE_AUTH=true, session and DB user: returns the DB user", async () => {
-        getSession.mockResolvedValue({ user: { sub: "auth0|abc123" } });
+        getSession.mockResolvedValue({ user: { id: "supabase|abc123" } });
         const dbUser = {
             id: "u_1",
-            auth0Id: "auth0|abc123",
+            supabaseId: "supabase|abc123",
             name: "Real User",
             email: "real@example.com",
             createdAt: "2024-01-01T00:00:00.000Z",
         };
-        usersRepository.fetchByAuth0Id.mockResolvedValue(dbUser);
+        usersRepository.fetchBySupabaseId.mockResolvedValue(dbUser);
         const { authCheck } = await loadWithAuth(true);
 
         await expect(authCheck()).resolves.toEqual(dbUser);
@@ -140,8 +140,8 @@ describe("updateUserEmail", () => {
     });
 
     it("USE_AUTH=true, authenticated, whitespace-only email: throws 'Email is required' before Zod runs", async () => {
-        getSession.mockResolvedValue({ user: { sub: "s1" } });
-        usersRepository.fetchByAuth0Id.mockResolvedValue({ id: "u1", auth0Id: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
+        getSession.mockResolvedValue({ user: { id: "s1" } });
+        usersRepository.fetchBySupabaseId.mockResolvedValue({ id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
         const { updateUserEmail } = await loadWithAuth(true);
 
         await expect(updateUserEmail("   ")).rejects.toThrow("Email is required");
@@ -149,8 +149,8 @@ describe("updateUserEmail", () => {
     });
 
     it("USE_AUTH=true, authenticated, malformed (non-empty) email: throws 'Invalid email'", async () => {
-        getSession.mockResolvedValue({ user: { sub: "s1" } });
-        usersRepository.fetchByAuth0Id.mockResolvedValue({ id: "u1", auth0Id: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
+        getSession.mockResolvedValue({ user: { id: "s1" } });
+        usersRepository.fetchBySupabaseId.mockResolvedValue({ id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
         const { updateUserEmail } = await loadWithAuth(true);
 
         await expect(updateUserEmail("not-an-email")).rejects.toThrow("Invalid email");
@@ -158,8 +158,8 @@ describe("updateUserEmail", () => {
     });
 
     it("USE_AUTH=true, authenticated, valid email: writes user.id + email, returns undefined", async () => {
-        getSession.mockResolvedValue({ user: { sub: "s1" } });
-        usersRepository.fetchByAuth0Id.mockResolvedValue({ id: "u1", auth0Id: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
+        getSession.mockResolvedValue({ user: { id: "s1" } });
+        usersRepository.fetchBySupabaseId.mockResolvedValue({ id: "u1", supabaseId: "s1", createdAt: "2024-01-01T00:00:00.000Z" });
         usersRepository.updateEmail.mockResolvedValue({ id: "u1" });
         const { updateUserEmail } = await loadWithAuth(true);
 

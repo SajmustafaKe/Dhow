@@ -4,19 +4,18 @@ import os from 'node:os';
 import path from 'node:path';
 import type { Configuration } from './oauth-client.js';
 
-// Dynamic imports are required here, not stylistic: WorkDir and the provider
-// env are resolved at module-import time (config/config.ts, config/env.ts), so
-// they must be set before the modules under test load. Same pattern as
-// chatgpt-auth.test.ts.
+// Dynamic imports are required here, not stylistic: WorkDir is resolved at
+// module-import time (config/config.ts), so it must be set before the
+// modules under test load. Same pattern as chatgpt-auth.test.ts.
 const tmpWorkDir = fs.mkdtempSync(path.join(os.tmpdir(), 'x-dhow-auth-test-'));
 process.env.DHOW_WORKDIR = tmpWorkDir;
-process.env.DHOW_ACCOUNT_CLIENT_ID = 'test-client-id';
-process.env.DHOW_ISSUER = 'https://auth.example.test';
 
 const oauthClient = await import('./oauth-client.js');
+const dhowApi = await import('../config/dhow-api.js');
 const { getDhowAccessToken, getDhowStatus, DhowAuthRequiredError } = await import('./dhow-auth.js');
 
 const AUTH_FILE = path.join(tmpWorkDir, 'config', 'oauth.json');
+const CLIENT_REG_FILE = path.join(tmpWorkDir, 'config', 'oauth-clients.json');
 const NOW = Math.floor(Date.now() / 1000);
 
 /**
@@ -67,13 +66,34 @@ function writeSignedOut(): void {
     fs.writeFileSync(AUTH_FILE, JSON.stringify({ version: 3, providers: {} }));
 }
 
+/**
+ * Seeds a DCR client registration for "dhow" — the same shape
+ * FSClientRegistrationRepo writes after a real registration. Default state
+ * for every test; the "no registration" test removes the file instead.
+ */
+function writeClientRegistration(): void {
+    fs.mkdirSync(path.dirname(CLIENT_REG_FILE), { recursive: true });
+    fs.writeFileSync(CLIENT_REG_FILE, JSON.stringify({
+        dhow: { client_id: 'dcr-client-id', _registeredPort: 8080 },
+    }));
+}
+
 beforeEach(() => {
     vi.restoreAllMocks();
     fs.rmSync(AUTH_FILE, { force: true });
+    fs.rmSync(CLIENT_REG_FILE, { force: true });
+    writeClientRegistration();
     // performRefresh resolves the OIDC configuration before exchanging the
     // token; without this it would reach for a real .well-known document and
     // every refresh assertion would fail as "fetch failed".
     vi.spyOn(oauthClient, 'discoverConfiguration').mockResolvedValue({} as Configuration);
+    // getProviderConfig('dhow') resolves its issuer from the runtime
+    // bootstrap (GET ${API_URL}/v1/config); without this every test would
+    // need a live network call just to build the provider config.
+    vi.spyOn(dhowApi, 'getDhowApiConfig').mockResolvedValue({
+        appUrl: 'https://dhow.example.test',
+        supabaseUrl: 'https://auth.example.test',
+    });
 });
 afterAll(() => {
     fs.rmSync(tmpWorkDir, { recursive: true, force: true });
@@ -104,6 +124,12 @@ describe('getDhowAccessToken', () => {
         await expect(getDhowAccessToken()).rejects.toBeInstanceOf(DhowAuthRequiredError);
     });
 
+    it('demands sign-in when no client has been dynamically registered', async () => {
+        writeGrant({ expiresAt: NOW - 10 });
+        fs.rmSync(CLIENT_REG_FILE, { force: true });
+        await expect(getDhowAccessToken()).rejects.toBeInstanceOf(DhowAuthRequiredError);
+    });
+
     it('an expired grant with no refresh token records why, then demands re-consent', async () => {
         writeGrant({ expiresAt: NOW - 10, refresh: null });
         await expect(getDhowAccessToken()).rejects.toBeInstanceOf(DhowAuthRequiredError);
@@ -111,11 +137,11 @@ describe('getDhowAccessToken', () => {
         expect(stored.providers.dhow.accounts.u1.error).toMatch(/cannot be refreshed/i);
     });
 
-    // The Auth0 client uses ROTATING refresh tokens: a refresh consumes the
-    // token it presents. Two callers racing an expired session must not both
-    // refresh — the second would replay a spent token, which Auth0 treats as
-    // reuse and can revoke the whole grant. Guarding this is the difference
-    // between one slow request and a silent sign-out.
+    // GoTrue rotates refresh tokens by default: a refresh consumes the
+    // token it presents. Two callers racing an expired session must not
+    // both refresh — the second would replay a spent token, which GoTrue
+    // treats as reuse and can revoke the whole grant. Guarding this is the
+    // difference between one slow request and a silent sign-out.
     it('collapses concurrent refreshes into a single token exchange', async () => {
         writeGrant({ expiresAt: NOW - 10 });
         const entered = deferred<void>();

@@ -15,7 +15,7 @@ import { describe, it, expect, vi } from "vitest";
  * It is NOT the only implementation of "resolve the caller", though.
  * app/actions/auth.actions.ts defines a separate `authCheck()` used by every
  * Server Action (project.actions.ts, composio.actions.ts, etc.) that does the
- * same underlying job — Auth0 session -> db user — but with different
+ * same underlying job — Supabase session -> db user — but with different
  * failure semantics: it THROWS a plain Error instead of redirecting when
  * there is no session (auth.actions.ts:18-20 vs. this file's redirect at
  * line 42), and it THROWS instead of auto-provisioning when the db user
@@ -34,20 +34,21 @@ import { describe, it, expect, vi } from "vitest";
  * branch untestable in this file, matching the established pattern in
  * src/application/lib/agents-runtime/agent-loop.test.ts.
  *
- * `@/app/lib/auth0`, `@/di/container` and `next/navigation` are always
- * mocked: auth0.ts constructs a real Auth0Client at import time (needs
- * env-configured secrets), and di/container.ts transitively imports every
- * Mongo/Redis-backed repository in the app — neither is safe to import in a
- * test process.
+ * `@/app/lib/supabase`, `@/di/container` and `next/navigation` are always
+ * mocked: supabase.ts constructs a real Supabase server client at import
+ * time (needs env-configured URL/anon key and Next's `cookies()`, which
+ * doesn't exist outside a request context), and di/container.ts
+ * transitively imports every Mongo/Redis-backed repository in the app —
+ * neither is safe to import in a test process.
  */
 
 describe("requireAuth", () => {
-    it("guest mode (USE_AUTH=false): returns the guest db user without touching auth0, redirect, or the container", async () => {
+    it("guest mode (USE_AUTH=false): returns the guest db user without touching supabase, redirect, or the container", async () => {
         vi.resetModules();
         process.env.USE_AUTH = "false";
 
         const getSession = vi.fn();
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession }));
         const redirect = vi.fn();
         vi.doMock("next/navigation", () => ({ redirect }));
         const resolve = vi.fn();
@@ -67,7 +68,7 @@ describe("requireAuth", () => {
         process.env.USE_AUTH = "true";
 
         const getSession = vi.fn().mockResolvedValue(undefined);
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession }));
         const redirect = vi.fn((url: string) => {
             // Next.js's real redirect() always throws (a NEXT_REDIRECT-digest
             // error) and never returns; requireAuth relies on that to stop
@@ -92,7 +93,7 @@ describe("requireAuth", () => {
         process.env.USE_AUTH = "true";
 
         const getSession = vi.fn().mockResolvedValue({});
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession }));
         const redirect = vi.fn((url: string) => {
             throw new Error(`NEXT_REDIRECT:${url}`);
         });
@@ -108,19 +109,19 @@ describe("requireAuth", () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
 
-        const getSession = vi.fn().mockResolvedValue({ user: { sub: "auth0|123", email: "a@b.com" } });
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+        const getSession = vi.fn().mockResolvedValue({ user: { id: "supabase|123", email: "a@b.com" } });
+        vi.doMock("@/app/lib/supabase", () => ({ getSession }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
 
         const existingUser = {
             id: "u1",
-            auth0Id: "auth0|123",
+            supabaseId: "supabase|123",
             email: "a@b.com",
             createdAt: "2024-01-01T00:00:00.000Z",
         };
-        const fetchByAuth0Id = vi.fn().mockResolvedValue(existingUser);
+        const fetchBySupabaseId = vi.fn().mockResolvedValue(existingUser);
         const create = vi.fn();
-        const resolve = vi.fn(() => ({ fetchByAuth0Id, create }));
+        const resolve = vi.fn(() => ({ fetchBySupabaseId, create }));
         vi.doMock("@/di/container", () => ({ container: { resolve } }));
 
         const { requireAuth } = await import("@/app/lib/auth");
@@ -131,46 +132,46 @@ describe("requireAuth", () => {
         expect(resolve).toHaveBeenCalledWith("usersRepository");
     });
 
-    it("authenticated, first login (no db user yet): auto-provisions via usersRepository.create({ auth0Id, email }) — no allowlist/invite gate beyond a valid Auth0 session, and the session's `name` is silently dropped", async () => {
+    it("authenticated, first login (no db user yet): auto-provisions via usersRepository.create({ supabaseId, email }) — no allowlist/invite gate beyond a valid Supabase session, and the session's `name` is silently dropped", async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
 
         const getSession = vi.fn().mockResolvedValue({
-            user: { sub: "auth0|new-user", email: "new@example.com", name: "New User" },
+            user: { id: "supabase|new-user", email: "new@example.com", name: "New User" },
         });
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
 
         const createdUser = {
             id: "u_new",
-            auth0Id: "auth0|new-user",
+            supabaseId: "supabase|new-user",
             email: "new@example.com",
             createdAt: "2024-01-01T00:00:00.000Z",
         };
-        const fetchByAuth0Id = vi.fn().mockResolvedValue(null);
+        const fetchBySupabaseId = vi.fn().mockResolvedValue(null);
         const create = vi.fn().mockResolvedValue(createdUser);
-        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchByAuth0Id, create })) } }));
+        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchBySupabaseId, create })) } }));
 
         const { requireAuth } = await import("@/app/lib/auth");
         const user = await requireAuth();
 
         expect(user).toEqual(createdUser);
-        // Exact shape pin: only auth0Id + email are forwarded to create(). If
+        // Exact shape pin: only supabaseId + email are forwarded to create(). If
         // a port adds `name` to this call, or drops `email`, this fails.
-        expect(create).toHaveBeenCalledWith({ auth0Id: "auth0|new-user", email: "new@example.com" });
+        expect(create).toHaveBeenCalledWith({ supabaseId: "supabase|new-user", email: "new@example.com" });
         expect(create).toHaveBeenCalledTimes(1);
     });
 
     it("a session lookup failure propagates as a rejection — there is no fallback to guest", async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
-        const getSession = vi.fn().mockRejectedValue(new Error("auth0 unreachable"));
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession } }));
+        const getSession = vi.fn().mockRejectedValue(new Error("supabase unreachable"));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
         vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn() } }));
 
         const { requireAuth } = await import("@/app/lib/auth");
-        await expect(requireAuth()).rejects.toThrow("auth0 unreachable");
+        await expect(requireAuth()).rejects.toThrow("supabase unreachable");
     });
 });
 
@@ -180,7 +181,7 @@ describe("getUserFromSessionId", () => {
         process.env.USE_AUTH = "false";
         const resolve = vi.fn();
         vi.doMock("@/di/container", () => ({ container: { resolve } }));
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession: vi.fn() } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession: vi.fn() }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
 
         const { getUserFromSessionId, GUEST_DB_USER } = await import("@/app/lib/auth");
@@ -193,30 +194,30 @@ describe("getUserFromSessionId", () => {
     it('USE_AUTH=true, found: returns the repository result verbatim, resolved by exactly "usersRepository"', async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
-        const found = { id: "u1", auth0Id: "auth0|123", createdAt: "2024-01-01T00:00:00.000Z" };
-        const fetchByAuth0Id = vi.fn().mockResolvedValue(found);
-        const resolve = vi.fn(() => ({ fetchByAuth0Id }));
+        const found = { id: "u1", supabaseId: "supabase|123", createdAt: "2024-01-01T00:00:00.000Z" };
+        const fetchBySupabaseId = vi.fn().mockResolvedValue(found);
+        const resolve = vi.fn(() => ({ fetchBySupabaseId }));
         vi.doMock("@/di/container", () => ({ container: { resolve } }));
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession: vi.fn() } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession: vi.fn() }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
 
         const { getUserFromSessionId } = await import("@/app/lib/auth");
-        const user = await getUserFromSessionId("auth0|123");
+        const user = await getUserFromSessionId("supabase|123");
 
         expect(user).toEqual(found);
-        expect(fetchByAuth0Id).toHaveBeenCalledWith("auth0|123");
+        expect(fetchBySupabaseId).toHaveBeenCalledWith("supabase|123");
         expect(resolve).toHaveBeenCalledWith("usersRepository");
     });
 
     it("USE_AUTH=true, not found: RETURNS null — it does not throw. app/actions/auth.actions.ts:22-25 and requireAuth's own auto-provision check (auth.ts:50) both branch on this being a falsy return, not a caught exception", async () => {
         vi.resetModules();
         process.env.USE_AUTH = "true";
-        const fetchByAuth0Id = vi.fn().mockResolvedValue(null);
-        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchByAuth0Id })) } }));
-        vi.doMock("@/app/lib/auth0", () => ({ auth0: { getSession: vi.fn() } }));
+        const fetchBySupabaseId = vi.fn().mockResolvedValue(null);
+        vi.doMock("@/di/container", () => ({ container: { resolve: vi.fn(() => ({ fetchBySupabaseId })) } }));
+        vi.doMock("@/app/lib/supabase", () => ({ getSession: vi.fn() }));
         vi.doMock("next/navigation", () => ({ redirect: vi.fn() }));
 
         const { getUserFromSessionId } = await import("@/app/lib/auth");
-        await expect(getUserFromSessionId("auth0|unknown")).resolves.toBeNull();
+        await expect(getUserFromSessionId("supabase|unknown")).resolves.toBeNull();
     });
 });

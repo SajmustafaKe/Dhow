@@ -5,7 +5,8 @@ Owner: Saj
 Branch: main
 Written: 2026-08-03
 Revised: 2026-08-03 — direction set: reach RowBoat feature parity on dhow.io first, then
-enhance. Stack fixed: Auth0, MongoDB, a dedicated billing service, shared API credentials,
+enhance. Stack fixed: **Supabase Auth (GoTrue)** — see below, this superseded Auth0 —
+MongoDB, a dedicated billing service, shared API credentials,
 a credits ledger. An earlier draft recommended a narrower "account + broker" wedge and
 argued against rebuilding the web product; that recommendation is superseded.
 
@@ -13,6 +14,27 @@ Two later decisions changed the shape of the work, both recorded inline where th
 parity means the **full** RowBoat product surface including the agent-builder (see the end
 of "Open questions"), and **`apps/dhowx` is the trunk** rather than something to delete —
 `apps/dhow` is ported into it, inverting item 4.
+
+**Identity provider changed 2026-08-03: Auth0 → Supabase Auth (GoTrue), for both apps.**
+RowBoat ran GoTrue on desktop (DCR clients, issuer resolved at runtime from
+`GET ${API_URL}/v1/config`) and Auth0 on web — two IdPs, two user tables, and the two
+independent credit ledgers this plan already flagged. The revert restores RowBoat's
+desktop mechanism *and* moves web onto the same IdP, so the split does not come back.
+
+Supabase is the identity provider only, not the application database: the Mongo `User`
+document keeps its role, re-keyed from `auth0Id` to `supabaseId`. Nothing is deployed, so
+that is a clean rename with no migration.
+
+Verified against current GoTrue before committing to it: OAuth 2.1 + OIDC with PKCE
+mandatory, `/.well-known/oauth-authorization-server` metadata at exactly the URL RowBoat's
+`getProviderConfig` built, and Dynamic Client Registration behind
+`GOTRUE_OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION=true` (requires
+`GOTRUE_OAUTH_SERVER_ENABLED=true`).
+
+Two consequences worth carrying: the Auth0 blocker disappears — `https://api.dhow.io` no
+longer needs registering as an API, and no paid plan is required — and runtime issuer
+discovery returns, so changing IdP again never requires shipping a new desktop build. That
+property was a regression in the Auth0 design and is the reason this reversal is cheap.
 
 Companion to `docs/plans/connectivity-and-calendar.md`.
 
