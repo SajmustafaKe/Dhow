@@ -32,12 +32,34 @@ import { NextResponse } from "next/server";
  * deliberate, reviewable change rather than an accident.
  */
 export async function GET() {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // RUNTIME FIRST, BUILD-TIME FALLBACK.
+    //
+    // `NEXT_PUBLIC_*` is inlined by the bundler at build time, even inside a
+    // server route. Setting it in the process environment at boot does
+    // nothing -- verified empirically: a standalone build started with a
+    // different NEXT_PUBLIC_SUPABASE_URL still served the value it was built
+    // with. That is fatal for THIS route specifically, whose entire purpose
+    // is to let the desktop app discover its identity provider at runtime so
+    // that rotating the Supabase project never requires shipping a new
+    // desktop build. A bootstrap endpoint frozen at build time is a
+    // contradiction.
+    //
+    // So: prefer the unprefixed names, which are read from the real process
+    // environment and can be set per-deployment. Fall back to the
+    // NEXT_PUBLIC_ ones so existing builds and local dev keep working
+    // unchanged.
+    //
+    // NEXT_PUBLIC_SUPABASE_URL must keep its prefix elsewhere -- the login
+    // page and user-provider are client components and genuinely need it in
+    // the bundle. NEXT_PUBLIC_APP_URL has no client consumer at all (only
+    // robots.ts, sitemap.ts, layout.tsx and this route), so APP_URL is the
+    // better name everywhere it is read.
+    const appUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
 
     const missing = [
-        !appUrl && "NEXT_PUBLIC_APP_URL",
-        !supabaseUrl && "NEXT_PUBLIC_SUPABASE_URL",
+        !appUrl && "APP_URL (or NEXT_PUBLIC_APP_URL)",
+        !supabaseUrl && "SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL)",
     ].filter((name): name is string => Boolean(name));
 
     if (missing.length > 0) {

@@ -19,12 +19,74 @@ import { GET } from "./route";
  * unauthenticated response.
  */
 
-const ENV_KEYS = ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_SUPABASE_URL"] as const;
+const ENV_KEYS = [
+    "NEXT_PUBLIC_APP_URL",
+    "NEXT_PUBLIC_SUPABASE_URL",
+    "APP_URL",
+    "SUPABASE_URL",
+] as const;
 
 afterEach(() => {
     for (const key of ENV_KEYS) {
         delete process.env[key];
     }
+});
+
+describe("GET /api/v1/config — runtime configurability", () => {
+    /**
+     * REGRESSION GUARD. `NEXT_PUBLIC_*` is inlined by the bundler at build
+     * time, even in a server route, so a deployed build serves whatever it
+     * was compiled with and ignores the process environment entirely. This
+     * was found by starting a real standalone build with a different
+     * NEXT_PUBLIC_SUPABASE_URL and watching it return the baked one.
+     *
+     * That defeats the only reason this endpoint exists: the desktop app
+     * fetches it so the identity provider can be swapped without shipping a
+     * new desktop build. These tests pin the unprefixed names as the ones
+     * that win, so the endpoint stays configurable per deployment.
+     */
+    it("prefers APP_URL / SUPABASE_URL over the build-inlined NEXT_PUBLIC_ values", async () => {
+        process.env.NEXT_PUBLIC_APP_URL = "https://baked-at-build-time.example";
+        process.env.NEXT_PUBLIC_SUPABASE_URL = "https://baked-ref.supabase.co";
+        process.env.APP_URL = "https://dhow.io";
+        process.env.SUPABASE_URL = "https://runtime-ref.supabase.co";
+
+        const body = await (await GET()).json();
+
+        expect(body).toEqual({
+            appUrl: "https://dhow.io",
+            supabaseUrl: "https://runtime-ref.supabase.co",
+        });
+    });
+
+    it("falls back to the NEXT_PUBLIC_ values when the unprefixed ones are absent", async () => {
+        process.env.NEXT_PUBLIC_APP_URL = "https://dhow.example.com";
+        process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project-ref.supabase.co";
+
+        const body = await (await GET()).json();
+
+        expect(body).toEqual({
+            appUrl: "https://dhow.example.com",
+            supabaseUrl: "https://project-ref.supabase.co",
+        });
+    });
+
+    it("still 500s when neither form is set", async () => {
+        expect((await GET()).status).toBe(500);
+    });
+
+    it("a runtime override alone is sufficient — no NEXT_PUBLIC_ needed", async () => {
+        process.env.APP_URL = "https://dhow.io";
+        process.env.SUPABASE_URL = "https://runtime-ref.supabase.co";
+
+        const res = await GET();
+
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({
+            appUrl: "https://dhow.io",
+            supabaseUrl: "https://runtime-ref.supabase.co",
+        });
+    });
 });
 
 describe("GET /api/v1/config — happy path", () => {
