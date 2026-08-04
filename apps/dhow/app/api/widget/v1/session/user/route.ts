@@ -3,7 +3,7 @@ import { clientIdCheck } from "../../utils";
 import { SignJWT, jwtVerify } from "jose";
 import { z } from "zod";
 import { Session } from "../../utils";
-import { apiV1 } from "rowboat-shared";
+import * as apiV1 from "@/src/entities/models/api-v1";
 
 export async function POST(req: NextRequest): Promise<Response> {
     return new Response('Not implemented', { status: 501 });

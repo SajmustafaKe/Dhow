@@ -1,7 +1,7 @@
 import { MongoClient } from "mongodb";
 import { TwilioConfig, TwilioInboundCall } from "./types/voice_types";
 import { z } from 'zod';
-import { apiV1 } from "rowboat-shared";
+import * as apiV1 from "@/src/entities/models/api-v1";
 
 const client = new MongoClient(process.env["MONGODB_CONNECTION_STRING"] || "mongodb://localhost:27017");
 

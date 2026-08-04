@@ -1,0 +1,72 @@
+name: dhowx trunk (apps/dhowx)
+
+# apps/dhowx is the trunk: apps/dhow's product surface (17 API routes, 24 pages,
+# Auth0, Mongo, Qdrant, Redis, billing call sites) gets ported into this app
+# rather than migrating apps/dhow in place. It starts from the newer stack —
+# ai@5.0.108, Next 15.5.7, stable Radix/shadcn, 30 Vercel AI Elements.
+#
+# Unlike apps/dhow, this one CAN build in CI: it has no database or Auth0
+# dependency yet, so `next build` runs clean with no env. That will stop being
+# true as the port lands, and the build step should gain a service container
+# then rather than being dropped.
+
+on:
+  pull_request:
+    paths:
+      - 'apps/dhowx/**'
+      - '.github/workflows/dhowx-trunk.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/dhowx/**'
+      - '.github/workflows/dhowx-trunk.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    name: apps/dhowx typecheck + lint + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/dhowx
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/dhowx/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      # The trunk shipped as `output: "export"`, a static site where Next
+      # refuses to build any route.ts. It was switched to `standalone` so the
+      # port can bring server routes across. Reverting that would not fail any
+      # check above — the build would just silently stop emitting API routes —
+      # so assert the server output and one live route directly.
+      - name: Assert server output, not static export
+        run: |
+          test ! -d out || { echo "::error::static export detected (out/); output must be 'standalone'"; exit 1; }
+          test -f .next/standalone/server.js || { echo "::error::no standalone server emitted"; exit 1; }
+
+      - name: Assert API routes are served
+        run: |
+          PORT=3111 HOSTNAME=127.0.0.1 node .next/standalone/server.js &
+          for i in $(seq 1 30); do
+            curl -sf --max-time 2 http://127.0.0.1:3111/api/health >/dev/null && break
+            sleep 1
+          done
+          body=$(curl -sf --max-time 10 http://127.0.0.1:3111/api/health)
+          echo "$body"
+          echo "$body" | grep -q '"runtime":"server"' || { echo "::error::API route not served"; exit 1; }
