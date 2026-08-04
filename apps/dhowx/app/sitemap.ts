@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dhow.io";
+// APP_URL first -- see app/robots.ts and app/api/v1/config/route.ts.
+const siteUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://dhow.io";
 
 /**
  * Marketing routes only. The hosted workspace behind /auth is private, and

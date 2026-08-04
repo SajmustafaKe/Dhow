@@ -7,3 +7,4 @@ data/
 
 # Local-only meeting-prep planning doc
 /PLAN.md
+dist/

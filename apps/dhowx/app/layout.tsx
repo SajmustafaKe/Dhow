@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://dhow.io";
+// APP_URL first -- see app/robots.ts and app/api/v1/config/route.ts.
+const siteUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://dhow.io";
 
 // Renders <meta name="google-site-verification" content="..."> only when the
 // env var is set, so Search Console verification never ships a hardcoded
