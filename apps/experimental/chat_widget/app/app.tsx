@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { apiV1 } from "rowboat-shared";
+import * as apiV1 from "@/app/lib/api-v1";
 import { z } from "zod";
 import { Button, Dropdown, DropdownItem, DropdownMenu, DropdownTrigger, Textarea } from "@nextui-org/react";
 import MarkdownContent from "./markdown-content";
