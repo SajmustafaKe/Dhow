@@ -31,11 +31,26 @@ export const MICROSOFT_OAUTH_CLIENT_ID = process.env.DHOW_MICROSOFT_CLIENT_ID ||
  * issuer at runtime means changing identity provider, or rotating the
  * Supabase project, never requires shipping a new desktop build.
  *
- * Includes the `/api` segment: the endpoint is a Next.js app-router route
- * served at `/api/v1/config`, not `/v1/config`. Overridable so a local
- * `apps/dhowx` dev server can be pointed at without rebuilding.
+ * KEEPS THE `/api` SEGMENT even though the host is already `api.dhow.io`,
+ * and the redundancy is deliberate. `api.dhow.io/v1/*` is NOT free: it is
+ * the model gateway's namespace — DHOW_GATEWAY_BASE_URL below points there,
+ * models/dhow.ts hands it to an OpenAI client as a baseURL, and that client
+ * calls /v1/chat/completions, /v1/models and /v1/models/user. Serving the
+ * web app at /v1 would put the two on a collision course the first time the
+ * gateway ships.
+ *
+ * So the host carries two namespaces:
+ *   api.dhow.io/api/*  -> apps/dhowx  (this constant)
+ *   api.dhow.io/v1/*   -> model gateway (DHOW_GATEWAY_BASE_URL)
+ *
+ * The path also matches Next's app router exactly — the route file lives at
+ * app/api/v1/config/route.ts and is served at /api/v1/config — so the nginx
+ * vhost is a straight proxy with no rewrite to get wrong.
+ *
+ * Overridable so a local `apps/dhowx` dev server can be pointed at without
+ * rebuilding: DHOW_API_URL=http://localhost:3000/api
  */
-export const API_URL = process.env.DHOW_API_URL || 'https://dhow.io/api';
+export const API_URL = process.env.DHOW_API_URL || 'https://api.dhow.io/api';
 
 /**
  * Hosted model gateway. OpenAI-compatible, bearer-authorized by the Dhow
