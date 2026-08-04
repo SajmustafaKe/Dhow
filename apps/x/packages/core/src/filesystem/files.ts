@@ -20,6 +20,8 @@ export type ResolvedFilePath = {
 
 export type CanonicalFilePath = ResolvedFilePath & {
   canonicalPath: string;
+  /** Inside a protected vault subpath (credentials, security config). */
+  isProtected: boolean;
 };
 
 export type FileStat = {
@@ -94,7 +96,57 @@ export function expandHomePath(inputPath: string): string {
   return trimmed;
 }
 
-export function resolveFilePath(inputPath: string): ResolvedFilePath {
+/**
+ * Vault subpaths the agent file tools must never reach.
+ *
+ * `config/` holds every credential the app has: OAuth refresh tokens
+ * (oauth.json), provider API keys (models.json), Composio/Deepgram/ElevenLabs/
+ * Exa keys, and — critically — security.json, the shell allowlist itself, so a
+ * write here is privilege escalation rather than mere disclosure.
+ *
+ * This is a hard denial, not a permission prompt, and that distinction is the
+ * whole point: headless runs set `autoPermission: true, humanAvailable: false`
+ * (runtime/assembly/headless.ts), so "ask first" means "an LLM decides" for
+ * exactly the background agents that ingest untrusted email. There is no
+ * legitimate agent read here either — models, MCP and Composio all have
+ * dedicated tools.
+ *
+ * The renderer is unaffected: its config reads go through workspace.readFile,
+ * a different module.
+ */
+const PROTECTED_VAULT_SUBPATHS = ['config'] as const;
+
+export class ProtectedPathError extends Error {
+  constructor(readonly attemptedPath: string) {
+    super(
+      `Access to ${attemptedPath} is not permitted: it is inside the Dhow config directory, `
+      + `which holds credentials and security settings. Use the dedicated settings tools instead.`,
+    );
+    this.name = 'ProtectedPathError';
+  }
+}
+
+/**
+ * True when an already-resolved absolute path falls inside a protected subpath.
+ *
+ * `vaultRoot` must be in the same form as `resolvedPath`. That is not
+ * pedantry: on macOS the temp and home trees reach the real filesystem through
+ * symlinks (`/var` -> `/private/var`), so a realpath'd file compared against a
+ * merely path.resolve'd root silently fails to match and the guard opens.
+ * Callers holding a canonical path must pass the canonical root.
+ */
+export function isProtectedVaultPath(resolvedPath: string, vaultRoot: string = path.resolve(WorkDir)): boolean {
+  return PROTECTED_VAULT_SUBPATHS.some((sub) =>
+    isPathInside(path.join(vaultRoot, sub), resolvedPath));
+}
+
+/**
+ * Resolution without the protection check. Only the permission layer may use
+ * this: it must be able to REASON about a protected path (and mark it as
+ * requiring approval) without throwing, because the permission checker fails
+ * closed and a throw there would abort the turn instead of denying the call.
+ */
+function resolveFilePathUnchecked(inputPath: string): ResolvedFilePath {
   const originalPath = inputPath;
   const expandedPath = expandHomePath(inputPath);
   const resolvedPath = path.resolve(path.isAbsolute(expandedPath) ? expandedPath : path.join(WorkDir, expandedPath));
@@ -104,6 +156,18 @@ export function resolveFilePath(inputPath: string): ResolvedFilePath {
     ? path.relative(workspaceRoot, resolvedPath).split(path.sep).join('/')
     : null;
   return { originalPath, resolvedPath, isInsideWorkspace, workspaceRelPath };
+}
+
+/**
+ * The one resolution every file operation in this module goes through, so the
+ * denial below covers all of them — including any operation added later.
+ */
+export function resolveFilePath(inputPath: string): ResolvedFilePath {
+  const resolved = resolveFilePathUnchecked(inputPath);
+  if (isProtectedVaultPath(resolved.resolvedPath)) {
+    throw new ProtectedPathError(resolved.resolvedPath);
+  }
+  return resolved;
 }
 
 async function getCanonicalWorkspaceRoot(): Promise<string> {
@@ -139,7 +203,10 @@ async function canonicalizePathForPermission(resolvedPath: string): Promise<stri
 }
 
 export async function resolveFilePathForPermission(inputPath: string): Promise<CanonicalFilePath> {
-  const resolved = resolveFilePath(inputPath);
+  // Unchecked on purpose — see resolveFilePathUnchecked. The protection verdict
+  // is returned as `isProtected` rather than thrown, so the caller can deny the
+  // tool call instead of aborting the turn.
+  const resolved = resolveFilePathUnchecked(inputPath);
   const [canonicalPath, workspaceRoot] = await Promise.all([
     canonicalizePathForPermission(resolved.resolvedPath),
     getCanonicalWorkspaceRoot(),
@@ -153,6 +220,12 @@ export async function resolveFilePathForPermission(inputPath: string): Promise<C
     canonicalPath,
     isInsideWorkspace,
     workspaceRelPath,
+    // Two comparisons in the matching form each: the lexical path against the
+    // lexical root, and the realpath'd path against the realpath'd root. The
+    // second is what catches a symlink inside the vault pointing at config/,
+    // which the guard in resolveFilePath cannot see.
+    isProtected: isProtectedVaultPath(resolved.resolvedPath)
+      || isProtectedVaultPath(canonicalPath, workspaceRoot),
   };
 }
 

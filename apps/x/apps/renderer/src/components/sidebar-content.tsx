@@ -82,7 +82,7 @@ import { getPinnedApps, onPinnedAppsChanged, unpinApp } from "@/lib/pinned-apps"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { MascotFaceIcon } from "@/components/talking-head"
 import { extractConferenceLink } from "@/lib/calendar-event"
-import { toast } from "@/lib/toast"
+import { toast } from "sonner"
 import { ServiceEvent } from "@x/shared/src/service-events.js"
 import z from "zod"
 
@@ -582,7 +582,7 @@ export function SidebarContentPanel({
     // stale ids in localStorage and must not eat pin slots.
     const activePinCount = pinnedChatIds.filter((id) => recentRuns.some((r) => r.id === id)).length
     if (!isPinned && activePinCount >= MAX_PINNED_CHATS) {
-      toast(`You can pin up to ${MAX_PINNED_CHATS} chats`, 'error')
+      toast.error(`You can pin up to ${MAX_PINNED_CHATS} chats`)
       return
     }
     const next = isPinned ? pinnedChatIds.filter((id) => id !== chatId) : [...pinnedChatIds, chatId]
@@ -1413,9 +1413,9 @@ path: ${currentRelativePath}
           onNoteCreatedRef.current?.(currentNotePath)
 
           if (transcript) {
-            toast('Voice note transcribed', 'success')
+            toast.success('Voice note transcribed')
           } else {
-            toast('Transcription failed', 'error')
+            toast.error('Transcription failed')
           }
         }
       }
@@ -1423,9 +1423,9 @@ path: ${currentRelativePath}
       recorder.start()
       mediaRecorderRef.current = recorder
       setIsRecording(true)
-      toast('Recording started', 'success')
+      toast.success('Recording started')
     } catch {
-      toast('Could not access microphone', 'error')
+      toast.error('Could not access microphone')
     }
   }
 

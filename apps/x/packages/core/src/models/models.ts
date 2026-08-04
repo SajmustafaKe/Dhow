@@ -11,6 +11,7 @@ import { defaultBaseUrlFor } from "@x/shared/dist/provider-endpoints.js";
 import z from "zod";
 import { getCodexProvider } from "./codex.js";
 import { getDefaultModelAndProvider, resolveProviderConfig } from "./defaults.js";
+import { getDhowProvider } from "./dhow.js";
 import { getChatModelIds } from "./models-dev.js";
 import { withUseCase } from "../analytics/use_case.js";
 import {
@@ -109,6 +110,8 @@ export function createProvider(config: z.infer<typeof Provider>): ProviderV4 {
             }) as unknown as ProviderV4;
         case "codex":
             return getCodexProvider();
+        case "dhow":
+            return getDhowProvider();
         default:
             throw new Error(`Unsupported provider flavor: ${config.flavor}`);
     }

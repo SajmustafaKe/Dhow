@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { toast } from '@/lib/toast';
+import { toast } from 'sonner';
 
 /**
  * Hook for managing OAuth connection state for a specific provider
@@ -40,11 +40,11 @@ export function useOAuth(provider: string) {
         setIsLoading(false);
   
         if (event.success) {
-          toast(`Successfully connected to ${provider}`, 'success');
+          toast.success(`Successfully connected to ${provider}`);
           // Refresh connection status to ensure consistency
           checkConnection();
         } else {
-          toast(event.error || `Failed to connect to ${provider}`, 'error');
+          toast.error(event.error || `Failed to connect to ${provider}`);
         }
       });
   
@@ -60,12 +60,12 @@ export function useOAuth(provider: string) {
         // Event listener will handle the actual completion
       } else {
         // Immediate failure (e.g., couldn't start flow)
-        toast(result.error || `Failed to connect to ${provider}`, 'error');
+        toast.error(result.error || `Failed to connect to ${provider}`);
         setIsConnecting(false);
       }
     } catch (error) {
       console.error('Failed to connect:', error);
-      toast(`Failed to connect to ${provider}`, 'error');
+      toast.error(`Failed to connect to ${provider}`);
       setIsConnecting(false);
     }
   }, [provider]);
@@ -75,14 +75,14 @@ export function useOAuth(provider: string) {
       setIsLoading(true);
       const result = await window.ipc.invoke('oauth:disconnect', { provider });
       if (result.success) {
-        toast(`Disconnected from ${provider}`, 'success');
+        toast.success(`Disconnected from ${provider}`);
         setIsConnected(false);
       } else {
-        toast(`Failed to disconnect from ${provider}`, 'error');
+        toast.error(`Failed to disconnect from ${provider}`);
       }
     } catch (error) {
       console.error('Failed to disconnect:', error);
-      toast(`Failed to disconnect from ${provider}`, 'error');
+      toast.error(`Failed to disconnect from ${provider}`);
     } finally {
       setIsLoading(false);
     }

@@ -40,7 +40,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { toast } from '@/lib/toast'
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils'
 
 const WORKSPACE_ROOT = 'knowledge/Workspace'
@@ -256,18 +256,18 @@ export function WorkspaceView({ tree, initialPath, actions, onNavigate, onOpenNo
     const parent = renameTarget.slice(0, renameTarget.lastIndexOf('/'))
     try {
       await window.ipc.invoke('workspace:rename', { from: renameTarget, to: `${parent}/${trimmed}` })
-      toast('Renamed', 'success')
+      toast.success('Renamed')
     } catch {
-      toast('Failed to rename', 'error')
+      toast.error('Failed to rename')
     }
   }, [renameTarget, renameValue, items])
 
   const handleDelete = useCallback(async (item: TreeNode) => {
     try {
       await actions.remove(item.path)
-      toast('Moved to trash', 'success')
+      toast.success('Moved to trash')
     } catch {
-      toast('Failed to delete', 'error')
+      toast.error('Failed to delete')
     }
   }, [actions])
 
@@ -288,10 +288,10 @@ export function WorkspaceView({ tree, initialPath, actions, onNavigate, onOpenNo
           opts: { encoding: 'base64', mkdirp: true },
         })
       }
-      toast(list.length === 1 ? 'Added' : `${list.length} items added`, 'success')
+      toast.success(list.length === 1 ? 'Added' : `${list.length} items added`)
     } catch (err) {
       console.error('Failed to add files:', err)
-      toast('Failed to add', 'error')
+      toast.error('Failed to add')
     } finally {
       setUploading(false)
     }
@@ -570,7 +570,7 @@ export function WorkspaceView({ tree, initialPath, actions, onNavigate, onOpenNo
                         <ContextMenuSeparator />
                       </>
                     )}
-                    <ContextMenuItem onClick={() => { actions.copyPath(item.path); toast('Path copied', 'success') }}>
+                    <ContextMenuItem onClick={() => { actions.copyPath(item.path); toast.success('Path copied') }}>
                       <Copy className="mr-2 size-4" />
                       Copy Path
                     </ContextMenuItem>

@@ -17,6 +17,7 @@ import { triggerSync as triggerOutlookSync } from '@x/core/dist/knowledge/sync_o
 import { triggerSync as triggerOutlookCalendarSync } from '@x/core/dist/knowledge/sync_outlook_calendar.js';
 import { emitOAuthEvent } from './ipc.js';
 import { buildCredentialOverride } from '@x/core/dist/auth/credentials.js';
+import { DHOW_ACCOUNT_CLIENT_ID, DHOW_API_AUDIENCE } from '@x/core/dist/config/env.js';
 export { buildCredentialOverride };
 
 function buildRedirectUri(port: number): string {
@@ -280,6 +281,17 @@ export async function connectProvider(provider: string, credentials?: { clientId
       }
     }
 
+    // The Dhow account has no bring-your-own-registration path: either the
+    // build ships one or hosted sign-in is unavailable. Say that plainly here
+    // rather than letting resolveClientCredentials throw "Please provide a
+    // client ID", which asks the user for something they cannot supply.
+    if (provider === 'dhow' && !DHOW_ACCOUNT_CLIENT_ID) {
+      return {
+        success: false,
+        error: 'Sign in with Dhow is not available in this build. Connect a model provider with your own API key instead.',
+      };
+    }
+
     // For static-client providers (Google BYOK) the redirect URI is pre-registered
     // at the OAuth provider console on a fixed port — we must not scan.
     // For DCR providers, resolveStartPort handles the re-registration trap.
@@ -427,6 +439,10 @@ export async function connectProvider(provider: string, credentials?: { clientId
         // BYOK token expires after ~1h with no way to refresh (it goes stale and
         // every Google call — including the Picker — starts failing).
         ...(provider === 'google' ? { access_type: 'offline', prompt: 'consent' } : {}),
+        // Auth0 issues an OPAQUE access token unless an audience is named, and
+        // an opaque token cannot be validated by the model gateway. Naming the
+        // API here is what makes the returned token a JWT the gateway accepts.
+        ...(provider === 'dhow' ? { audience: DHOW_API_AUDIENCE } : {}),
       });
 
       // Set timeout to clean up abandoned flows. Generous (10 min) because a

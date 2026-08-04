@@ -21,3 +21,31 @@ export const GITHUB_OAUTH_CLIENT_ID =
 export const GOOGLE_OAUTH_CLIENT_ID = process.env.DHOW_GOOGLE_CLIENT_ID || undefined;
 export const GOOGLE_OAUTH_CLIENT_SECRET = process.env.DHOW_GOOGLE_CLIENT_SECRET || undefined;
 export const MICROSOFT_OAUTH_CLIENT_ID = process.env.DHOW_MICROSOFT_CLIENT_ID || undefined;
+
+/**
+ * Dhow account (hosted sign-in) OAuth registration.
+ *
+ * The desktop client for the Dhow account is a Native/public client: PKCE,
+ * no secret — same reasoning as the mail providers above. Unset by default,
+ * which leaves "Sign in with Dhow" unavailable and the app bring-your-own-key
+ * throughout. Set at build time to enable the hosted account.
+ *
+ * DHOW_ISSUER is the tenant that mints account tokens. It defaults to the
+ * production custom domain; point it at a development tenant locally. The
+ * default is only ever reached once DHOW_ACCOUNT_CLIENT_ID is also set, so an
+ * unprovisioned domain cannot surface as a confusing discovery failure.
+ *
+ * DHOW_API_AUDIENCE must match the API identifier registered in the tenant.
+ * Without an audience Auth0 issues an opaque access token, which the model
+ * gateway cannot validate — so this is required, not cosmetic.
+ */
+export const DHOW_ACCOUNT_CLIENT_ID = process.env.DHOW_ACCOUNT_CLIENT_ID || undefined;
+export const DHOW_ISSUER = process.env.DHOW_ISSUER || 'https://auth.dhow.io';
+export const DHOW_API_AUDIENCE = process.env.DHOW_API_AUDIENCE || 'https://api.dhow.io';
+
+/**
+ * Hosted model gateway. OpenAI-compatible, bearer-authorized by the Dhow
+ * account session. Overridable so a local gateway can be pointed at during
+ * development without rebuilding.
+ */
+export const DHOW_GATEWAY_BASE_URL = process.env.DHOW_GATEWAY_BASE_URL || 'https://api.dhow.io/v1';

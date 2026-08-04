@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  DHOW_ACCOUNT_CLIENT_ID,
+  DHOW_ISSUER,
   GOOGLE_OAUTH_CLIENT_ID,
   GOOGLE_OAUTH_CLIENT_SECRET,
   MICROSOFT_OAUTH_CLIENT_ID,
@@ -60,6 +62,27 @@ export type ProviderConfigEntry = ProviderConfig[string];
  * All configured OAuth providers
  */
 const providerConfigs: ProviderConfig = {
+  // The Dhow account itself — an identity, not a mailbox. Signing in here is
+  // what enables the hosted model gateway and, later, a shipped mail
+  // registration; it never reads mail on its own. Kept first so the
+  // account/mailbox distinction is visible at a glance: every other entry
+  // below authorizes access to a third-party inbox or transcript service.
+  //
+  // Auth0 publishes OIDC discovery metadata, so `issuer` mode needs no
+  // endpoint wiring. Public client: PKCE only, no secret (see config/env.ts).
+  dhow: {
+    discovery: {
+      mode: 'issuer',
+      issuer: DHOW_ISSUER,
+    },
+    client: {
+      mode: 'static',
+      clientId: DHOW_ACCOUNT_CLIENT_ID,
+    },
+    // offline_access is what makes Auth0 return a refresh token; it also
+    // requires "Allow Offline Access" on the API in the tenant.
+    scopes: ['openid', 'profile', 'email', 'offline_access'],
+  },
   google: {
     discovery: {
       mode: 'issuer',

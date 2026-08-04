@@ -67,8 +67,24 @@ export class FSModelConfigRepo implements IModelConfigRepo {
             // Corrupt JSON (e.g. a crash mid-write): quarantine the file for
             // manual recovery instead of overwriting the only copy of the
             // user's credentials.
+            //
+            // The rename MUST succeed before the overwrite. It can fail for
+            // ordinary reasons — a cross-device WorkDir, a read-only mount, a
+            // permissions change — and swallowing that while still writing the
+            // empty config destroyed every API key the user had, while logging
+            // that they were "preserved". Leaving a corrupt file in place is
+            // recoverable; deleting the only copy is not.
             const quarantinePath = `${this.configPath}.corrupt-${Date.now()}`;
-            await fs.rename(this.configPath, quarantinePath).catch(() => {});
+            try {
+                await fs.rename(this.configPath, quarantinePath);
+            } catch (renameErr) {
+                console.error(
+                    `[models] models.json is corrupt and could NOT be quarantined; leaving it untouched. `
+                    + `Fix or move ${this.configPath} by hand:`,
+                    renameErr,
+                );
+                return;
+            }
             console.error(`[models] models.json is corrupt; preserved at ${quarantinePath}:`, err);
             await this.write(emptyConfig);
             return;

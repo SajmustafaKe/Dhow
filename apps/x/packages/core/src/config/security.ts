@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 import fsPromises from "fs/promises";
+import os from "os";
 import { WorkDir } from "./config.js";
 
 export const SECURITY_CONFIG_PATH = path.join(WorkDir, "config", "security.json");
@@ -17,7 +18,10 @@ const DEFAULT_ALLOW_LIST = [
     "dirname",
     "du",
     "echo",
-    "env",
+    // "env" and "printenv" removed: with no argument both dump the whole
+    // process environment, which is a one-command credential read that the
+    // allowlist was silently permitting. `echo "$SOME_VAR"` still works when a
+    // specific variable is genuinely needed.
     "file",
     "find",
     "grep",
@@ -25,7 +29,6 @@ const DEFAULT_ALLOW_LIST = [
     "hostname",
     "jq",
     "ls",
-    "printenv",
     "printf",
     "pwd",
     "readlink",
@@ -42,6 +45,50 @@ const DEFAULT_ALLOW_LIST = [
     "yq"
 ]
 
+/**
+ * Vault subpaths nothing agent-driven may touch — credentials (oauth.json,
+ * models.json, composio.json, …) and security.json, which is this allowlist
+ * itself, so a write there is privilege escalation rather than disclosure.
+ *
+ * Defined here rather than in filesystem/files.ts because BOTH the file tools
+ * and the shell must agree: blocking `file-readText config/oauth.json` while
+ * `cat ~/.dhow/config/oauth.json` still runs is not a boundary. A divergent
+ * second copy of this rule is a bypass, not a style issue.
+ */
+const PROTECTED_VAULT_SUBPATHS = ['config'] as const;
+
+export function isProtectedVaultPath(resolvedPath: string, vaultRoot: string = path.resolve(WorkDir)): boolean {
+    return PROTECTED_VAULT_SUBPATHS.some((sub) => {
+        const base = path.join(vaultRoot, sub);
+        const rel = path.relative(base, resolvedPath);
+        return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel));
+    });
+}
+
+/**
+ * Whether a shell command string names anything inside the protected subpaths.
+ *
+ * Deliberately generous: it expands `~` and `$HOME`, strips quotes, and
+ * resolves every whitespace-delimited token against the vault, because a false
+ * positive costs one approval prompt while a false negative leaks a refresh
+ * token. It is not a parser and does not need to be — the file tools are the
+ * precise boundary; this closes the shell's route around them.
+ */
+export function commandReferencesProtectedPath(command: string): boolean {
+    const home = os.homedir();
+    return command
+        .split(/[\s;|&<>()]+/)
+        .map((raw) => raw.replace(/^['"]+|['"]+$/g, '').trim())
+        .filter(Boolean)
+        .some((token) => {
+            const expanded = token
+                .replace(/^~(?=$|\/)/, home)
+                .replace(/\$\{?HOME\}?/g, home);
+            if (!expanded) return false;
+            const resolved = path.resolve(path.isAbsolute(expanded) ? expanded : path.join(WorkDir, expanded));
+            return isProtectedVaultPath(resolved);
+        });
+}
 export type FileAccessOperation = "read" | "list" | "search" | "write" | "delete";
 
 export type FileAccessGrant = {
@@ -126,12 +173,26 @@ function ensureSecurityConfigSync() {
     }
 }
 
+/**
+ * Commands no allowlist may re-enable, applied on every read.
+ *
+ * Removing these from DEFAULT_ALLOW_LIST is not enough: the effective list
+ * comes from the user's persisted config/security.json, and existing installs
+ * already have them written in — so a default-only change protects nobody who
+ * has run the app before.
+ *
+ * With no argument both print the entire process environment, which is a
+ * one-command read of every injected credential. `echo "$SOME_VAR"` still works
+ * when a specific variable is genuinely wanted.
+ */
+const NEVER_ALLOWED = new Set(['env', 'printenv']);
+
 function normalizeList(commands: unknown[]): string[] {
     const seen = new Set<string>();
     for (const entry of commands) {
         if (typeof entry !== "string") continue;
         const normalized = entry.trim().toLowerCase();
-        if (!normalized) continue;
+        if (!normalized || NEVER_ALLOWED.has(normalized)) continue;
         seen.add(normalized);
     }
 
@@ -214,7 +275,9 @@ function readSecurityConfig(): { allowedCommands: string[]; allowedFileAccess: F
         return parseSecurityPayload(parsed);
     } catch (error) {
         console.warn(`Failed to read security config at ${SECURITY_CONFIG_PATH}: ${error instanceof Error ? error.message : error}`);
-        return { allowedCommands: DEFAULT_ALLOW_LIST, allowedFileAccess: [] };
+        // Sanitize the fallback too — DEFAULT_ALLOW_LIST is the one path that
+        // does not go through normalizeList.
+        return { allowedCommands: normalizeList(DEFAULT_ALLOW_LIST), allowedFileAccess: [] };
     }
 }
 

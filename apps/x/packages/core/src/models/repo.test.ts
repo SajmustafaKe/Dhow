@@ -49,6 +49,23 @@ describe('FSModelConfigRepo data safety', () => {
         expect(JSON.parse(await fs.readFile(configPath, 'utf8'))).toEqual({ version: 2, providers: {} });
     });
 
+    // The quarantine above is only safe if the rename actually happened.
+    // Swallowing a failed rename and writing the empty config anyway destroyed
+    // every key the user had, while logging that they were "preserved".
+    it('leaves a corrupt file alone when it cannot be quarantined', async () => {
+        const original = '{"version":2,"providers":{"openai":{"flavor":"openai","apiKey":"sk-real"';
+        await fs.writeFile(configPath, original);
+        const rename = vi.spyOn(fs, 'rename').mockRejectedValueOnce(new Error('EXDEV: cross-device link'));
+
+        await new FSModelConfigRepo().ensureConfig();
+
+        expect(rename).toHaveBeenCalled();
+        // The only copy of the credentials is still on disk, byte for byte.
+        expect(await fs.readFile(configPath, 'utf8')).toBe(original);
+        const entries = await fs.readdir(configDir);
+        expect(entries.some((f) => f.startsWith('models.json.corrupt-'))).toBe(false);
+    });
+
     it('migration keeps the v1 original as models.json.v1.bak', async () => {
         const v1 = { provider: { flavor: 'openai', apiKey: 'sk-a' }, model: 'gpt-5.4' };
         await fs.writeFile(configPath, JSON.stringify(v1));

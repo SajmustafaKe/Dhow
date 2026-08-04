@@ -6,7 +6,7 @@ import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import type { blocks } from '@x/shared'
 import { cn } from '@/lib/utils'
-import { toast } from '@/lib/toast'
+import { toast } from 'sonner';
 import { prepareEmailHtml, splitPlainTextQuote, stripQuotedReplyText, QUOTED_CLASS } from '@/lib/email-quotes'
 import { useTheme } from '@/contexts/theme-context'
 import { SettingsDialog } from '@/components/settings-dialog'
@@ -572,15 +572,15 @@ function MessageAttachments({ attachments, accountId }: { attachments: NonNullab
           attachmentId: att.attachmentId,
         })
         if (!dl.ok) {
-          toast(`Could not download ${att.filename}: ${dl.error ?? 'unknown error'}`, 'error')
+          toast.error(`Could not download ${att.filename}: ${dl.error ?? 'unknown error'}`)
           return
         }
       }
       const result = await window.ipc.invoke('shell:openPath', { path: att.savedPath })
-      if (result?.error) toast(`Could not open ${att.filename}: ${result.error}`, 'error')
+      if (result?.error) toast.error(`Could not open ${att.filename}: ${result.error}`)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      toast(`Could not open ${att.filename}: ${message}`, 'error')
+      toast.error(`Could not open ${att.filename}: ${message}`)
     }
   }
 
@@ -1290,7 +1290,7 @@ const ComposeBox = memo(function ComposeBox({
     let prompt: string
     let system: string
     if (aiMode === 'generate') {
-      if (!instruction.trim()) { toast('Describe what to write.', 'error'); return }
+      if (!instruction.trim()) { toast.error('Describe what to write.'); return }
       system = AI_GENERATE_SYSTEM
       const ctx: string[] = []
       // When replying or forwarding, give the model the thread it's responding
@@ -1319,8 +1319,8 @@ const ComposeBox = memo(function ComposeBox({
       if (current) ctx.push(`Existing draft (revise or build on it):\n${current}`)
       prompt = `${ctx.length ? ctx.join('\n') + '\n\n' : ''}Instruction: ${instruction.trim()}`
     } else {
-      if (!instruction.trim()) { toast('Describe the edit to make.', 'error'); return }
-      if (!current) { toast('Write something first.', 'error'); return }
+      if (!instruction.trim()) { toast.error('Describe the edit to make.'); return }
+      if (!current) { toast.error('Write something first.'); return }
       system = AI_REWRITE_SYSTEM
       const subjectLine = subject.trim() ? `Subject: ${subject.trim()}\n\n` : ''
       prompt = `Instruction: ${instruction}\n\n---\n${subjectLine}${current}`
@@ -1341,7 +1341,7 @@ const ComposeBox = memo(function ComposeBox({
       // same default model/provider the Copilot chat uses (models.json).
       const res = await window.ipc.invoke('llm:generate', { prompt, system })
       if (res.error || !res.text) {
-        toast(res.error || 'No text was generated.', 'error')
+        toast.error(res.error || 'No text was generated.')
         return
       }
       // Replace via a tracked transaction (selectAll + insertContent) so the AI
@@ -1364,7 +1364,7 @@ const ComposeBox = memo(function ComposeBox({
         editor.chain().focus().selectAll().insertContent(plainTextToHtml(body)).run()
       }
     } catch (err) {
-      toast(`Generation failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Generation failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setGenerating(false)
     }
@@ -1413,7 +1413,7 @@ const ComposeBox = memo(function ComposeBox({
           contentBase64: await readAsBase64(file),
         })
       } catch {
-        toast(`Could not read ${file.name}.`, 'error')
+        toast.error(`Could not read ${file.name}.`)
       }
     }
     setAttachments((prev) => {
@@ -1423,7 +1423,7 @@ const ComposeBox = memo(function ComposeBox({
       }
       const total = merged.reduce((sum, a) => sum + a.size, 0)
       if (total > MAX_TOTAL_BYTES) {
-        toast('Attachments exceed the 25MB limit.', 'error')
+        toast.error('Attachments exceed the 25MB limit.')
         return prev
       }
       return merged
@@ -1606,12 +1606,12 @@ const ComposeBox = memo(function ComposeBox({
     const html = editor.getHTML()
     const text = editor.getText().trim()
     if (!text) {
-      toast(isNew ? 'Message is empty.' : 'Draft is empty.', 'error')
+      toast.error(isNew ? 'Message is empty.' : 'Draft is empty.')
       return
     }
 
     if (toList.length === 0) {
-      toast('Add at least one recipient.', 'error')
+      toast.error('Add at least one recipient.')
       return
     }
 
@@ -1641,7 +1641,7 @@ const ComposeBox = memo(function ComposeBox({
       })
       if (result.error) {
         sentRef.current = false // allow autosave to resume on a failed send
-        toast(`Send failed: ${result.error}`, 'error')
+        toast.error(`Send failed: ${result.error}`)
         return
       }
       // Gmail only auto-cleans drafts on a threaded send; remove any draft we
@@ -1651,12 +1651,12 @@ const ComposeBox = memo(function ComposeBox({
         draftIdRef.current = undefined
         void window.ipc.invoke('gmail:deleteDraft', { accountId, draftId: leftover }).catch(() => {})
       }
-      toast('Sent.', 'success')
+      toast.success('Sent.')
       closedRef.current = true
       onClose()
     } catch (err) {
       sentRef.current = false
-      toast(`Send failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Send failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setSending(false)
     }
@@ -2373,14 +2373,14 @@ function EmailInstructionsDialog({ open, onOpenChange, onSaved }: { open: boolea
     try {
       const result = await window.ipc.invoke('gmail:setEmailInstructions', { instructions: text })
       if (result.ok) {
-        toast('Instructions saved — they apply to every email from now on.', 'success')
+        toast.success('Instructions saved — they apply to every email from now on.')
         onOpenChange(false)
         onSaved?.()
       } else {
-        toast(`Could not save: ${result.error ?? 'unknown error'}`, 'error')
+        toast.error(`Could not save: ${result.error ?? 'unknown error'}`)
       }
     } catch (err) {
-      toast(`Could not save: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Could not save: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setSaving(false)
     }
@@ -2700,7 +2700,7 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
     try {
       await window.ipc.invoke('gmail:deleteDraft', { accountId: thread.accountId, draftId: id })
     } catch (err) {
-      toast(`Could not delete draft: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Could not delete draft: ${err instanceof Error ? err.message : String(err)}`)
       void loadDrafts()
     }
   }, [loadDrafts, markLeaving])
@@ -2793,10 +2793,10 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
       if (result.ok) {
         removeThreadFromState(threadId)
       } else if (result.error) {
-        toast(`Archive failed: ${result.error}`, 'error')
+        toast.error(`Archive failed: ${result.error}`)
       }
     } catch (err) {
-      toast(`Archive failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Archive failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       markLeaving(threadId, false)
     }
@@ -2822,12 +2822,12 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
             threads: [source, ...prev.threads.filter((t) => t.threadId !== threadId)],
           }))
         }
-        toast(importance === 'important' ? 'Marked important — noted for future emails.' : 'Marked not important — noted for future emails.', 'success')
+        toast.success(importance === 'important' ? 'Marked important — noted for future emails.' : 'Marked not important — noted for future emails.')
       } else if (result.error) {
-        toast(`Could not update importance: ${result.error}`, 'error')
+        toast.error(`Could not update importance: ${result.error}`)
       }
     } catch (err) {
-      toast(`Could not update importance: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Could not update importance: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       markLeaving(threadId, false)
     }
@@ -2851,12 +2851,12 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
           }
           return next
         })
-        toast(`Filed as ${labelNameFor(emailLabels, category)} — noted for similar emails.`, 'success')
+        toast.success(`Filed as ${labelNameFor(emailLabels, category)} — noted for similar emails.`)
       } else if (result.error) {
-        toast(`Could not update category: ${result.error}`, 'error')
+        toast.error(`Could not update category: ${result.error}`)
       }
     } catch (err) {
-      toast(`Could not update category: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Could not update category: ${err instanceof Error ? err.message : String(err)}`)
     }
   }, [updateThreadInState, important.threads, other.threads, emailLabels])
 
@@ -2870,10 +2870,10 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
       if (result.ok) {
         removeThreadFromState(threadId)
       } else if (result.error) {
-        toast(`Delete failed: ${result.error}`, 'error')
+        toast.error(`Delete failed: ${result.error}`)
       }
     } catch (err) {
-      toast(`Delete failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Delete failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       markLeaving(threadId, false)
     }
@@ -3036,17 +3036,16 @@ export function EmailView({ initialThreadId, threadIdVersion, initialSearchQuery
         error: results.find((r) => r.error)?.error,
       }
       if (result.error) {
-        toast(`Bulk archive failed: ${result.error}`, 'error')
+        toast.error(`Bulk archive failed: ${result.error}`)
       } else {
-        toast(
-          `Archived ${result.archived} thread${result.archived === 1 ? '' : 's'}${result.failed ? ` (${result.failed} failed)` : ''}. They stay searchable in Gmail.`,
-          result.failed ? 'error' : 'success',
-        )
+        const summary = `Archived ${result.archived} thread${result.archived === 1 ? '' : 's'}${result.failed ? ` (${result.failed} failed)` : ''}. They stay searchable in Gmail.`
+        if (result.failed) toast.error(summary)
+        else toast.success(summary)
       }
       setOtherCategory(null) // triggers the Everything else reload above
       void reloadFirstPage('important', { silent: true })
     } catch (err) {
-      toast(`Bulk archive failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+      toast.error(`Bulk archive failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setBulkArchiving(false)
     }

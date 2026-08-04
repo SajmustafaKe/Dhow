@@ -4,6 +4,8 @@ import { getChatGPTStatus } from "../auth/chatgpt-auth.js";
 import container from "../di/container.js";
 import { IModelConfigRepo } from "./repo.js";
 import { listCodexModels } from "./codex.js";
+import { listDhowModels } from "./dhow.js";
+import { getDhowStatus } from "../auth/dhow-auth.js";
 import { listModelsForProvider } from "./models.js";
 import { listOnboardingModels } from "./models-dev.js";
 import { getDefaultModelAndProvider } from "./defaults.js";
@@ -125,6 +127,12 @@ async function readModelConfig(): Promise<z.infer<typeof LlmModelConfig> | null>
 async function discoverProviders(): Promise<DiscoveredProvider[]> {
     const discovered: DiscoveredProvider[] = [];
 
+    // getDhowStatus swallows its own failures by contract, so unlike the
+    // ChatGPT probe below it needs no guard here.
+    if ((await getDhowStatus()).signedIn) {
+        discovered.push({ id: "dhow", flavor: "dhow" });
+    }
+
     try {
         const chatgpt = await getChatGPTStatus();
         if (chatgpt.signedIn) discovered.push({ id: "codex", flavor: "codex" });
@@ -167,6 +175,9 @@ async function fetchProviderEntry(
         let models: CatalogModelEntry[];
         if (provider.id === "codex") {
             const result = await listCodexModels();
+            models = result.providers[0]?.models ?? [];
+        } else if (provider.id === "dhow") {
+            const result = await listDhowModels();
             models = result.providers[0]?.models ?? [];
         } else if (MODELS_DEV_FLAVORS.has(provider.flavor) && (modelsDevByFlavor.get(provider.flavor)?.length ?? 0) > 0) {
             models = modelsDevByFlavor.get(provider.flavor) ?? [];

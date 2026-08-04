@@ -2,6 +2,7 @@ import { WorkDir } from '../config/config.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { OAuthTokens } from './types.js';
+import { protectSecret, revealSecret } from './secret-cipher.js';
 import z from 'zod';
 
 /**
@@ -194,22 +195,72 @@ export class FSOAuthRepo implements IOAuthRepo {
     return config;
   }
 
+  /**
+   * Encrypt/decrypt the secret-bearing fields at the file boundary, so every
+   * caller keeps working with plaintext and cannot forget to protect a write.
+   *
+   * Both directions tolerate mixed content: `protectSecret` returns plaintext
+   * unchanged when no keychain is available, and `revealSecret` passes through
+   * anything lacking the ciphertext marker. So an existing plaintext
+   * oauth.json keeps working and is upgraded in place on the next write, and a
+   * machine with no libsecret degrades to today's behaviour rather than
+   * locking the user out of their own mail.
+   */
+  private mapSecrets(
+    config: z.infer<typeof OAuthConfigSchema>,
+    transform: (value: string | null | undefined) => string | null,
+  ): z.infer<typeof OAuthConfigSchema> {
+    const providers: Record<string, ProviderConnection> = {};
+    for (const [name, provider] of Object.entries(config.providers)) {
+      const accounts: Record<string, AccountConnection> = {};
+      for (const [id, account] of Object.entries(provider.accounts)) {
+        accounts[id] = account.tokens
+          ? {
+              ...account,
+              tokens: {
+                ...account.tokens,
+                access_token: transform(account.tokens.access_token) ?? '',
+                refresh_token: transform(account.tokens.refresh_token),
+              },
+            }
+          : account;
+      }
+      providers[name] = {
+        ...provider,
+        ...(provider.clientSecret ? { clientSecret: transform(provider.clientSecret) } : {}),
+        accounts,
+      };
+    }
+    return { ...config, providers };
+  }
+
   private async readConfig(): Promise<z.infer<typeof OAuthConfigSchema>> {
     try {
       const content = await fs.readFile(this.configPath, 'utf8');
       const parsed = JSON.parse(content);
       const { config, migrated } = this.normalizeConfig(parsed);
+      const revealed = this.mapSecrets(config, revealSecret);
       if (migrated) {
-        await this.writeConfig(config);
+        await this.writeConfig(revealed);
       }
-      return config;
+      return revealed;
     } catch {
       return { ...DEFAULT_CONFIG };
     }
   }
 
   private async writeConfig(config: z.infer<typeof OAuthConfigSchema>): Promise<void> {
-    await fs.writeFile(this.configPath, JSON.stringify(config, null, 2));
+    const protectedConfig = this.mapSecrets(config, protectSecret);
+    await fs.writeFile(this.configPath, JSON.stringify(protectedConfig, null, 2));
+    // Best effort, mirroring auth/imap-repo.ts: writeFile's `mode` only applies
+    // when it creates the file, and ensureConfigFile has usually made it
+    // already — so set it explicitly. Owner-only even though the tokens inside
+    // are ciphertext.
+    try {
+      await fs.chmod(this.configPath, 0o600);
+    } catch {
+      // Windows and some filesystems do not support this.
+    }
   }
 
   private emptyProvider(): ProviderConnection {

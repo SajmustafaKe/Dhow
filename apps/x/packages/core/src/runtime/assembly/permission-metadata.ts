@@ -109,17 +109,33 @@ export async function getToolPermissionMetadata(
     }
 
     const resolvedTargets = await Promise.all(targets.paths.map(p => resolveFilePathForPermission(p)));
+
+    // A protected path (credentials, security.json) is never silently allowed
+    // just because it sits inside the vault. filesystem/files.ts denies these
+    // outright; surfacing them here too means that if a path only becomes
+    // protected after symlink resolution — which the lexical guard cannot see —
+    // it still requires approval rather than falling through to `null`.
+    const protectedPaths = resolvedTargets
+        .filter(target => target.isProtected)
+        .map(target => target.canonicalPath);
+
     const outsideWorkspacePaths = resolvedTargets
         .filter(target => !target.isInsideWorkspace)
         .map(target => target.canonicalPath);
-    if (!outsideWorkspacePaths.length) {
+
+    const needsApproval = [...new Set([...protectedPaths, ...outsideWorkspacePaths])];
+    if (!needsApproval.length) {
         return null;
     }
 
     const persistentGrants = getFileAccessAllowList();
     const allGrants = [...persistentGrants, ...sessionAllowedFileAccess];
-    const uncovered = outsideWorkspacePaths.filter(resolvedPath =>
-        !allGrants.some(grant => fileGrantCoversPath(grant, targets.operation, resolvedPath))
+    const uncovered = needsApproval.filter(resolvedPath =>
+        // A user grant can cover an ordinary out-of-workspace path, but never a
+        // protected one — otherwise one approval would permanently hand an agent
+        // the credential store.
+        protectedPaths.includes(resolvedPath)
+        || !allGrants.some(grant => fileGrantCoversPath(grant, targets.operation, resolvedPath))
     );
     if (!uncovered.length) {
         return null;

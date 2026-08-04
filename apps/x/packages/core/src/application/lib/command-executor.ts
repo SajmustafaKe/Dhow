@@ -1,6 +1,6 @@
 import { exec, execSync, spawn, ChildProcess } from 'child_process';
 import { promisify } from 'util';
-import { getSecurityAllowList } from '../../config/security.js';
+import { getSecurityAllowList, commandReferencesProtectedPath } from '../../config/security.js';
 import { getExecutionShell } from '../../runtime/assembly/copilot/runtime-context.js';
 
 const execPromise = promisify(exec);
@@ -12,6 +12,11 @@ const execPromise = promisify(exec);
 const COMMAND_SPLIT_REGEX = /(?:\|\||&&|&|;|\||\n|`|\$\(|\(|\))/;
 const ENV_ASSIGNMENT_REGEX = /^[A-Za-z_][A-Za-z0-9_]*=.*/;
 const WRAPPER_COMMANDS = new Set(['sudo', 'env', 'time', 'command']);
+// Flags whose next argument is a program the shell will run. `find` stays
+// allowlisted because it is genuinely useful, but `find . -exec curl … \;`
+// contains no shell separator, so the splitter above saw only `find` and the
+// spawned program was never checked against the allowlist.
+const EXEC_FLAGS = new Set(['-exec', '-execdir', '-ok', '-okdir']);
 
 function sanitizeToken(token: string): string {
   return token.trim().replace(/^['"()]+|['"()]+$/g, '');
@@ -43,6 +48,15 @@ export function extractCommandNames(command: string): string[] {
         discovered.add(wrapped);
       }
     }
+
+    // Surface anything an -exec family flag is about to run.
+    for (let i = index; i < tokens.length - 1; i++) {
+      if (!EXEC_FLAGS.has(sanitizeToken(tokens[i]).toLowerCase())) continue;
+      const spawned = sanitizeToken(tokens[i + 1]).toLowerCase();
+      if (spawned && spawned !== '{}') {
+        discovered.add(spawned);
+      }
+    }
   }
 
   return Array.from(discovered);
@@ -66,6 +80,31 @@ export function isBlocked(command: string, sessionAllowedCommands?: Set<string>)
   return blocked.length > 0;
 }
 
+/**
+ * Refuse a command that names anything inside the protected vault subpaths.
+ *
+ * A hard denial, matching filesystem/files.ts. Routing this through the
+ * permission system instead would mean an LLM decides in headless runs
+ * (autoPermission: true, humanAvailable: false) — and blocking
+ * `file-readText config/oauth.json` while `cat ~/.dhow/config/oauth.json`
+ * still runs would not be a boundary at all.
+ */
+export class ProtectedCommandError extends Error {
+  constructor(readonly command: string) {
+    super(
+      'Refusing to run a command that reads or writes the Dhow config directory. '
+      + 'It holds credentials and the security allowlist; use Settings to change them.',
+    );
+    this.name = 'ProtectedCommandError';
+  }
+}
+
+function assertCommandAllowed(command: string): void {
+  if (commandReferencesProtectedPath(command)) {
+    throw new ProtectedCommandError(command);
+  }
+}
+
 export interface CommandResult {
   stdout: string;
   stderr: string;
@@ -87,6 +126,7 @@ export async function executeCommand(
     env?: NodeJS.ProcessEnv; // override environment
   }
 ): Promise<CommandResult> {
+  assertCommandAllowed(command);
   try {
     const shell = getExecutionShell();
     const { stdout, stderr } = await execPromise(command, {
@@ -153,6 +193,7 @@ export function executeCommandAbortable(
     env?: NodeJS.ProcessEnv;
   }
 ): { promise: Promise<AbortableCommandResult>; process: ChildProcess } {
+  assertCommandAllowed(command);
   // Check if already aborted before spawning
   if (options?.signal?.aborted) {
     // Return a dummy process and a resolved result
@@ -285,6 +326,7 @@ export function executeCommandSync(
     timeout?: number;
   }
 ): CommandResult {
+  assertCommandAllowed(command);
   try {
     const shell = getExecutionShell();
     const stdout = execSync(command, {

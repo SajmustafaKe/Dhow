@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useBackgroundTaskAgentStatus } from '@/hooks/use-bg-task-agent-status'
 import { formatRelativeTime } from '@/lib/relative-time'
-import { toast } from '@/lib/toast'
+import { toast } from 'sonner';
 import type { ConversationItem } from '@/lib/chat-conversation'
 import { fetchAgentRunTranscript } from '@/lib/agent-transcript'
 import { useAgentRunTranscript } from '@/hooks/use-agent-run-transcript'
@@ -338,13 +338,13 @@ function NewTaskDialog({
             if (!dir) return
             const added = await window.ipc.invoke('codeProject:add', { path: dir })
             if (!added.git?.isGitRepo) {
-                toast('That folder is not a git repository — coding tasks need one.', 'error')
+                toast.error('That folder is not a git repository — coding tasks need one.')
                 return
             }
             setProjectId(added.project.id)
             setProjectName(added.project.name)
         } catch (err) {
-            toast(err instanceof Error ? err.message : String(err), 'error')
+            toast.error(err instanceof Error ? err.message : String(err))
         } finally {
             setAddingProject(false)
         }
@@ -367,10 +367,10 @@ function NewTaskDialog({
             if (result.success && result.slug) {
                 onCreated(result.slug)
             } else {
-                toast(result.error ?? 'Failed to create task', 'error')
+                toast.error(result.error ?? 'Failed to create task')
             }
         } catch (err) {
-            toast(err instanceof Error ? err.message : String(err), 'error')
+            toast.error(err instanceof Error ? err.message : String(err))
         } finally {
             setSubmitting(false)
         }
@@ -394,10 +394,10 @@ function NewTaskDialog({
             if (result.success && result.slug) {
                 onCreated(result.slug)
             } else {
-                toast(result.error ?? 'Failed to create task', 'error')
+                toast.error(result.error ?? 'Failed to create task')
             }
         } catch (err) {
-            toast(err instanceof Error ? err.message : String(err), 'error')
+            toast.error(err instanceof Error ? err.message : String(err))
         } finally {
             setSubmitting(false)
         }
@@ -1466,7 +1466,7 @@ function TaskDetail({
                 setDraft(result.task)
                 setEditingInstructions(false)
             } else {
-                toast(result.error ?? 'Failed to save', 'error')
+                toast.error(result.error ?? 'Failed to save')
             }
         } finally {
             setSaving(false)
@@ -1491,7 +1491,7 @@ function TaskDetail({
     const runNow = async () => {
         const result = await window.ipc.invoke('bg-task:run', { slug })
         if (!result.success) {
-            toast(result.error ?? 'Run failed', 'error')
+            toast.error(result.error ?? 'Run failed')
         }
     }
 
@@ -1504,7 +1504,7 @@ function TaskDetail({
         if (result.success) {
             onDeleted()
         } else {
-            toast(result.error ?? 'Delete failed', 'error')
+            toast.error(result.error ?? 'Delete failed')
         }
     }
 
@@ -1657,13 +1657,13 @@ export function BgTasksView({ onCreateWithCopilot, onEditWithCopilot, initialSlu
         try {
             const result = await window.ipc.invoke('bg-task:patch', { slug, partial: { active } })
             if (!result.success) {
-                toast(result.error ?? 'Failed to update task', 'error')
+                toast.error(result.error ?? 'Failed to update task')
                 return
             }
             // Optimistically reflect the new state without re-fetching the whole list.
             setItems(prev => prev.map(t => t.slug === slug ? { ...t, active } : t))
         } catch (err) {
-            toast(err instanceof Error ? err.message : 'Failed to update task', 'error')
+            toast.error(err instanceof Error ? err.message : 'Failed to update task')
         } finally {
             setUpdatingSlugs(prev => {
                 const next = new Set(prev)
@@ -1678,10 +1678,10 @@ export function BgTasksView({ onCreateWithCopilot, onEditWithCopilot, initialSlu
         try {
             const result = await window.ipc.invoke('bg-task:stop', { slug })
             if (!result.success && result.error) {
-                toast(result.error, 'error')
+                toast.error(result.error)
             }
         } catch (err) {
-            toast(err instanceof Error ? err.message : 'Failed to stop run', 'error')
+            toast.error(err instanceof Error ? err.message : 'Failed to stop run')
         } finally {
             setStoppingSlugs(prev => {
                 const next = new Set(prev)

@@ -4,7 +4,7 @@ import { Radio, Loader2, Square, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { stripKnowledgePrefix, wikiLabel } from '@/lib/wiki-links'
-import { toast } from '@/lib/toast'
+import { toast } from 'sonner';
 import { formatRelativeTime } from '@/lib/relative-time'
 import { useLiveNoteAgentStatus } from '@/hooks/use-live-note-agent-status'
 
@@ -158,7 +158,7 @@ export function LiveNotesView({ onOpenNote, onAddNewLiveNote }: LiveNotesViewPro
       )))
     } catch (err) {
       console.error('Failed to update live-note state:', err)
-      toast(err instanceof Error ? err.message : 'Failed to update live-note state', 'error')
+      toast.error(err instanceof Error ? err.message : 'Failed to update live-note state')
     } finally {
       setUpdatingPaths((prev) => {
         const next = new Set(prev)
@@ -174,10 +174,10 @@ export function LiveNotesView({ onOpenNote, onAddNewLiveNote }: LiveNotesViewPro
       const knowledgeRelative = note.path.replace(/^knowledge\//, '')
       const result = await window.ipc.invoke('live-note:stop', { filePath: knowledgeRelative })
       if (!result.success && result.error) {
-        toast(result.error, 'error')
+        toast.error(result.error)
       }
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Failed to stop run', 'error')
+      toast.error(err instanceof Error ? err.message : 'Failed to stop run')
     } finally {
       setStoppingPaths((prev) => {
         const next = new Set(prev)

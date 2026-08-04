@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { toast } from '@/lib/toast'
+import { toast } from 'sonner';
 
 type GoogleDocPickerDialogProps = {
   open: boolean
@@ -81,7 +81,7 @@ export function GoogleDocPickerDialog({
       const result = await window.ipc.invoke('google-docs:import', { fileId, targetFolder })
       onOpenChange(false)
       onImported(result.path)
-      toast(`Imported "${result.doc.name}"`, 'success')
+      toast.success(`Imported "${result.doc.name}"`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to import that document')
     } finally {

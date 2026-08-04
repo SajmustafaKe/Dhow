@@ -24,7 +24,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { VoiceNoteButton } from '@/components/sidebar-content'
 import { formatRelativeTime } from '@/lib/relative-time'
-import { toast } from '@/lib/toast'
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils'
 
 interface TreeNode {
@@ -700,9 +700,9 @@ function RenameField({
     if (trimmed && trimmed !== initial) {
       try {
         await actions.rename(path, trimmed, isDir)
-        toast('Renamed successfully', 'success')
+        toast.success('Renamed successfully')
       } catch {
-        toast('Failed to rename', 'error')
+        toast.error('Failed to rename')
       }
     }
     onDone()
@@ -753,15 +753,15 @@ function RowContextMenu({
   const handleDelete = useCallback(async () => {
     try {
       await actions.remove(node.path)
-      toast('Moved to trash', 'success')
+      toast.success('Moved to trash')
     } catch {
-      toast('Failed to delete', 'error')
+      toast.error('Failed to delete')
     }
   }, [actions, node.path])
 
   const handleCopyPath = useCallback(() => {
     actions.copyPath(node.path)
-    toast('Path copied', 'success')
+    toast.success('Path copied')
   }, [actions, node.path])
 
   return (

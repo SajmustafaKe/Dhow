@@ -239,6 +239,9 @@ describe("BuiltinTools permission audit", () => {
             addMcpServer: "prompt",
             executeMcpTool: "mcp-execute",
             "composio-execute-tool": "composio-execute",
+            // Arbitrary outbound HTTP with a model-supplied URL, method and body
+            // is a data-egress primitive; it shipped as "none".
+            "fetch-url": "prompt",
         });
     });
 });
