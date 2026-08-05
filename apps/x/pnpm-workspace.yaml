@@ -16,6 +16,24 @@ allowBuilds:
 
 blockExoticSubdeps: false
 
+# macOS CI (macos-latest, arm64) builds BOTH arm64 and x64 app packages from
+# one host via `electron-forge publish --arch=arm64,x64`. Forge's
+# generateAssets hook (which stages @duckdb/node-bindings-* — bundle.mjs)
+# runs ONCE for the whole multi-arch build, using the CI runner's own
+# process.arch. Without this, pnpm's default optional-dependency gating only
+# installs the binding matching the installing machine (arm64 on CI), so the
+# x64-targeted package silently ships without a working DuckDB binding at
+# all — "Cannot find module '@duckdb/node-bindings-darwin-x64/duckdb.node'"
+# on real Intel hardware. Fetching both lets bundle.mjs stage every darwin
+# arch unconditionally, so whichever binary a user launches finds its own
+# binding regardless of which host built it.
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - x64
+    - arm64
+
 overrides:
   vscode-jsonrpc: 8.2.0
 

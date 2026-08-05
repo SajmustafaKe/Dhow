@@ -186,18 +186,7 @@ const duckdbReq = createRequire(path.join(duckdbApiRoot, 'x.js'));
 const duckdbBindingsRoot = fs.realpathSync(
   path.dirname(duckdbReq.resolve('@duckdb/node-bindings')),
 );
-const platformPkg = `@duckdb/node-bindings-${process.platform}-${process.arch}`;
 const bindingsReq = createRequire(path.join(duckdbBindingsRoot, 'x.js'));
-let duckdbPlatformRoot = null;
-try {
-  duckdbPlatformRoot = fs.realpathSync(
-    path.dirname(bindingsReq.resolve(`${platformPkg}/package.json`)),
-  );
-} catch {
-  throw new Error(
-    `DuckDB platform package ${platformPkg} is not installed. Data Mode cannot work in this build.`,
-  );
-}
 
 const stageDuckPkg = (srcDir, key) => {
   const dest = path.join(here, '.package', 'node_modules', ...key.split('/'));
@@ -208,26 +197,56 @@ const stageDuckPkg = (srcDir, key) => {
 };
 stageDuckPkg(duckdbApiRoot, '@duckdb/node-api');
 stageDuckPkg(duckdbBindingsRoot, '@duckdb/node-bindings');
-const stagedPlatform = stageDuckPkg(duckdbPlatformRoot, platformPkg);
 
-// Thin the universal dylib down to the arch this build targets.
-if (process.platform === 'darwin') {
-  const dylib = path.join(stagedPlatform, 'libduckdb.dylib');
-  if (fs.existsSync(dylib)) {
-    const before = fs.statSync(dylib).size;
-    try {
-      execSync(`lipo -thin ${process.arch === 'arm64' ? 'arm64' : 'x86_64'} "${dylib}" -output "${dylib}.thin"`, {
-        stdio: 'pipe',
-      });
-      fs.renameSync(`${dylib}.thin`, dylib);
-      const after = fs.statSync(dylib).size;
-      console.log(
-        `✅ libduckdb thinned ${(before / 1048576).toFixed(0)}MB -> ${(after / 1048576).toFixed(0)}MB`,
-      );
-    } catch {
-      // Already thin, or lipo unavailable. Shipping the fat binary is only a
-      // size regression, never a correctness one.
-      fs.rmSync(`${dylib}.thin`, { force: true });
+// getNativeNodeBinding() requires the platform-arch binding by name at
+// RUNTIME, using whichever binary the user actually launched — not the arch
+// that happened to build it. On darwin, CI builds BOTH arm64 and x64
+// outputs from ONE arm64 host via `electron-forge publish --arch=arm64,x64`;
+// Forge's generateAssets hook (this script) runs ONCE for the whole
+// multi-arch build, so staging only process.arch silently shipped the x64
+// package with no working DuckDB binding at all — "Cannot find module
+// '@duckdb/node-bindings-darwin-x64/duckdb.node'" on real Intel hardware.
+// Stage every darwin arch unconditionally (pnpm-workspace.yaml's
+// supportedArchitectures ensures both are actually installed to stage from).
+// win32/linux CI each build a single native arch today — just process.arch.
+const archesToStage = process.platform === 'darwin' ? ['arm64', 'x64'] : [process.arch];
+for (const arch of archesToStage) {
+  const platformPkg = `@duckdb/node-bindings-${process.platform}-${arch}`;
+  let duckdbPlatformRoot;
+  try {
+    duckdbPlatformRoot = fs.realpathSync(
+      path.dirname(bindingsReq.resolve(`${platformPkg}/package.json`)),
+    );
+  } catch {
+    throw new Error(
+      `DuckDB platform package ${platformPkg} is not installed. Data Mode cannot work in this build.` +
+        (process.platform === 'darwin'
+          ? ' Check pnpm-workspace.yaml supportedArchitectures covers both x64 and arm64.'
+          : ''),
+    );
+  }
+  const stagedPlatform = stageDuckPkg(duckdbPlatformRoot, platformPkg);
+
+  // Thin the universal dylib down to just this arch (each is built per-arch,
+  // so shipping the other's half of the fat binary is pure waste).
+  if (process.platform === 'darwin') {
+    const dylib = path.join(stagedPlatform, 'libduckdb.dylib');
+    if (fs.existsSync(dylib)) {
+      const before = fs.statSync(dylib).size;
+      try {
+        execSync(`lipo -thin ${arch === 'arm64' ? 'arm64' : 'x86_64'} "${dylib}" -output "${dylib}.thin"`, {
+          stdio: 'pipe',
+        });
+        fs.renameSync(`${dylib}.thin`, dylib);
+        const after = fs.statSync(dylib).size;
+        console.log(
+          `✅ libduckdb (${arch}) thinned ${(before / 1048576).toFixed(0)}MB -> ${(after / 1048576).toFixed(0)}MB`,
+        );
+      } catch {
+        // Already thin, or lipo unavailable. Shipping the fat binary is only a
+        // size regression, never a correctness one.
+        fs.rmSync(`${dylib}.thin`, { force: true });
+      }
     }
   }
 }
