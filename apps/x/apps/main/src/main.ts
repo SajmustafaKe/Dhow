@@ -1,6 +1,8 @@
 import { app, BrowserWindow, desktopCapturer, dialog, protocol, net, shell, session, safeStorage, type Session } from "electron";
 import path from "node:path";
 import os from "node:os";
+import { existsSync } from "node:fs";
+import { initDataModeKey } from "./data-mode-key.js";
 import {
   setupIpcHandlers,
   startRunsWatcher, startSessionsWatcher, startTurnEventsWatcher, markSessionsIndexReady,
@@ -84,6 +86,36 @@ const APP_LAUNCHED_AT = Date.now();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Data Mode runtime paths. @x/core has no electron dependency, so the main
+// process is what tells it where the staged artifacts live.
+//
+// bundle.mjs puts the bundle at .package/dist/main.cjs, so __dirname IS that
+// dist directory: the OCR helper sits beside main.cjs (same as mic-monitor)
+// and the DuckDB extensions sit one level up.
+//
+// Setting extension_directory is what lets the engine run with
+// autoinstall/autoload OFF. Without it DuckDB silently fetches binaries from
+// extensions.duckdb.org on first use, which fails offline and is a surprise
+// outbound request besides.
+if (!process.env.DHOW_DUCKDB_EXTENSIONS) {
+  const bundledExtensions = path.join(__dirname, "..", "duckdb-extensions");
+  if (existsSync(bundledExtensions)) {
+    process.env.DHOW_DUCKDB_EXTENSIONS = bundledExtensions;
+  }
+}
+if (!process.env.DHOW_OCR_BIN) {
+  const bundledOcr = path.join(__dirname, "ocr");
+  if (existsSync(bundledOcr)) {
+    process.env.DHOW_OCR_BIN = bundledOcr;
+  }
+}
+if (!process.env.DHOW_TESSERACT_LANG) {
+  const bundledTess = path.join(__dirname, "..", "tesseract-langs");
+  if (existsSync(bundledTess)) {
+    process.env.DHOW_TESSERACT_LANG = bundledTess;
+  }
+}
 
 // fs.watch failures (EMFILE fd exhaustion, ENOSPC watch limits) surface as
 // uncaught exceptions from Node's watcher internals, bypassing chokidar's
@@ -511,6 +543,10 @@ app.whenReady().then(async () => {
 
   registerBrowserControlService(new ElectronBrowserControlService());
   registerNotificationService(new ElectronNotificationService(APP_LAUNCHED_AT));
+
+  // Data Mode encryption key must be ready before any IPC handler can touch
+  // the engine. safeStorage is async and only available after app ready.
+  await initDataModeKey();
 
   setupIpcHandlers();
   setupBrowserEventForwarding();

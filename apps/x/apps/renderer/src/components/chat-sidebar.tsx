@@ -20,6 +20,7 @@ import {
 import { TurnActivityIndicator } from '@/components/turn-activity-indicator'
 import { Tool, ToolContent, ToolGroupComponent, ToolHeader, ToolTabbedContent } from '@/components/ai-elements/tool'
 import { WebSearchResult } from '@/components/ai-elements/web-search-result'
+import { DataImportResult, DataProvenanceResult } from '@/components/ai-elements/data-tool-result'
 import { ComposioConnectCard } from '@/components/ai-elements/composio-connect-card'
 import { PermissionRequest } from '@/components/ai-elements/permission-request'
 import { AutoPermissionDecision } from '@/components/ai-elements/auto-permission-decision'
@@ -45,6 +46,8 @@ import {
   createEmptyChatTabViewState,
   getWebSearchCardData,
   getComposioConnectCardData,
+  getDataImportCardData,
+  getDataProvenanceCardData,
   getToolDisplayName,
   getToolErrorText,
   groupConversationItems,
@@ -450,6 +453,26 @@ export function ChatSidebar({
             results={webSearchData.results}
             status={item.status}
             title={webSearchData.title}
+          />
+        )
+      }
+      const dataImportData = getDataImportCardData(item)
+      if (dataImportData) {
+        return (
+          <DataImportResult
+            key={item.id}
+            data={dataImportData}
+            status={item.status}
+          />
+        )
+      }
+      const dataProvenanceData = getDataProvenanceCardData(item)
+      if (dataProvenanceData) {
+        return (
+          <DataProvenanceResult
+            key={item.id}
+            data={dataProvenanceData}
+            status={item.status}
           />
         )
       }

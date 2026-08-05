@@ -2,9 +2,18 @@
 .env
 .vscode/
 data/
+# ...but bare `data/` is far too broad: it silently swallowed
+# apps/x/packages/core/src/data/, which is source code, not a data directory.
+!apps/x/packages/core/src/data/
 .venv/
 .claude/
 
 # Local-only meeting-prep planning doc
 /PLAN.md
+
+# tesseract.js's own default cache falls back to writing an uncompressed
+# eng.traineddata into CWD when a manual/dev invocation omits DHOW_TESSERACT_LANG.
+# Shipped code never does this (resolveTesseractLangPath always supplies a
+# path); this only guards against stray artifacts from ad-hoc local testing.
+*.traineddata
 dist/

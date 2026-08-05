@@ -204,6 +204,57 @@ export const getWebSearchCardData = (tool: ToolCall): WebSearchCardData | null =
   return null
 }
 
+export type DataImportColumn = { name: string; type: string; sample?: string }
+
+export type DataImportProfile = {
+  table: string
+  sheet?: string
+  rowCount: number
+  sourcePath?: string
+  columns?: DataImportColumn[]
+  notes?: string[]
+}
+
+export type DataImportCardData = {
+  imported: DataImportProfile[]
+  skipped: { sheet?: string; reason: string }[]
+}
+
+export const getDataImportCardData = (tool: ToolCall): DataImportCardData | null => {
+  if (tool.name !== 'data-import') return null
+  const result = tool.result as Record<string, unknown> | undefined
+  if (!result || result.success !== true) return null
+  return {
+    imported: (result.imported as DataImportProfile[] | undefined) ?? [],
+    skipped: (result.skipped as DataImportCardData['skipped'] | undefined) ?? [],
+  }
+}
+
+export type DataProvenanceCardData = {
+  sql?: string
+  rowCount?: number
+  truncated?: boolean
+  elapsedMs?: number
+  provenance?: string
+  attempts?: number
+  error?: string
+}
+
+export const getDataProvenanceCardData = (tool: ToolCall): DataProvenanceCardData | null => {
+  if (tool.name !== 'data-ask' && tool.name !== 'data-sql') return null
+  const result = tool.result as Record<string, unknown> | undefined
+  if (!result) return null
+  return {
+    sql: (result.sql as string | undefined) ?? (result.lastSql as string | undefined),
+    rowCount: (result.rowCount as number | undefined),
+    truncated: (result.truncated as boolean | undefined),
+    elapsedMs: (result.elapsedMs as number | undefined),
+    provenance: (result.provenance as string | undefined),
+    attempts: (result.attempts as number | undefined),
+    error: (result.error as string | undefined),
+  }
+}
+
 // App navigation action card data
 export type AppActionCardData = {
   action: string
@@ -609,6 +660,11 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   'composio-search-tools': 'Searching tools',
   'composio-execute-tool': 'Running tool',
   'composio-connect-toolkit': 'Connecting service',
+  'data-import': 'Importing data',
+  'data-listTables': 'Listing data tables',
+  'data-ask': 'Querying data',
+  'data-sql': 'Running SQL',
+  'data-forget': 'Removing data table',
 }
 
 /**
@@ -705,6 +761,8 @@ const isPlainToolCall = (item: ConversationItem): item is ToolCall => {
   if (getWebSearchCardData(item)) return false
   if (getComposioConnectCardData(item)) return false
   if (getAppActionCardData(item)) return false
+  if (getDataImportCardData(item)) return false
+  if (getDataProvenanceCardData(item)) return false
   return true
 }
 

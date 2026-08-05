@@ -4,6 +4,7 @@ import fsp from 'fs/promises';
 import readline from 'readline';
 import { execFile } from 'child_process';
 import { WorkDir } from '../config/config.js';
+import { openIndex } from './fts-index.js';
 
 interface SearchResult {
   type: 'knowledge' | 'chat';
@@ -56,9 +57,51 @@ export async function search(
 }
 
 /**
- * Search knowledge markdown files by content and filename.
+ * Search knowledge markdown files.
+ *
+ * Ranked FTS5 index first (see fts-index.ts). The old grep path is kept as a
+ * fallback, not out of nostalgia: node:sqlite is still flagged experimental,
+ * and an unwritable WorkDir or a corrupt index must degrade search rather
+ * than remove it.
  */
 async function searchKnowledge(query: string, limit: number): Promise<SearchResult[]> {
+    if (!fs.existsSync(KNOWLEDGE_DIR)) {
+        return [];
+    }
+
+    const index = openIndex();
+    if (index) {
+        try {
+            // Cheap when nothing changed: mtime is checked before any hash.
+            await index.syncDir(KNOWLEDGE_DIR);
+            const hits = index.search(query, limit);
+            if (hits.length > 0) {
+                return hits.map((hit) => ({
+                    type: 'knowledge' as const,
+                    title: hit.title,
+                    preview: hit.snippet.substring(0, 150),
+                    path: path.relative(WorkDir, hit.path),
+                }));
+            }
+            // A genuinely empty result is still authoritative; only fall
+            // through to grep when the index itself failed above.
+            return [];
+        } catch (err) {
+            console.warn(
+                '[search] knowledge index failed, falling back to grep:',
+                err instanceof Error ? err.message : String(err),
+            );
+        }
+    }
+
+    return searchKnowledgeByGrep(query, limit);
+}
+
+/**
+ * Pre-index knowledge search: `grep -ril` plus a filename scan, unranked.
+ * Retained as the fallback path for searchKnowledge.
+ */
+async function searchKnowledgeByGrep(query: string, limit: number): Promise<SearchResult[]> {
   if (!fs.existsSync(KNOWLEDGE_DIR)) {
     return [];
   }

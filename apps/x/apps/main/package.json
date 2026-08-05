@@ -15,6 +15,7 @@
     "dependencies": {
         "@agentclientprotocol/claude-agent-acp": "^0.55.0",
         "@agentclientprotocol/codex-acp": "^1.1.0",
+        "@duckdb/node-api": "1.5.5-r.3",
         "@x/core": "workspace:*",
         "@x/shared": "workspace:*",
         "agent-slack": "0.9.3",

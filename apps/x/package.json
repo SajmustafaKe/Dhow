@@ -20,7 +20,8 @@
     "typecheck": "npm run shared && npm run typecheck:shared && npm run typecheck:core && npm run typecheck:renderer",
     "typecheck:shared": "cd packages/shared && npm run typecheck",
     "typecheck:core": "cd packages/core && npm run typecheck",
-    "typecheck:renderer": "cd apps/renderer && npm run typecheck"
+    "typecheck:renderer": "cd apps/renderer && npm run typecheck",
+    "smoke:data-mode": "ELECTRON_RUN_AS_NODE=1 node_modules/.pnpm/electron@39.2.7/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron scripts/smoke-data-mode.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

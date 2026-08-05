@@ -5,19 +5,35 @@
 import { z } from "zod";
 import * as path from "path";
 import * as files from "../../../filesystem/files.js";
-import { generateText } from "ai";
-import { createLanguageModel } from "../../../models/models.js";
-import { getDefaultModelAndProvider, resolveProviderConfig } from "../../../models/defaults.js";
-import { getCurrentUseCase, withUseCase } from "../../../analytics/use_case.js";
 import { BuiltinToolsSchema } from "../types.js";
+import { capLines, capRows, TABULAR_HINT } from "./parsing-caps.js";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
+import mammoth from "mammoth";
 
 
 
-// Parser libraries are loaded dynamically inside parseFile.execute()
-// to avoid pulling pdfjs-dist's DOM polyfills into the main bundle.
-// Import paths are computed so esbuild cannot statically resolve them.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _importDynamic = new Function('mod', 'return import(mod)') as (mod: string) => Promise<any>;
+// pdf-parse ALONE is loaded through a computed path, so esbuild cannot pull
+// pdfjs-dist's DOM polyfills into the main bundle.
+//
+// papaparse, xlsx and mammoth used to go the same way, and that was a bug:
+// forge.config.cjs strips /^\/node_modules\// from the packaged app, bundle.mjs
+// stages only the native modules, and a dynamic import esbuild cannot resolve
+// is not inlined either. So in a packaged build those three simply were not
+// there and every CSV, spreadsheet and Word drop failed with "Cannot find
+// module". They are pure JS with no polyfill problem, so they are static now
+// and get inlined. pdf-parse keeps the trick and is staged by bundle.mjs.
+const _importDynamic = new Function('mod', 'return import(mod)') as (
+    mod: string,
+) => Promise<unknown>;
+
+type PdfParseModule = {
+    PDFParse: new (opts: { data: Uint8Array }) => {
+        getText(): Promise<{ text: string; total: number }>;
+        getInfo(): Promise<{ info?: { Title?: string; Author?: string } }>;
+        destroy(): Promise<void>;
+    };
+};
 
 const LLMPARSE_MIME_TYPES: Record<string, string> = {
     '.pdf': 'application/pdf',
@@ -38,8 +54,6 @@ const LLMPARSE_MIME_TYPES: Record<string, string> = {
     '.bmp': 'image/bmp',
     '.tiff': 'image/tiff',
 };
-
-
 
 export const parsingTools: z.infer<typeof BuiltinToolsSchema> = {
     'parseFile': {
@@ -64,7 +78,7 @@ export const parsingTools: z.infer<typeof BuiltinToolsSchema> = {
                 const { buffer, resolvedPath } = await files.readBuffer(filePath);
 
                 if (ext === '.pdf') {
-                    const { PDFParse } = await _importDynamic("pdf-parse");
+                    const { PDFParse } = (await _importDynamic("pdf-parse")) as PdfParseModule;
                     const parser = new PDFParse({ data: new Uint8Array(buffer) });
                     try {
                         const textResult = await parser.getText();
@@ -87,45 +101,56 @@ export const parsingTools: z.infer<typeof BuiltinToolsSchema> = {
                 }
 
                 if (ext === '.xlsx' || ext === '.xls') {
-                    const XLSX = await _importDynamic("xlsx");
                     const workbook = XLSX.read(buffer, { type: 'buffer' });
                     const sheets: Record<string, string> = {};
+                    let anyTruncated = false;
                     for (const sheetName of workbook.SheetNames) {
                         const sheet = workbook.Sheets[sheetName];
-                        sheets[sheetName] = XLSX.utils.sheet_to_csv(sheet);
+                        const csv = XLSX.utils.sheet_to_csv(sheet);
+                        const capped = capLines(csv);
+                        if (capped.truncated) anyTruncated = true;
+                        sheets[sheetName] = capped.text;
                     }
+                    const joined = capLines(Object.values(sheets).join('\n\n'));
                     return {
                         success: true,
                         fileName,
                         format: ext === '.xlsx' ? 'xlsx' : 'xls',
-                        content: Object.values(sheets).join('\n\n'),
+                        content: joined.text,
                         metadata: {
                             sheetNames: workbook.SheetNames,
                             sheetCount: workbook.SheetNames.length,
                         },
                         sheets,
+                        ...(anyTruncated || joined.truncated
+                            ? { truncated: true, hint: TABULAR_HINT }
+                            : {}),
                     };
                 }
 
                 if (ext === '.csv') {
-                    const Papa = (await _importDynamic("papaparse")).default;
                     const text = buffer.toString('utf8');
                     const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+                    const cappedRows = capRows(parsed.data);
+                    const capped = capLines(text);
+                    const truncated = cappedRows.truncated || capped.truncated;
                     return {
                         success: true,
                         fileName,
                         format: 'csv',
-                        content: text,
+                        content: capped.text,
                         metadata: {
-                            rowCount: parsed.data.length,
+                            rowCount: cappedRows.totalRows,
                             headers: parsed.meta.fields || [],
                         },
-                        data: parsed.data,
+                        data: cappedRows.rows,
+                        ...(truncated
+                            ? { truncated: true, totalRows: cappedRows.totalRows, hint: TABULAR_HINT }
+                            : {}),
                     };
                 }
 
                 if (ext === '.docx') {
-                    const mammoth = (await _importDynamic("mammoth")).default;
                     const docResult = await mammoth.extractRawText({ buffer });
                     return {
                         success: true,
@@ -154,6 +179,20 @@ export const parsingTools: z.infer<typeof BuiltinToolsSchema> = {
         }),
         execute: async ({ path: filePath, prompt }: { path: string; prompt?: string }) => {
             try {
+                // Imported lazily: models/defaults.js pulls in the DI container,
+                // which transitively reaches this catalog. Importing it at module
+                // scope makes parsing.ts un-importable on its own ("Cannot access
+                // 'parsingTools' before initialization") and blocks it under a
+                // test runner. Only LLMParse needs the provider stack.
+                const { generateText } = await import("ai");
+                const { createLanguageModel } = await import("../../../models/models.js");
+                const { getDefaultModelAndProvider, resolveProviderConfig } = await import(
+                    "../../../models/defaults.js"
+                );
+                const { getCurrentUseCase, withUseCase } = await import(
+                    "../../../analytics/use_case.js"
+                );
+
                 const fileName = path.basename(filePath);
                 const ext = path.extname(filePath).toLowerCase();
                 const mimeType = LLMPARSE_MIME_TYPES[ext];

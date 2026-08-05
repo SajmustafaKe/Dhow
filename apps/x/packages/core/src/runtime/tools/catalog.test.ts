@@ -202,6 +202,13 @@ const HISTORICAL_KEY_ORDER = [
     "run-background-task-agent",
     "launch-code-task",
     "notify-user",
+    // Data Mode appends here, after every historical key, so no existing
+    // position moves and the cached prompt prefix stays byte-stable.
+    "data-import",
+    "data-listTables",
+    "data-ask",
+    "data-sql",
+    "data-forget",
     "spawn-agent",
 ];
 
@@ -242,6 +249,13 @@ describe("BuiltinTools permission audit", () => {
             // Arbitrary outbound HTTP with a model-supplied URL, method and body
             // is a data-egress primitive; it shipped as "none".
             "fetch-url": "prompt",
+            // Data Mode. Importing reads a user file, so it is boundary-gated.
+            // Forgetting drops a table irreversibly, so it prompts. The three
+            // read paths stay "none": every statement is AST-gated to a single
+            // SELECT and runs on a READ_ONLY, network-disabled, config-locked
+            // instance holding only data the user already imported.
+            "data-import": "file-boundary",
+            "data-forget": "prompt",
         });
     });
 });

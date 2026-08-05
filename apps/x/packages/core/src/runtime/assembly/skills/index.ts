@@ -30,6 +30,7 @@ import notifyUserSkill from "./notify-user/skill.js";
 import appsSkill from "./apps/skill.js";
 import slackSkill from "./slack/skill.js";
 import chartsSkill from "./charts/skill.js";
+import dataAnalysisSkill from "./data-analysis/skill.js";
 
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CATALOG_PREFIX = "src/runtime/assembly/skills";
@@ -83,6 +84,13 @@ const definitions: SkillDefinition[] = [
     title: "Charts",
     summary: "Render interactive charts (line, bar, pie) inline in the chat reply. Use when the user asks for a chart/graph/visualization or when gathered data is clearer as a picture.",
     content: chartsSkill,
+  },
+  {
+    id: "data-analysis",
+    title: "Data Analysis",
+    summary: "Import spreadsheets and CSVs into a queryable store and answer questions about them with SQL, charts and auditable provenance. Use when the user drops tabular data or asks for totals, breakdowns, trends or comparisons over a file.",
+    content: dataAnalysisSkill,
+    tools: ["data-import", "data-listTables", "data-ask", "data-sql", "data-forget"],
   },
   {
     id: "organize-files",

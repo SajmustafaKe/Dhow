@@ -10,11 +10,12 @@ import { Conversation, ConversationContent, ConversationScrollButton } from '@/c
 import { MessageResponse } from '@/components/ai-elements/message'
 import { Shimmer } from '@/components/ai-elements/shimmer'
 import { Tool, ToolContent, ToolHeader } from '@/components/ai-elements/tool'
-import { toToolState, getToolDisplayName, getToolErrorText, getWebSearchCardData, type ToolCall } from '@/lib/chat-conversation'
+import { toToolState, getToolDisplayName, getToolErrorText, getWebSearchCardData, getDataImportCardData, getDataProvenanceCardData, type ToolCall } from '@/lib/chat-conversation'
 import { CodeRunPermissionRequest, CodingRunTimeline } from '@/components/coding-run'
 import { PermissionRequest } from '@/components/ai-elements/permission-request'
 import { AskHumanRequest } from '@/components/ai-elements/ask-human-request'
 import { WebSearchResult } from '@/components/ai-elements/web-search-result'
+import { DataImportResult, DataProvenanceResult } from '@/components/ai-elements/data-tool-result'
 import { useVoiceMode } from '@/hooks/useVoiceMode'
 import { useCodeChat, isDirectTurn, isChatToolCall, isChatErrorMessage, type CodeChatItem } from './use-code-chat'
 
@@ -76,6 +77,14 @@ function DhowToolCall({ item, onOpenDiff }: { item: ToolCall; onOpenDiff: (path:
         title={webSearch.title}
       />
     )
+  }
+  const dataImport = getDataImportCardData(item)
+  if (dataImport) {
+    return <DataImportResult data={dataImport} status={item.status} />
+  }
+  const dataProvenance = getDataProvenanceCardData(item)
+  if (dataProvenance) {
+    return <DataProvenanceResult data={dataProvenance} status={item.status} />
   }
   if (item.name === 'code_agent_run') {
     const agent = (item.result as { agent?: string } | undefined)?.agent

@@ -22,6 +22,7 @@ import { modelTools } from "./domains/models.js";
 import { liveNoteTools } from "./domains/live-note.js";
 import { backgroundTaskTools } from "./domains/background-tasks.js";
 import { notificationTools } from "./domains/notifications.js";
+import { dataTools } from "./domains/data.js";
 import { BuiltinToolsSchema } from "./types.js";
 export { coalesceCodeRunEvents } from "./domains/code.js";
 
@@ -94,6 +95,11 @@ export const BuiltinTools: z.infer<typeof BuiltinToolsSchema> = {
     ...backgroundTaskTools,
     ...codeTaskTools,
     ...notificationTools,
+    // Appended LAST on purpose: catalog key order is provider-payload bytes
+    // inside the cached prompt prefix, and the key-order test pins the
+    // historical order. Adding at the end leaves every existing key's
+    // position untouched.
+    ...dataTools,
 
     [SPAWN_AGENT_TOOL_NAME]: {
         permission: "none",
