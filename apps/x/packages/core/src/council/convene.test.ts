@@ -23,6 +23,15 @@ let positionsByMember: Record<string, unknown | null>;
 let synthesisResult: unknown | null;
 /** Second-round answer for every member; `null` makes each rebuttal throw. */
 let rebuttalResult: unknown | null;
+/** Every runHeadlessAgent call, in order — the research phase's own record. */
+let researchCalls: { name: string; instructions: string; tools: string[]; maxModelCalls?: number; message: string }[];
+/**
+ * Per-member override for the research mock, keyed by member id (the inline
+ * agent's `name`). Absent = a normal completed run with a stub summary.
+ * `null` = the research turn throws. `"incomplete"` = it resolves without
+ * completing (e.g. cancelled), which must degrade the same way a throw does.
+ */
+let researchByMember: Record<string, string | null | "incomplete" | undefined>;
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "dhow-convene-test-"));
@@ -31,6 +40,8 @@ beforeEach(async () => {
   positionsByMember = {};
   synthesisResult = null;
   rebuttalResult = null;
+  researchCalls = [];
+  researchByMember = {};
   vi.resetModules();
 
   vi.doMock("../knowledge/version_history.js", () => ({
@@ -68,6 +79,32 @@ beforeEach(async () => {
       return { object: result };
     }),
   }));
+  vi.doMock("../runtime/assembly/headless-app.js", () => ({
+    runHeadlessAgent: vi.fn(async (opts: {
+      agent: { inline: { name: string; instructions: string; tools?: string[] } };
+      message: string;
+      maxModelCalls?: number;
+    }) => {
+      const { name, instructions, tools } = opts.agent.inline;
+      researchCalls.push({ name, instructions, tools: tools ?? [], maxModelCalls: opts.maxModelCalls, message: opts.message });
+      const configured = researchByMember[name];
+      if (configured === null) throw new Error(`research turn failed for ${name}`);
+      if (configured === "incomplete") {
+        return {
+          outcome: { status: "failed", error: "boom", code: undefined, usage: {} },
+          state: {},
+          summary: "discard me — turn did not complete",
+          turnId: `t-${name}`,
+        };
+      }
+      return {
+        outcome: { status: "completed", output: {}, finishReason: "stop", usage: {} },
+        state: {},
+        summary: configured ?? `${name} found nothing that changes the read.`,
+        turnId: `t-${name}`,
+      };
+    }),
+  }));
 });
 
 afterEach(async () => {
@@ -103,6 +140,50 @@ const SYNTHESIS = {
 function allMembersAnswer() {
   for (const id of Object.keys(TITLES)) positionsByMember[id] = position(`${id} says go`);
   synthesisResult = SYNTHESIS;
+}
+
+/** A minimal, fully-formed member fixture for tests that need explicit control over `tools`/`maxModelCalls`. */
+interface TestMember {
+  id: string;
+  title: string;
+  mission: string;
+  owns: string[];
+  decidesAlone: string[];
+  escalates: string[];
+  outputContract: string[];
+  enabled: boolean;
+  builtin: boolean;
+  group: "custom";
+  order: number;
+  tools: string[];
+  maxModelCalls: number;
+}
+
+function makeMember(id: string, tools: string[], maxModelCalls = 12): TestMember {
+  return {
+    id,
+    title: id,
+    mission: `${id} mission`,
+    owns: [],
+    decidesAlone: [],
+    escalates: [],
+    outputContract: [],
+    enabled: true,
+    builtin: false,
+    group: "custom",
+    order: 0,
+    tools,
+    maxModelCalls,
+  };
+}
+
+/** Points `./store.js` at an explicit member list instead of the real seeded charters. */
+function mockMembers(members: TestMember[]) {
+  vi.doMock("./store.js", () => ({
+    listMembers: () => members,
+    newSessionId: () => "test-session",
+    saveSession: vi.fn(),
+  }));
 }
 
 describe("convene", { timeout: TIMEOUT }, () => {
@@ -306,5 +387,107 @@ describe("convene — attached documents", { timeout: TIMEOUT }, () => {
 
     const call = calls.find((c) => !c.system?.includes("Chief of Staff"))!;
     expect(call.prompt).toContain("long.md (truncated)");
+  });
+});
+
+describe("convene — research phase for tool-granted members", { timeout: TIMEOUT }, () => {
+  // Only this block swaps out ./store.js, and only ever within it — declared
+  // last in the file so no earlier test can inherit a stale mock, and
+  // unmocked afterwards so nothing after it could either.
+  afterEach(() => {
+    vi.doUnmock("./store.js");
+  });
+
+  it("researches before positioning a tool-granted member, and skips it entirely for one with no tools", async () => {
+    mockMembers([makeMember("researcher", ["files", "web"], 7), makeMember("oracle", [])]);
+    positionsByMember.researcher = position("researcher says proceed");
+    positionsByMember.oracle = position("oracle says proceed");
+    synthesisResult = SYNTHESIS;
+    const { convene } = await import("./convene.js");
+
+    await convene({ question: "Ship on Friday?" });
+
+    // Only the tool-granted member's research turn ran, with its own
+    // charter's tools and budget.
+    expect(researchCalls.map((c) => c.name)).toEqual(["researcher"]);
+    expect(researchCalls[0].tools).toEqual(["files", "web"]);
+    expect(researchCalls[0].maxModelCalls).toBe(7);
+    expect(researchCalls[0].message).toContain("Ship on Friday?");
+    expect(researchCalls[0].instructions).toMatch(/research pass/i);
+
+    // Its findings reach the structured position call as context.
+    const researcherCall = calls.find((c) => c.system?.includes("researcher"))!;
+    expect(researcherCall.prompt).toBe(
+      "The principal asks: Ship on Friday?\n\nYour own research before answering:\nresearcher found nothing that changes the read.",
+    );
+
+    // The empty-tools member's position call is exactly today's shape.
+    const oracleCall = calls.find((c) => c.system?.includes("oracle"))!;
+    expect(oracleCall.prompt).toBe("The principal asks: Ship on Friday?");
+  });
+
+  it("clamps a member's requested budget to the app-wide model-call limit, never raises it", async () => {
+    mockMembers([makeMember("researcher", ["files"], 999)]);
+    positionsByMember.researcher = position("researcher says proceed");
+    synthesisResult = SYNTHESIS;
+    const { convene } = await import("./convene.js");
+
+    await convene({ question: "Ship on Friday?" });
+
+    // No turn_limits.json exists in the test workdir, so the app-wide
+    // default (50) applies; a charter asking for more is a request, not a
+    // grant, and must be capped rather than forwarded as-is.
+    expect(researchCalls[0].maxModelCalls).toBe(50);
+  });
+
+  it("still produces a position when the research phase throws — a broken tool never costs the seat", async () => {
+    mockMembers([makeMember("researcher", ["files", "web"])]);
+    researchByMember.researcher = null; // throws
+    positionsByMember.researcher = position("researcher says proceed anyway");
+    synthesisResult = SYNTHESIS;
+    const { convene } = await import("./convene.js");
+
+    const session = await convene({ question: "Ship on Friday?" });
+
+    expect(researchCalls).toHaveLength(1); // the research turn really ran, and really failed
+    const entry = session.positions.find((p) => p.memberId === "researcher")!;
+    expect(entry.error).toBeNull();
+    expect(entry.position?.position).toBe("researcher says proceed anyway");
+    // The failure must not leak a findings section into the position prompt.
+    const call = calls.find((c) => c.system?.includes("researcher"))!;
+    expect(call.prompt).toBe("The principal asks: Ship on Friday?");
+  });
+
+  it("still produces a position when the research turn resolves without completing, discarding any partial summary", async () => {
+    mockMembers([makeMember("researcher", ["files", "web"])]);
+    researchByMember.researcher = "incomplete"; // resolves, but status !== "completed"
+    positionsByMember.researcher = position("researcher says proceed anyway");
+    synthesisResult = SYNTHESIS;
+    const { convene } = await import("./convene.js");
+
+    const session = await convene({ question: "Ship on Friday?" });
+
+    const entry = session.positions.find((p) => p.memberId === "researcher")!;
+    expect(entry.error).toBeNull();
+    expect(entry.position?.position).toBe("researcher says proceed anyway");
+    const call = calls.find((c) => c.system?.includes("researcher"))!;
+    expect(call.prompt).toBe("The principal asks: Ship on Friday?");
+    expect(call.prompt).not.toContain("discard me");
+  });
+
+  it("never grants the synthesiser a research phase, even when every answering member has one", async () => {
+    mockMembers([makeMember("researcher", ["files", "web"]), makeMember("analyst2", ["files", "web", "parsing"])]);
+    positionsByMember.researcher = position("researcher says proceed");
+    positionsByMember.analyst2 = position("analyst2 says proceed");
+    synthesisResult = SYNTHESIS;
+    const { convene } = await import("./convene.js");
+
+    await convene({ question: "Ship on Friday?" });
+
+    // Exactly one research turn per tool-granted member, never one more for
+    // the synthesiser — a synthesis-side research phase would show up here
+    // as a third call, keyed by the Chief of Staff's id.
+    expect(researchCalls).toHaveLength(2);
+    expect(researchCalls.map((c) => c.name).sort()).toEqual(["analyst2", "researcher"]);
   });
 });

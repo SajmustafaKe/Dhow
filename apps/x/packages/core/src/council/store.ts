@@ -87,6 +87,12 @@ function memberToMarkdown(member: CouncilMember): string {
             builtin: member.builtin,
             group: member.group,
             order: member.order,
+            // Granted tool domains and the model-call ceiling live in
+            // frontmatter, not prose — they are config, not charter, and the
+            // principal edits them from the members editor rather than by
+            // hand-typing a bullet list.
+            tools: member.tools,
+            maxModelCalls: member.maxModelCalls,
         },
         [
             `# ${member.title}\n`,
@@ -135,6 +141,8 @@ function memberFromMarkdown(content: string): CouncilMember | null {
         builtin: data.builtin ?? false,
         group: data.group ?? 'custom',
         order: data.order ?? 100,
+        tools: data.tools ?? [],
+        maxModelCalls: data.maxModelCalls ?? 12,
     });
     return parsed.success ? parsed.data : null;
 }

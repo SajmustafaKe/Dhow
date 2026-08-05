@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Users, ListTodo, AlertTriangle, Plus, Check, X, Paperclip, MessagesSquare, Landmark, Send } from "lucide-react"
+import { Loader2, Users, ListTodo, AlertTriangle, Plus, Check, X, Paperclip, MessagesSquare, Landmark, Send, Pencil, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -174,7 +174,7 @@ export function CouncilView({ knowledgeFiles, recentFiles, visibleFiles }: Counc
             onChanged={loadAll}
           />
         )}
-        {tab === "members" && <MembersTab members={members} />}
+        {tab === "members" && <MembersTab members={members} onChanged={loadAll} />}
       </div>
 
       {/* Docked, not scrolled with the transcript — the same shape as chat and
@@ -653,27 +653,188 @@ function AssignmentsTab({
   )
 }
 
-function MembersTab({ members }: { members: CouncilMember[] }) {
+/**
+ * The read-ish domains a principal may grant from this editor. Deliberately
+ * short of the full tool surface — no `shell`, `code`, `composio`,
+ * `notifications`, `background-tasks`. Main's charter table (charters.ts)
+ * records why: a council member advises, it does not act, and a seat that
+ * could quietly send mail or run a command is a different product. `mcp` is
+ * left off too, but for a different reason — mcp.json ships with zero
+ * servers configured, so granting it today would be an option that visibly
+ * does nothing. It reappears here once a server exists to grant it to.
+ */
+const GRANTABLE_TOOL_DOMAINS: { id: string; label: string }[] = [
+  { id: "files", label: "Files" },
+  { id: "web", label: "Web" },
+  { id: "parsing", label: "Parsing" },
+  { id: "browser", label: "Browser" },
+  { id: "memory", label: "Memory" },
+  { id: "live-note", label: "Live notes" },
+  { id: "app", label: "App" },
+  { id: "models", label: "Models" },
+  { id: "agent-analysis", label: "Agent analysis" },
+]
+
+const TOOL_DOMAIN_LABELS: Record<string, string> = Object.fromEntries(
+  GRANTABLE_TOOL_DOMAINS.map((d) => [d.id, d.label]),
+)
+
+function MembersTab({ members, onChanged }: { members: CouncilMember[]; onChanged: () => Promise<void> }) {
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [draftTools, setDraftTools] = useState<string[]>([])
+  const [draftMaxCalls, setDraftMaxCalls] = useState(12)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const startEdit = (m: CouncilMember) => {
+    setEditingId(m.id)
+    // Copy, don't reset — a domain granted by hand-editing the Markdown
+    // (say `mcp`, or something outside the offered set entirely) survives
+    // an edit here untouched. This picker only ever adds or removes from
+    // the read-ish set; it never silently drops what it doesn't understand.
+    setDraftTools([...m.tools])
+    setDraftMaxCalls(m.maxModelCalls)
+    setError(null)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setError(null)
+  }
+
+  const toggleDomain = (id: string) =>
+    setDraftTools((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+
+  const save = async (m: CouncilMember) => {
+    setSaving(true)
+    setError(null)
+    const res = await window.ipc.invoke("council:saveMember", {
+      member: { ...m, tools: draftTools, maxModelCalls: draftMaxCalls },
+    })
+    setSaving(false)
+    if (!res.ok) { setError("Could not save the grant."); return }
+    setEditingId(null)
+    await onChanged()
+  }
+
   return (
     <div className="flex flex-col gap-3 max-w-3xl">
       <p className="text-sm text-muted-foreground">
         Charters live as Markdown in <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">~/.dhow/council/members/</code> — edit
-        them there and they take effect on the next question.
+        them there for mission and remit. Tool grants and the call ceiling live in the same file and can be edited below.
       </p>
-      {members.map((m) => (
-        <div key={m.id} className="rounded-md border p-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium">{m.title}</span>
-            {!m.enabled && <span className="text-xs text-muted-foreground">Stood down</span>}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{m.mission}</p>
-          {m.owns.length > 0 && (
-            <div className="mt-2 text-xs text-muted-foreground">
-              <span className="font-medium">Owns:</span> {m.owns.join(" · ")}
+      {members.map((m) => {
+        const editing = editingId === m.id
+        // Anything already granted outside the offered set — a hand-edited
+        // `mcp`, or a domain this picker deliberately excludes — stays
+        // visible rather than vanishing into the toggle row.
+        const extraTools = draftTools.filter((t) => !TOOL_DOMAIN_LABELS[t])
+        return (
+          <div key={m.id} className="rounded-md border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">{m.title}</span>
+              <div className="flex items-center gap-2">
+                {!m.enabled && <span className="text-xs text-muted-foreground">Stood down</span>}
+                {!editing && (
+                  <Button variant="ghost" size="sm" onClick={() => startEdit(m)}>
+                    <Pencil className="size-3.5" />
+                    Edit grant
+                  </Button>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      ))}
+            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{m.mission}</p>
+            {m.owns.length > 0 && (
+              <div className="mt-2 text-xs text-muted-foreground">
+                <span className="font-medium">Owns:</span> {m.owns.join(" · ")}
+              </div>
+            )}
+
+            {/* No tools reads as advisory-only, on purpose — but that has to
+                be a visible statement, not a blank space the principal has
+                to interpret. */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Wrench className="size-3 text-muted-foreground shrink-0" />
+              {m.tools.length === 0 ? (
+                <span className="text-xs text-muted-foreground">Advisory only — one model call, touches nothing</span>
+              ) : (
+                <>
+                  {m.tools.map((t) => (
+                    <span key={t} className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                      {TOOL_DOMAIN_LABELS[t] ?? t}
+                    </span>
+                  ))}
+                  <span className="text-[11px] text-muted-foreground">· up to {m.maxModelCalls} model calls</span>
+                </>
+              )}
+            </div>
+
+            {editing && (
+              <div className="mt-3 flex flex-col gap-2.5 rounded-md border border-dashed p-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {GRANTABLE_TOOL_DOMAINS.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => toggleDomain(d.id)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                        draftTools.includes(d.id)
+                          ? "border-foreground bg-muted font-medium"
+                          : "text-muted-foreground hover:bg-muted/60",
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+
+                {extraTools.length > 0 && (
+                  <div className="text-[11px] text-muted-foreground">
+                    Also granted by a hand-edited charter, not offered here: {extraTools.join(", ")}
+                  </div>
+                )}
+
+                {draftTools.length > 0 && (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    Model call ceiling
+                    <Input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={draftMaxCalls}
+                      onChange={(e) => setDraftMaxCalls(
+                        Math.min(50, Math.max(1, Math.round(Number(e.target.value)) || 1)),
+                      )}
+                      className="h-7 w-16 px-2 text-xs"
+                    />
+                  </label>
+                )}
+
+                {/* The cost, honestly, in one line — not a paragraph. */}
+                <p className="text-xs text-muted-foreground">
+                  {draftTools.length === 0
+                    ? "Answers in a single model call — fast, cheap, and unable to touch anything."
+                    : `Runs as a multi-turn agent instead of a single call — slower and costlier, up to ${draftMaxCalls} model calls per question.`}
+                </p>
+
+                {error && <p className="text-xs text-destructive">{error}</p>}
+
+                <div className="flex items-center gap-2">
+                  <Button size="sm" disabled={saving} onClick={() => void save(m)}>
+                    {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+                    Save
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={saving} onClick={cancelEdit}>
+                    <X className="size-3.5" />
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

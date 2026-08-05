@@ -45,6 +45,36 @@ export const CouncilMemberSchema = z.object({
     group: z.enum(['core', 'csuite', 'custom']).default('custom'),
     /** Display order within a roster; the cabinet reads better in rank order. */
     order: z.number().default(100),
+    /**
+     * Builtin tool domains this member may use, by name — `files`, `web`,
+     * `parsing`, and so on. Names are validated at run time against the tool
+     * registry, not here, because the registry is a core concern and this
+     * schema is shared with the renderer.
+     *
+     * EMPTY IS NOT A DEGRADED STATE, IT IS THE OTHER MODE. A member with no
+     * tools answers in a single model call — bounded, fast, and unable to
+     * touch anything. A member with tools runs as a headless agent: a
+     * multi-turn loop that costs more, takes longer, and has a real
+     * permission surface. Neither is the "right" default for every seat, so
+     * the roster in charters.ts sets this per member and the principal can
+     * override it.
+     *
+     * Note what is deliberately absent from the shipped allowlists: `shell`,
+     * `code`, `notifications`, `background-tasks`, `composio`. A council
+     * member is asked to advise, not to act. Read the contract, look it up,
+     * hand back a position — nothing here should send mail or run a command
+     * on the principal's behalf without them asking for that specifically.
+     */
+    tools: z.array(z.string()).default([]),
+    /**
+     * Ceiling on model calls when this member runs with tools.
+     *
+     * Only consulted on the tool-using path; a prompt-only member is one call
+     * by construction. Treated as a request, not a grant — the runtime caps
+     * it against the app-wide limit the same way spawn-agent does, so a
+     * charter can ask for less budget than the setting allows but never more.
+     */
+    maxModelCalls: z.number().int().min(1).max(50).default(12),
 });
 export type CouncilMember = z.infer<typeof CouncilMemberSchema>;
 

@@ -71,6 +71,39 @@ describe("council members", { timeout: TIMEOUT }, () => {
 
     expect(listMembers().find((m) => m.id === "analyst")?.enabled).toBe(false);
   });
+
+  // The bug this guards against: memberToMarkdown/memberFromMarkdown built
+  // their frontmatter object field-by-field and simply never mentioned
+  // tools/maxModelCalls, so the Zod defaults masked the drop — every save
+  // silently reverted the grant instead of erroring. Re-import the module to
+  // force a real read off disk, not an in-memory value.
+  it("round-trips a tool grant and call ceiling through the Markdown file", async () => {
+    const { listMembers, saveMember } = await import("./store.js");
+    const analyst = listMembers().find((m) => m.id === "analyst")!;
+
+    saveMember({ ...analyst, tools: ["files", "web", "browser"], maxModelCalls: 7 });
+
+    const raw = fsSync.readFileSync(path.join(tmpDir, "council", "members", "analyst.md"), "utf8");
+    expect(raw).toContain('tools: ["files","web","browser"]');
+    expect(raw).toContain('maxModelCalls: 7');
+
+    vi.resetModules();
+    const { listMembers: reread } = await import("./store.js");
+    const reloaded = reread().find((m) => m.id === "analyst");
+    expect(reloaded?.tools).toEqual(["files", "web", "browser"]);
+    expect(reloaded?.maxModelCalls).toBe(7);
+  });
+
+  it("keeps an empty tool grant empty, not defaulted back up", async () => {
+    const { listMembers, saveMember } = await import("./store.js");
+    const operator = listMembers().find((m) => m.id === "operator")!;
+
+    saveMember({ ...operator, tools: [] });
+
+    vi.resetModules();
+    const { listMembers: reread } = await import("./store.js");
+    expect(reread().find((m) => m.id === "operator")?.tools).toEqual([]);
+  });
 });
 
 describe("council sessions", { timeout: TIMEOUT }, () => {

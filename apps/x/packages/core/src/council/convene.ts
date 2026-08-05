@@ -4,6 +4,8 @@ import { createLanguageModel } from '../models/models.js';
 import { generateObjectSafe } from '../models/structured.js';
 import { getKgModel, resolveProviderConfig } from '../models/defaults.js';
 import { withUseCase } from '../analytics/use_case.js';
+import { runHeadlessAgent } from '../runtime/assembly/headless-app.js';
+import { loadTurnLimitsSettings } from '../config/turn_limits.js';
 import { SYNTHESISER } from './charters.js';
 import { listMembers, newSessionId, saveSession } from './store.js';
 import {
@@ -69,6 +71,45 @@ function attachmentBlock(attachments: CouncilAttachment[]): string {
         'Ground your answer in these documents. Quote them where it matters, and say ' +
         'plainly when the document does not settle the question.',
     ].join('\n');
+}
+
+/**
+ * Phase one for a tool-granted member (`member.tools.length > 0`): an
+ * unstructured headless turn that may read files, browse, or parse a
+ * document before the member commits to a view. Structured output and tool
+ * calls do not compose in one call, so this runs first as its own turn and
+ * the findings are folded into the position prompt as plain text context —
+ * the position call itself never changes shape, with or without tools.
+ */
+function researchInstructions(member: CouncilMember): string {
+    return [
+        memberSystemPrompt(member),
+        '',
+        'This is a research pass, not your answer. Check whatever your charter would have ' +
+        'you verify before forming a view: read a referenced document, look something up, ' +
+        'confirm a number. Do not recommend anything yet.',
+        'Finish with a short, factual summary of what you found and what you could not ' +
+        'confirm. No position and no risk assessment — that is the next step.',
+    ].join('\n');
+}
+
+function researchMessage(question: string, attachments: CouncilAttachment[]): string {
+    return [
+        `The principal asks: ${question}${attachmentBlock(attachments)}`,
+        '',
+        'Research what you need before answering. Report findings only.',
+    ].join('\n');
+}
+
+/**
+ * The position prompt every member sees, tool-granted or not. `research` is
+ * only non-null on the tool-using path — appending it here, rather than
+ * changing `PositionSchema` or the call shape, is what keeps the structured
+ * contract the same regardless of which path a member took.
+ */
+function positionPrompt(question: string, attachments: CouncilAttachment[], research: string | null): string {
+    const base = `The principal asks: ${question}${attachmentBlock(attachments)}`;
+    return research ? `${base}\n\nYour own research before answering:\n${research}` : base;
 }
 
 /**
@@ -154,7 +195,13 @@ function synthesisPrompt(question: string, positions: MemberPosition[], discusse
 async function resolveModel() {
     const { model: modelId, provider } = await getKgModel();
     const config = await resolveProviderConfig(provider);
-    return createLanguageModel(config, modelId);
+    return {
+        model: createLanguageModel(config, modelId),
+        // Passed to the research phase's inline agent so it answers on the
+        // same model the position call uses — the descriptor form headless
+        // turns take, not the resolved LanguageModel instance.
+        modelDescriptor: { model: modelId, provider },
+    };
 }
 
 export interface ConveneOptions {
@@ -180,23 +227,66 @@ export async function convene({
     const members = memberIds?.length ? all.filter((m) => memberIds.includes(m.id)) : all;
     if (members.length === 0) throw new Error('No council members are enabled.');
 
-    const model = await resolveModel();
+    const [{ model, modelDescriptor }, { maxModelCalls: globalMaxModelCalls }] = await Promise.all([
+        resolveModel(),
+        loadTurnLimitsSettings(),
+    ]);
+
+    // Tool access is additive, never load-bearing. A member with no tools
+    // takes exactly today's single call; a member with tools researches
+    // first in its own headless turn, then answers through the same
+    // `generateObjectSafe` call everyone else uses — the position call below
+    // runs the same way either way. A research turn that throws or does not
+    // complete degrades to the prompt-only path rather than costing the
+    // member its seat.
+    async function gatherResearch(member: CouncilMember): Promise<string | null> {
+        try {
+            const result = await withUseCase(
+                { useCase: 'copilot_chat', subUseCase: `council_research_${member.id}` },
+                () =>
+                    runHeadlessAgent({
+                        agent: {
+                            inline: {
+                                name: member.id,
+                                instructions: researchInstructions(member),
+                                model: modelDescriptor,
+                                tools: member.tools,
+                            },
+                        },
+                        message: researchMessage(trimmed, attachments),
+                        // A request, not a grant: never let a charter exceed
+                        // the operator's own global ceiling, only ask for less.
+                        maxModelCalls: Math.min(member.maxModelCalls, globalMaxModelCalls),
+                    }),
+            );
+            if (result.outcome.status !== 'completed') {
+                log.log(`${member.id} research did not complete (${result.outcome.status}); answering from the charter alone.`);
+                return null;
+            }
+            return result.summary;
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            log.log(`${member.id} research phase failed, answering from the charter alone: ${message}`);
+            return null;
+        }
+    }
+
+    async function memberPosition(member: CouncilMember) {
+        const research = member.tools.length > 0 ? await gatherResearch(member) : null;
+        return withUseCase({ useCase: 'copilot_chat', subUseCase: `council_position_${member.id}` }, () =>
+            generateObjectSafe({
+                model,
+                system: memberSystemPrompt(member),
+                prompt: positionPrompt(trimmed, attachments, research),
+                schema: PositionSchema,
+                retry: true,
+            }),
+        );
+    }
 
     // Isolated and concurrent. `allSettled`, not `all`: one member failing must
     // not discard the positions the others already produced.
-    const settled = await Promise.allSettled(
-        members.map((member) =>
-            withUseCase({ useCase: 'copilot_chat', subUseCase: `council_position_${member.id}` }, () =>
-                generateObjectSafe({
-                    model,
-                    system: memberSystemPrompt(member),
-                    prompt: `The principal asks: ${trimmed}${attachmentBlock(attachments)}`,
-                    schema: PositionSchema,
-                    retry: true,
-                }),
-            ),
-        ),
-    );
+    const settled = await Promise.allSettled(members.map((member) => memberPosition(member)));
 
     const positions: MemberPosition[] = members.map((member, i) => {
         const outcome = settled[i];
@@ -214,7 +304,12 @@ export async function convene({
 
     // Round two, opt-in. Only members that actually answered can respond, and
     // only when there is someone to respond to — a lone position has no
-    // discussion to join.
+    // discussion to join. No second research phase here even for
+    // tool-granted members: round one's structured position (why/risk/
+    // unknown) already carries forward what they found, and round two's job
+    // is reacting to peers, not re-gathering facts. Doubling the tool calls
+    // for a round whose whole point is a fast back-and-forth would cost more
+    // than it buys.
     if (discuss && answered.length > 1) {
         const respondents = members.filter((m) => answered.some((p) => p.memberId === m.id));
         const rebuttals = await Promise.allSettled(
@@ -248,6 +343,12 @@ export async function convene({
     if (answered.length === 0) {
         synthesisError = 'No member returned a position.';
     } else {
+        // No tools here, ever — the Chief of Staff holds no position of its
+        // own (see charters.ts: SYNTHESISER is deliberately not a
+        // CouncilMember and carries no `tools` field). Giving synthesis a
+        // research phase would let it go find its own evidence instead of
+        // reading what the council already found, turning the memo into a
+        // fifth opinion wearing a summary's clothes.
         try {
             const result = await withUseCase(
                 { useCase: 'copilot_chat', subUseCase: 'council_synthesis' },

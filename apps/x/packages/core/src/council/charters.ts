@@ -1,6 +1,18 @@
 import type { CouncilMember } from './types.js';
 
 /**
+ * A charter as written: who the member is, minus what they are allowed to
+ * touch.
+ *
+ * The two are deliberately separate. A charter is prose about judgement and
+ * survives a user rewriting it; a tool grant is a security decision that
+ * belongs in one reviewable table (TOOL_GRANTS below), not scattered across
+ * eleven personality descriptions. Splitting the type is what stops the two
+ * drifting: the literals below cannot carry a grant even by accident.
+ */
+type Charter = Omit<CouncilMember, 'tools' | 'maxModelCalls'>;
+
+/**
  * The default council.
  *
  * Deliberately small. A council of twelve produces twelve paragraphs the
@@ -11,7 +23,7 @@ import type { CouncilMember } from './types.js';
  * These ship as editable Markdown on first run — a user can rewrite any of
  * them, disable one, or add their own.
  */
-export const BUILTIN_MEMBERS: CouncilMember[] = [
+export const BUILTIN_MEMBERS: Charter[] = [
     {
         id: 'operator',
         group: 'core' as const,
@@ -110,7 +122,7 @@ export const BUILTIN_MEMBERS: CouncilMember[] = [
  * Convened as a roster rather than alongside the core four by default: eleven
  * simultaneous positions is a document, not a decision.
  */
-export const CSUITE_MEMBERS: CouncilMember[] = [
+export const CSUITE_MEMBERS: Charter[] = [
     {
         id: 'ceo',
         group: 'csuite',
@@ -250,8 +262,58 @@ export const CSUITE_MEMBERS: CouncilMember[] = [
     },
 ];
 
-/** Everything Dhow ships with. */
-export const ALL_BUILTIN_MEMBERS: CouncilMember[] = [...BUILTIN_MEMBERS, ...CSUITE_MEMBERS];
+/**
+ * Read-only research. Enough to read the thing being discussed and look up
+ * what the model does not know, and nothing else.
+ */
+const ADVISORY_TOOLS = ['files', 'web'] as const;
+
+/**
+ * Adds document parsing, for the seats that get handed a contract, a
+ * spreadsheet or a filing rather than a paragraph of context.
+ */
+const DOCUMENT_TOOLS = ['files', 'web', 'parsing'] as const;
+
+/**
+ * Per-seat tool grants. Anything absent gets ADVISORY_TOOLS.
+ *
+ * Kept as one table rather than a line on each charter so the whole grant
+ * map is readable at once — the question "who can touch what" should be
+ * answerable without scrolling through eleven prose missions.
+ *
+ * What is NOT granted anywhere is the point: no `shell`, no `code`, no
+ * `composio`, no `notifications`, no `background-tasks`. A council member
+ * advises. Acting on that advice stays with the principal, and a seat that
+ * could quietly send mail or run a command is a different product.
+ *
+ * `mcp` is also absent, and would be inert today regardless — mcp.json is
+ * `{"mcpServers": {}}`. Grant it per seat once a server is actually
+ * configured; the plumbing does not need to change for that.
+ */
+const TOOL_GRANTS: Record<string, readonly string[]> = {
+    analyst: DOCUMENT_TOOLS,
+    cfo: DOCUMENT_TOOLS,
+    clo: DOCUMENT_TOOLS,
+};
+
+/**
+ * Model-call ceiling for a tool-using seat.
+ *
+ * Twelve is enough to read a document, run a couple of searches and write a
+ * position; it is not enough to wander. Only consulted on the tool path — a
+ * prompt-only member is one call by construction — and the runtime clamps it
+ * against the app-wide limit, so this can ask for less but never more.
+ */
+const DEFAULT_MAX_MODEL_CALLS = 12;
+
+/** Everything Dhow ships with, each seat carrying its tool grant. */
+export const ALL_BUILTIN_MEMBERS: CouncilMember[] = [...BUILTIN_MEMBERS, ...CSUITE_MEMBERS].map(
+    (member) => ({
+        ...member,
+        tools: [...(TOOL_GRANTS[member.id] ?? ADVISORY_TOOLS)],
+        maxModelCalls: DEFAULT_MAX_MODEL_CALLS,
+    }),
+);
 
 /**
  * Synthesiser. Kept out of BUILTIN_MEMBERS on purpose: it must not hold a
