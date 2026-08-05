@@ -258,10 +258,9 @@ try {
   conn.disconnectSync();
   inst.closeSync();
   const staged = fs.existsSync(extStageDir)
-    ? execSync(`find "${extStageDir}" -name '*.duckdb_extension'`, { encoding: 'utf8' })
-        .trim()
-        .split('\n')
-        .filter(Boolean)
+    ? fs.readdirSync(extStageDir, { recursive: true })
+        .filter((f) => f.endsWith('.duckdb_extension'))
+        .map((f) => path.join(extStageDir, f))
     : [];
   if (!staged.length) throw new Error('no extension file produced');
   const missing = DUCKDB_EXTENSIONS.filter((e) => !staged.some((f) => f.includes(e)));
