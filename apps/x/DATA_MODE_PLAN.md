@@ -1,12 +1,18 @@
 # Data Mode — Implementation Plan
 
-> Status: **BUILT AND SHIPPED.** Phases 0-5 implemented, including the brain
-> graph write-back and the renderer surface. 889 unit tests green, 65/65 deep
-> smoke checks green against the built dist in the real Electron 39.2.7 runtime
-> (`pnpm smoke:data-mode`). Working dir: `apps/x`.
+> Status: **BUILT, SHIPPED, AND RELEASED.** Phases 0-5 implemented, including
+> the brain graph write-back and the renderer surface. 889 unit tests green,
+> 65/65 deep smoke checks green against the built dist in the real Electron
+> 39.2.7 runtime (`pnpm smoke:data-mode`). Working dir: `apps/x`.
+>
+> **[v0.2.0](https://github.com/SajmustafaKe/Dhow/releases/tag/v0.2.0)** is
+> published (prerelease channel) with signed-or-best-effort installers for
+> macOS (arm64+x64), Windows, and Linux (deb/rpm/zip), built by
+> `.github/workflows/electron-build.yml`.
 >
 > **Three things reality changed while building Phases 0-4. See §11 before
-> trusting §3 or §5.** §11.5 records what closed the remaining gaps.
+> trusting §3 or §5.** §11.5 records what closed the remaining gaps, §11.6
+> records what the release pipeline itself caught.
 
 ## 1. What we're building
 
@@ -563,3 +569,31 @@ closed, with the evidence that closed it.
   first and falling back to a CDN download only in dev. 9 lines extracted,
   mean confidence 0.91 on the invoice fixture — above the 0.8 LLM-escalation
   threshold, so the path resolves without touching the network.
+
+### 11.6 The release pipeline caught what local testing couldn't
+
+§11.5's OCR entry above was exercised by *forcing* the Windows/Linux code
+path to run on macOS. That is not the same as actually building on Windows,
+and it missed a real bug: `bundle.mjs`'s DuckDB extension-staging step
+shelled out to `find "$dir" -name '*.duckdb_extension'` to locate the files
+it had just installed. That's Unix `find(1)`. Windows ships its own
+`find.exe`, built into `cmd.exe`, which searches file **contents** for a
+literal string — completely different tool, same name. It silently matched
+nothing, and the existing fail-closed check (`httpfs is required for
+encrypted-at-rest storage; this build would ship broken`) correctly killed
+the build rather than shipping a broken installer.
+
+Caught by v0.2.0's own release run: `build-macos` and `build-linux`
+succeeded, `build-windows` failed at that exact line
+(`.github/workflows/electron-build.yml` runs all three in parallel from one
+release event). Fixed by replacing the shell-out with a pure-JS
+`fs.readdirSync(dir, { recursive: true })` walk — no shell, no platform
+divergence — verified locally against the real staged extension tree, then
+re-verified by the same CI pipeline succeeding on all three platforms for
+the re-cut v0.2.0.
+
+This is the concrete version of what §11.5's OCR note was honest about:
+**"exercised" on macOS is not "tested" on Windows.** The only thing that
+actually tests Windows packaging is building on Windows, which only CI can
+do from here. Treat any future `bundle.mjs` change touching `execSync` as
+suspect until it has run through this pipeline at least once.
