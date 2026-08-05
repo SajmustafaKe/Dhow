@@ -11,6 +11,7 @@ import {
     newAssignmentId,
     saveAssignment,
 } from './store.js';
+import { isUnfulfilledPromise, unfulfilledPromiseReason } from './promise.js';
 
 /**
  * Assignment lifecycle.
@@ -53,9 +54,17 @@ export async function dispatchAssignment(id: string): Promise<Assignment> {
         // and listing or updating assignments must not pay for it.
         const { runAssignment } = await import('./run.js');
         const result = await runAssignment(member, existing);
+
+        // A member who narrated an approach instead of doing the work has
+        // stalled, and this file's own rule is that a stall keeps its place
+        // in the tree with a reason attached rather than being quietly
+        // forgotten. `result` is kept either way — the principal still needs
+        // to read what came back to judge it.
+        const promised = isUnfulfilledPromise(result);
         const done = AssignmentSchema.parse({
             ...existing,
-            status: 'in_progress',
+            status: promised ? 'blocked' : 'in_progress',
+            blockedReason: promised ? unfulfilledPromiseReason(member.title) : null,
             result,
             dispatchedAt: now,
             updatedAt: new Date().toISOString(),
